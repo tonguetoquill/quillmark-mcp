@@ -81,7 +81,7 @@ Example strategies:
 
 Constructor injection keeps it simple. If a consumer needs complex output routing, they implement the interface.
 
-Delivery strategy is the only extension point. Source, schema formatting, and validation are internal concerns — not configurable by consumers for now.
+Delivery strategy is the only extension point. Source and validation are internal concerns — not configurable by consumers for now. TOON schema formatting is a permanent internal decision, not an extension point.
 
 ## Initialization
 
