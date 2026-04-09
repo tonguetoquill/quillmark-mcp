@@ -1,0 +1,31 @@
+{
+  "name": "quillmark-mcp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test",
+    "start": "node src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nibsbin/quillmark-mcp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/nibsbin/quillmark-mcp/issues"
+  },
+  "homepage": "https://github.com/nibsbin/quillmark-mcp#readme",
+  "engines": {
+    "node": ">=25.0.0"
+  },
+  "dependencies": {
+    "@quillmark/registry": "^0.12.0",
+    "@quillmark/wasm": "^0.51.1",
+    "@toon-format/toon": "^2.1.0",
+    "fastmcp": "3.35"
+  }
+}
