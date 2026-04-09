@@ -61,14 +61,19 @@ describe('listQuills', () => {
 
     const result = await listQuills(registry);
 
+    assert.strictEqual(result[0].name, 'a');
+    assert.strictEqual(result[0].description, 'desc');
     assert.strictEqual(typeof result[0].name, 'string');
     assert.strictEqual(typeof result[0].description, 'string');
     assert.strictEqual(typeof result[1].name, 'string');
     assert.strictEqual(typeof result[1].description, 'string');
     assert.strictEqual(result[1].name, 'b');
     assert.strictEqual(result[1].description, '');
+    assert.strictEqual(result[2].name, 'c');
     assert.strictEqual(result[2].description, '');
+    assert.strictEqual(result[3].name, 'd');
     assert.strictEqual(result[3].description, '');
+    assert.strictEqual(result[4].name, 'e');
     assert.strictEqual(result[4].description, '');
   });
 });
