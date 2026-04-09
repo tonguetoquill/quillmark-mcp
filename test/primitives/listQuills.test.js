@@ -46,7 +46,7 @@ describe('listQuills', () => {
     assert.deepStrictEqual(result, []);
   });
 
-  it('always returns items with string name and description', async () => {
+  it('normalizes non-string descriptions to empty strings', async () => {
     const registry = {
       async getAvailableQuills() {
         return [
@@ -61,12 +61,13 @@ describe('listQuills', () => {
 
     const result = await listQuills(registry);
 
+    assert.ok(
+      result.every(
+        (item) => typeof item.name === 'string' && typeof item.description === 'string',
+      ),
+    );
     assert.strictEqual(result[0].name, 'a');
     assert.strictEqual(result[0].description, 'desc');
-    assert.strictEqual(typeof result[0].name, 'string');
-    assert.strictEqual(typeof result[0].description, 'string');
-    assert.strictEqual(typeof result[1].name, 'string');
-    assert.strictEqual(typeof result[1].description, 'string');
     assert.strictEqual(result[1].name, 'b');
     assert.strictEqual(result[1].description, '');
     assert.strictEqual(result[2].name, 'c');
