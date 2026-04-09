@@ -11,6 +11,7 @@ export async function listQuills(registry) {
       description: typeof quill.description === 'string' ? quill.description : '',
     }));
   } catch {
+    // Intentionally return a safe empty result to keep the primitive non-throwing.
     return [];
   }
 }

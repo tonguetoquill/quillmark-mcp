@@ -62,6 +62,7 @@ describe('listQuills', () => {
     assert.strictEqual(typeof result[0].description, 'string');
     assert.strictEqual(typeof result[1].name, 'string');
     assert.strictEqual(typeof result[1].description, 'string');
+    assert.strictEqual(result[1].name, 'b');
     assert.strictEqual(result[1].description, '');
   });
 });
