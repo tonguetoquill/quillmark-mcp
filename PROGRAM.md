@@ -42,12 +42,28 @@ Creates a Quill document.
 Input:
 - content: string -- markdown content to render with Quillmark
 
-Returns JSON object with: 
-- Status of create_document call
-- Errors (optional)
-- Link to artifact (optional)
+Returns JSON object with:
+- status: string
+- url: string -- link to the created document
+- errors: array (optional)
 
-{{Open questions: Different library consumers will do different things. For example, web consumers can pipe the content into their own interface and return a document link to the LLM. Other workflows could involves automatically rendering with Quillmark and returning a direct URL download. Should we make create_document abstract or composable?}}
+The AI agent always receives a URL. It has no use for raw buffers or content strings -- its job is to hand the end user a link.
+
+#### Delivery Strategy (abstract)
+
+How that URL is produced varies by consumer. `create_document` delegates to an abstract delivery strategy injected at construction time:
+
+```
+validate(quill, content) → strategy.handle(quill, validatedContent) → url
+```
+
+Validation is always in the core path. The strategy decides everything else -- whether to render locally, delegate to an external service, or just pass content through.
+
+Example strategies:
+- **PassThroughStrategy**: sends structured content to the consumer's own service, which renders and returns a URL.
+- **RenderAndHostStrategy**: renders via @quillmark/wasm, serves the artifact, returns a direct download URL. This is the default out-of-the-box MCP strategy (PDF download).
+
+Constructor injection keeps it simple. If a consumer needs complex output routing, they implement the interface.
 
 ## AI Agent Journeys
 
