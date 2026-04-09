@@ -52,6 +52,9 @@ describe('listQuills', () => {
         return [
           { name: 'a', description: 'desc' },
           { name: 'b' },
+          { name: 'c', description: null },
+          { name: 'd', description: 42 },
+          { name: 'e', description: { text: 'nope' } },
         ];
       },
     };
@@ -64,5 +67,8 @@ describe('listQuills', () => {
     assert.strictEqual(typeof result[1].description, 'string');
     assert.strictEqual(result[1].name, 'b');
     assert.strictEqual(result[1].description, '');
+    assert.strictEqual(result[2].description, '');
+    assert.strictEqual(result[3].description, '');
+    assert.strictEqual(result[4].description, '');
   });
 });
