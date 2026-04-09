@@ -11,6 +11,7 @@ This is a high-level design doc.
 - built-in node:test runner for unit tests
 - @quillmark/wasm@0.51.1, the core document rendering library
 - @quillmark/registry, for packing, loading, and managing collections of quills
+- @toon-format/toon, for encoding JSON schemas into a token-efficient format for LLM consumers
 
 ## Philosophy
 
@@ -19,7 +20,7 @@ This is a high-level design doc.
 
 ## Primitives
 
-{{What primitives should we create to support our tools?}}
+Deferred. Focus on high-level tool design first, then derive primitives from what the tools actually need.
 
 ## Tools
 
@@ -27,43 +28,65 @@ This is a high-level design doc.
 
 Lists each Quill format's name and description. Should only be called by agent when it doesn't know which Quill to use (e.g., Quill is not specified in instructions at higher layer). 
 
-{{Should we expose a search tool in addition to or instead of list_quills? Or maybe have a simple optional string filter that matches against title and description? Or keywords/tags?}}
-
 For now, design for 10-20 quills. Defer scalable browsing design for way later.
+
+This tool does not throw. If no quills are available, it returns an empty list.
 
 ### get_specs
 
-Gets the schema and instructions for a particular Quill. @quillmark/wasm returns jsonschema objects. We should convert to TOON before serving to AI user.
+Gets the schema and instructions for a particular Quill. @quillmark/wasm returns jsonschema objects. We convert to TOON (via @toon-format/toon) before serving to AI user to minimize token consumption.
+
+Throws if the quill reference is invalid or unavailable.
 
 ### create_document
 
 Creates a Quill document.
 
 Input:
-- content: string -- markdown content to render with Quillmark
+- content: string -- the full Quillmark document including YAML frontmatter and markdown body. The `QUILL:` field must be present in the frontmatter. If omitted, the tool returns an error so the AI agent can repair the content.
 
 Returns JSON object with:
 - status: string
-- url: string -- link to the created document
+- url: string (optional) -- link to the created document
 - errors: array (optional)
 
-The AI agent always receives a URL. It has no use for raw buffers or content strings -- its job is to hand the end user a link.
+The core quillmark-mcp layer is not aware of rendering. It validates, parses the quill reference from content, and delegates to a delivery strategy. Rendering is always a side effect handled by the strategy -- the tool only returns status, optional errors, and an optional link.
 
 #### Delivery Strategy (abstract)
 
 How that URL is produced varies by consumer. `create_document` delegates to an abstract delivery strategy injected at construction time:
 
 ```
-validate(quill, content) → strategy.handle(quill, validatedContent) → url
+validate(quill, content) → strategy.handle(quill, validatedContent) → { status, url?, errors? }
 ```
 
 Validation is always in the core path. The strategy decides everything else -- whether to render locally, delegate to an external service, or just pass content through.
 
 Example strategies:
 - **PassThroughStrategy**: sends structured content to the consumer's own service, which renders and returns a URL.
-- **RenderAndHostStrategy**: renders via @quillmark/wasm, serves the artifact, returns a direct download URL. This is the default out-of-the-box MCP strategy (PDF download).
+- **RenderAndHostStrategy**: renders via @quillmark/wasm, serves the artifact, returns a direct download URL. This is the plug-and-play example strategy (PDF download).
 
 Constructor injection keeps it simple. If a consumer needs complex output routing, they implement the interface.
+
+{{Bookmark: revisit delineation between core layer and strategy. Need to think more about the abstraction/extensibility pattern.}}
+
+## Initialization
+
+@quillmark/wasm engine and quills are initialized eagerly at startup. Use FileSystemSource from @quillmark/registry for now.
+
+{{Bookmark: revisit source abstraction and extensibility later.}}
+
+## Error Handling
+
+Surface all errors to the AI agent for debugging. The intention is to give agents enough feedback to self-repair. Don't hide or simplify errors.
+
+- `list_quills`: does not throw. Returns empty list if no quills available.
+- `get_specs`: throws if quill reference is invalid or unavailable.
+- `create_document`: returns structured errors (missing `QUILL:` field, validation failures, strategy failures).
+
+## Testing
+
+KISS. We don't know exactly what we want to build yet, so testing philosophy is minimalism. Use node:test. Write tests only where they provide clear value. Don't over-invest in test infrastructure ahead of stabilized design.
 
 ## AI Agent Journeys
 
@@ -85,6 +108,12 @@ These AI orchestrations use the primitives in the quillmark-mcp package.
 1. Generate products for dynamic LLM-generated wargame simulation. The game engine will orchestrate AI to generate artifacts (news reports, cybersecurity reports, etc.) in real time to surface to end users. {{How will output product flow to users?--Should we support direct downloads in addition to API send-offs?}}
 2. Document automation: metrics are piped into an AI workflow to generate a formatted report every week. Sent or integrated in PowerAuotomate via consumer's custom logic.
 
+## Package Architecture
+
+{{Bookmark: discuss entrypoint structure and how consumers import primitives vs. start the MCP server.}}
+
 ## References
 
 - [Quillmark docs](https://quillmark.readthedocs.io/en/latest/)
+- [@toon-format/toon](https://www.npmjs.com/package/@toon-format/toon)
+- [@quillmark/registry](https://github.com/nibsbin/quillmark-registry)
