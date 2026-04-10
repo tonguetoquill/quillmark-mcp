@@ -3,12 +3,19 @@
   "version": "1.0.0",
   "description": "",
   "main": "./src/index.js",
+  "bin": {
+    "quillmark-mcp": "./src/bin.js"
+  },
   "exports": {
     ".": "./src/index.js",
     "./primitives": "./src/primitives/index.js",
     "./strategies": "./src/strategies/index.js",
     "./mcp": "./src/mcp/index.js"
   },
+  "files": [
+    "src/",
+    "quills/"
+  ],
   "scripts": {
     "test": "node --test",
     "start": "node src/index.js"
