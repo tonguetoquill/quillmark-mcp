@@ -3,9 +3,8 @@ import assert from 'node:assert/strict';
 
 import { QuillmarkMCP } from '../../src/mcp/QuillmarkMCP.js';
 
-class FakeFastMCP {
-  constructor(options) {
-    this.options = options;
+class FakeServer {
+  constructor() {
     this.tools = [];
     this.startOptions = undefined;
   }
@@ -21,24 +20,15 @@ class FakeFastMCP {
   async stop() {}
 }
 
-class FakeFileSystemSource {
-  constructor(quillsDir) {
-    this.quillsDir = quillsDir;
-  }
-}
-
-class FakeQuillmark {
+class FakeRegistry {
   constructor() {
-    this.id = 'fake-engine';
-  }
-}
-
-class FakeQuillRegistry {
-  constructor({ source, engine }) {
-    this.source = source;
-    this.engine = engine;
     this.available = [];
     this.resolvedRefs = [];
+    this.engine = {
+      getStrippedSchema: () => ({ type: 'object', properties: {} }),
+      getQuillInfo: () => ({ example: 'Write like this.' }),
+      dryRun: () => {},
+    };
   }
 
   async getAvailableQuills() {
@@ -51,121 +41,99 @@ class FakeQuillRegistry {
   }
 }
 
-function makeServer(overrides = {}) {
-  const calls = {
-    listQuills: [],
-    getSpecs: [],
-    createDocument: [],
-    initCount: 0,
-  };
-
-  const strategy = {
-    async handle() {
-      return { status: 'success', url: 'https://example.com/output.pdf' };
-    },
-  };
-
-  const server = new QuillmarkMCP({
-    quillsDir: '/tmp/quills',
-    strategy,
-    deps: {
-      FastMCPClass: FakeFastMCP,
-      FileSystemSourceClass: FakeFileSystemSource,
-      QuillRegistryClass: FakeQuillRegistry,
-      QuillmarkClass: FakeQuillmark,
-      initWasm: () => {
-        calls.initCount += 1;
-      },
-      primitives: {
-        listQuills: async (registry) => {
-          calls.listQuills.push({ registry });
-          return [{ name: 'usaf_memo', description: 'memo' }];
-        },
-        getSpecs: async (registry, ref) => {
-          calls.getSpecs.push({ registry, ref });
-          return { schema: 'TOON', instructions: 'write this way' };
-        },
-        createDocument: async (registry, passedStrategy, content) => {
-          calls.createDocument.push({ registry, strategy: passedStrategy, content });
-          return { status: 'success', url: 'https://example.com/doc.pdf' };
-        },
-      },
-      ...overrides,
-    },
-  });
-
-  return { server, calls, strategy };
+function make() {
+  const registry = new FakeRegistry();
+  const strategy = { async handle() { return { status: 'success', url: 'https://example.com/out.pdf' }; } };
+  const server = new FakeServer();
+  const mcp = new QuillmarkMCP({ registry, strategy, server });
+  return { mcp, registry, strategy, server };
 }
 
 describe('QuillmarkMCP', () => {
-  it('constructor creates instance', () => {
-    const { server } = makeServer();
-
-    assert.ok(server);
-    assert.strictEqual(server.server.options.name, 'Quillmark');
-    assert.strictEqual(server.server.options.version, '1.0.0');
-  });
-
   it('registers list_quills tool with expected metadata', () => {
-    const { server } = makeServer();
+    const { server } = make();
 
-    const tool = server.server.tools.find((candidate) => candidate.name === 'list_quills');
+    const tool = server.tools.find((t) => t.name === 'list_quills');
     assert.ok(tool);
     assert.match(tool.description, /List available Quills with names and descriptions/);
     assert.strictEqual(tool.parameters, undefined);
   });
 
   it('registers get_specs tool with parameter schema', () => {
-    const { server } = makeServer();
+    const { server } = make();
 
-    const tool = server.server.tools.find((candidate) => candidate.name === 'get_specs');
+    const tool = server.tools.find((t) => t.name === 'get_specs');
     assert.ok(tool);
     assert.match(tool.description, /Get the schema and authoring instructions for a specific Quill/);
-    assert.equal(typeof tool.parameters.parse, 'function');
     assert.deepStrictEqual(tool.parameters.parse({ ref: 'usaf_memo' }), { ref: 'usaf_memo' });
     assert.throws(() => tool.parameters.parse({}), /Invalid input/);
   });
 
   it('registers create_document tool with parameter schema', () => {
-    const { server } = makeServer();
+    const { server } = make();
 
-    const tool = server.server.tools.find((candidate) => candidate.name === 'create_document');
+    const tool = server.tools.find((t) => t.name === 'create_document');
     assert.ok(tool);
     assert.match(tool.description, /Create a document from Quillmark content/);
-    assert.equal(typeof tool.parameters.parse, 'function');
     assert.deepStrictEqual(tool.parameters.parse({ content: '---\nQUILL: q\n---\nBody' }), {
       content: '---\nQUILL: q\n---\nBody',
     });
     assert.throws(() => tool.parameters.parse({}), /Invalid input/);
   });
 
-  it('tool handlers delegate to primitives and start initializes lifecycle', async () => {
-    const { server, calls, strategy } = makeServer();
-
-    server.registry.available = [
-      { name: 'usaf_memo', version: '1.0.0' },
-      { name: 'resume', version: '2.0.0' },
+  it('list_quills tool returns quill metadata from registry', async () => {
+    const { server, registry } = make();
+    registry.available = [
+      { name: 'usaf_memo', description: 'USAF memo format' },
+      { name: 'resume' },
     ];
 
-    const listTool = server.server.tools.find((candidate) => candidate.name === 'list_quills');
-    const specsTool = server.server.tools.find((candidate) => candidate.name === 'get_specs');
-    const createTool = server.server.tools.find((candidate) => candidate.name === 'create_document');
+    const tool = server.tools.find((t) => t.name === 'list_quills');
+    const result = await tool.execute({});
 
-    await listTool.execute({});
-    await specsTool.execute({ ref: 'usaf_memo' });
-    await createTool.execute({ content: '---\nQUILL: usaf_memo\n---\nBody' });
+    assert.deepStrictEqual(result, [
+      { name: 'usaf_memo', description: 'USAF memo format' },
+      { name: 'resume', description: '' },
+    ]);
+  });
 
-    assert.strictEqual(calls.listQuills.length, 1);
-    assert.strictEqual(calls.getSpecs.length, 1);
-    assert.deepStrictEqual(calls.getSpecs[0].ref, 'usaf_memo');
-    assert.strictEqual(calls.createDocument.length, 1);
-    assert.strictEqual(calls.createDocument[0].strategy, strategy);
-    assert.strictEqual(calls.createDocument[0].content, '---\nQUILL: usaf_memo\n---\nBody');
+  it('get_specs tool returns schema and instructions for a valid ref', async () => {
+    const { server } = make();
 
-    await server.start({ transportType: 'stdio' });
+    const tool = server.tools.find((t) => t.name === 'get_specs');
+    const result = await tool.execute({ ref: 'usaf_memo' });
 
-    assert.strictEqual(calls.initCount, 1);
-    assert.deepStrictEqual(server.registry.resolvedRefs, ['usaf_memo@1.0.0', 'resume@2.0.0']);
-    assert.deepStrictEqual(server.server.startOptions, { transportType: 'stdio' });
+    assert.equal(typeof result.schema, 'string');
+    assert.equal(result.instructions, 'Write like this.');
+  });
+
+  it('create_document tool delegates to strategy and returns result', async () => {
+    const { server, strategy } = make();
+    let capturedArgs;
+    strategy.handle = async (quill, content) => {
+      capturedArgs = { quill, content };
+      return { status: 'success', url: 'https://example.com/doc.pdf' };
+    };
+
+    const tool = server.tools.find((t) => t.name === 'create_document');
+    const result = await tool.execute({ content: '---\nQUILL: usaf_memo\n---\nBody' });
+
+    assert.deepStrictEqual(result, { status: 'success', url: 'https://example.com/doc.pdf' });
+    assert.equal(capturedArgs.quill.name, 'usaf_memo');
+    assert.match(capturedArgs.content, /QUILL: usaf_memo/);
+  });
+
+  it('start preloads all available quills then starts the server', async () => {
+    const { mcp, registry, server } = make();
+    registry.available = [
+      { name: 'usaf_memo', version: '1.0.0' },
+      { name: 'resume', version: '2.0.0' },
+      { name: 'bare' },
+    ];
+
+    await mcp.start({ transportType: 'stdio' });
+
+    assert.deepStrictEqual(registry.resolvedRefs, ['usaf_memo@1.0.0', 'resume@2.0.0', 'bare']);
+    assert.deepStrictEqual(server.startOptions, { transportType: 'stdio' });
   });
 });

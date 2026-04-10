@@ -32,7 +32,7 @@ describe('bin', () => {
   it('starts MCP with parsed options', async () => {
     let strategyOptions;
     let started = false;
-    let constructorOptions;
+    let createMCPOptions;
 
     class FakeStrategy {
       constructor(options) {
@@ -40,21 +40,14 @@ describe('bin', () => {
       }
     }
 
-    class FakeMCP {
-      constructor(options) {
-        constructorOptions = options;
-      }
-
-      async start() {
-        started = true;
-      }
-    }
-
     await main(['--quills-dir', 'quills', '--output-dir', 'out', '--base-url', 'https://host/base'], {
       cwd: '/workspace',
       exists: () => true,
       StrategyClass: FakeStrategy,
-      MCPClass: FakeMCP,
+      createMCP: (options) => {
+        createMCPOptions = options;
+        return { async start() { started = true; } };
+      },
     });
 
     assert.deepEqual(strategyOptions, {
@@ -62,8 +55,8 @@ describe('bin', () => {
       baseUrl: 'https://host/base',
     });
 
-    assert.equal(constructorOptions.quillsDir, path.resolve('/workspace', 'quills'));
-    assert.ok(constructorOptions.strategy instanceof FakeStrategy);
+    assert.equal(createMCPOptions.quillsDir, path.resolve('/workspace', 'quills'));
+    assert.ok(createMCPOptions.strategy instanceof FakeStrategy);
     assert.equal(started, true);
   });
 });

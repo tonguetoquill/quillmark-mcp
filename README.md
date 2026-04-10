@@ -17,20 +17,22 @@ npm install quillmark-mcp
 ### Plug-and-play MCP server
 
 ```js
-import { QuillmarkMCP, PassThroughStrategy } from 'quillmark-mcp';
+import { createDefaultMCP, PassThroughStrategy } from 'quillmark-mcp';
 
 const strategy = new PassThroughStrategy(async (quill, content) => {
   // deliver content to your service, return { status, url?, errors? }
   return { status: 'ok', url: 'https://example.com/doc/123' };
 });
 
-const mcp = new QuillmarkMCP({
-  quillsDir: './quills',
-  strategy,
-});
-
+const mcp = createDefaultMCP({ quillsDir: './quills', strategy });
 await mcp.start(); // stdio by default
 ```
+
+### Custom MCP server
+
+`QuillmarkMCP` is the base class: it takes a pre-built `{ registry, strategy, server }` and registers Quillmark tools on the server. Use it when you need to swap the registry, server, or add your own tools.
+
+See [`src/mcp/createDefaultMCP.js`](src/mcp/createDefaultMCP.js) for the reference wiring — copy it as a starting point and replace pieces as needed.
 
 ### Composable primitives
 

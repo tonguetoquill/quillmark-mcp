@@ -7,6 +7,7 @@ import { Quillmark, init } from '@quillmark/wasm';
 
 import {
   QuillmarkMCP,
+  createDefaultMCP,
   createDocument,
   getSpecs,
   listQuills,
@@ -84,8 +85,18 @@ describe('integration', () => {
     });
   });
 
+  it('createDefaultMCP wires up the default stack against real fixtures', () => {
+    const strategy = new PassThroughStrategy(async () => ({ status: 'success' }));
+    const mcp = createDefaultMCP({ quillsDir: FIXTURE_QUILLS_DIR, strategy });
+
+    assert.ok(mcp instanceof QuillmarkMCP);
+    assert.equal(mcp.strategy, strategy);
+    assert.ok(typeof mcp.registry.resolve === 'function');
+  });
+
   it('exposes root and subpath exports', async () => {
     assert.equal(typeof QuillmarkMCP, 'function');
+    assert.equal(typeof createDefaultMCP, 'function');
     assert.equal(typeof listQuills, 'function');
     assert.equal(typeof getSpecs, 'function');
     assert.equal(typeof createDocument, 'function');
@@ -98,8 +109,10 @@ describe('integration', () => {
     const mcp = await import('quillmark-mcp/mcp');
 
     assert.equal(typeof root.QuillmarkMCP, 'function');
+    assert.equal(typeof root.createDefaultMCP, 'function');
     assert.equal(typeof primitives.listQuills, 'function');
     assert.equal(typeof strategies.PassThroughStrategy, 'function');
     assert.equal(typeof mcp.QuillmarkMCP, 'function');
+    assert.equal(typeof mcp.createDefaultMCP, 'function');
   });
 });

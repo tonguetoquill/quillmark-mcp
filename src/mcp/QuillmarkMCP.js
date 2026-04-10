@@ -1,6 +1,3 @@
-import { FileSystemSource, QuillRegistry } from '@quillmark/registry';
-import { Quillmark, init } from '@quillmark/wasm';
-import { FastMCP } from 'fastmcp';
 import { z } from 'zod';
 
 import { createDocument, getSpecs, listQuills } from '../primitives/index.js';
@@ -9,56 +6,30 @@ const LIST_QUILLS_DESCRIPTION = 'List available Quills with names and descriptio
 const GET_SPECS_DESCRIPTION = 'Get the schema and authoring instructions for a specific Quill. Returns a TOON-encoded schema (token-efficient for LLM consumption) and authoring instructions from the Quill itself. Use the returned schema to structure your content and follow the authoring instructions for content guidance.';
 const CREATE_DOCUMENT_DESCRIPTION = 'Create a document from Quillmark content. Input must be a string containing YAML frontmatter with a QUILL: field and a markdown body. If QUILL: is missing from frontmatter, returns an error with guidance — fix the content and retry. Returns { status, url?, errors? }.';
 
-/**
- * @typedef {{
- *   FastMCPClass?: typeof FastMCP,
- *   FileSystemSourceClass?: typeof FileSystemSource,
- *   QuillRegistryClass?: typeof QuillRegistry,
- *   QuillmarkClass?: typeof Quillmark,
- *   initWasm?: () => void,
- *   primitives?: {
- *     listQuills?: typeof listQuills,
- *     getSpecs?: typeof getSpecs,
- *     createDocument?: typeof createDocument,
- *   },
- * }} QuillmarkMCPDeps
- */
-
 export class QuillmarkMCP {
   /**
-   * @param {{ quillsDir: string, strategy: { handle: (quill: object, content: string) => Promise<{ status: string, url?: string, errors?: Array<{ message: string }> }> }, server?: { name?: string, version?: `${number}.${number}.${number}` }, deps?: QuillmarkMCPDeps }} options
+   * @param {{
+   *   registry: object,
+   *   strategy: { handle: (quill: object, content: string) => Promise<{ status: string, url?: string, errors?: Array<{ message: string }> }> },
+   *   server: { addTool: (tool: object) => void, start: (options?: object) => Promise<void>, stop: () => Promise<void> },
+   * }} options
    */
-  constructor(options) {
-    if (typeof options?.quillsDir !== 'string' || options.quillsDir.trim() === '') {
-      throw new TypeError('QuillmarkMCP requires a non-empty quillsDir option.');
+  constructor({ registry, strategy, server }) {
+    if (!registry || typeof registry.resolve !== 'function') {
+      throw new TypeError('QuillmarkMCP requires a registry with a resolve() method.');
     }
 
-    if (!options.strategy || typeof options.strategy.handle !== 'function') {
+    if (!strategy || typeof strategy.handle !== 'function') {
       throw new TypeError('QuillmarkMCP requires a delivery strategy with a handle() method.');
     }
 
-    const deps = options.deps ?? {};
-    const FastMCPClass = deps.FastMCPClass ?? FastMCP;
-    const FileSystemSourceClass = deps.FileSystemSourceClass ?? FileSystemSource;
-    const QuillRegistryClass = deps.QuillRegistryClass ?? QuillRegistry;
-    const QuillmarkClass = deps.QuillmarkClass ?? Quillmark;
+    if (!server || typeof server.addTool !== 'function') {
+      throw new TypeError('QuillmarkMCP requires a server with an addTool() method.');
+    }
 
-    this.initWasm = deps.initWasm ?? init;
-    this.primitives = {
-      listQuills: deps.primitives?.listQuills ?? listQuills,
-      getSpecs: deps.primitives?.getSpecs ?? getSpecs,
-      createDocument: deps.primitives?.createDocument ?? createDocument,
-    };
-
-    this.strategy = options.strategy;
-    this.engine = new QuillmarkClass();
-    this.source = new FileSystemSourceClass(options.quillsDir);
-    this.registry = new QuillRegistryClass({ source: this.source, engine: this.engine });
-
-    this.server = new FastMCPClass({
-      name: options.server?.name ?? 'Quillmark',
-      version: options.server?.version ?? '1.0.0',
-    });
+    this.registry = registry;
+    this.strategy = strategy;
+    this.server = server;
 
     this.registerTools();
   }
@@ -67,7 +38,7 @@ export class QuillmarkMCP {
     this.server.addTool({
       name: 'list_quills',
       description: LIST_QUILLS_DESCRIPTION,
-      execute: async () => this.primitives.listQuills(this.registry),
+      execute: async () => listQuills(this.registry),
     });
 
     this.server.addTool({
@@ -76,7 +47,7 @@ export class QuillmarkMCP {
       parameters: z.object({
         ref: z.string(),
       }),
-      execute: async ({ ref }) => this.primitives.getSpecs(this.registry, ref),
+      execute: async ({ ref }) => getSpecs(this.registry, ref),
     });
 
     this.server.addTool({
@@ -85,13 +56,11 @@ export class QuillmarkMCP {
       parameters: z.object({
         content: z.string(),
       }),
-      execute: async ({ content }) => this.primitives.createDocument(this.registry, this.strategy, content),
+      execute: async ({ content }) => createDocument(this.registry, this.strategy, content),
     });
   }
 
   async start(startOptions = { transportType: 'stdio' }) {
-    this.initWasm();
-
     const quills = await this.registry.getAvailableQuills();
     await Promise.all(
       quills.map((quill) => {
