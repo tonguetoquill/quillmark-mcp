@@ -56,7 +56,7 @@ export class QuillmarkMCP {
     this.registry = new QuillRegistryClass({ source: this.source, engine: this.engine });
 
     this.server = new FastMCPClass({
-      name: options.server?.name ?? 'Quillmark MCP',
+      name: options.server?.name ?? 'Quillmark',
       version: options.server?.version ?? '1.0.0',
     });
 

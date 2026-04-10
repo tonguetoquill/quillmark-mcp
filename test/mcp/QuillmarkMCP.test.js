@@ -83,7 +83,7 @@ function makeServer(overrides = {}) {
         },
         getSpecs: async (registry, ref) => {
           calls.getSpecs.push({ registry, ref });
-          return { schema: 'toon', instructions: 'write this way' };
+          return { schema: 'TOON', instructions: 'write this way' };
         },
         createDocument: async (registry, passedStrategy, content) => {
           calls.createDocument.push({ registry, strategy: passedStrategy, content });
@@ -102,7 +102,7 @@ describe('QuillmarkMCP', () => {
     const { server } = makeServer();
 
     assert.ok(server);
-    assert.strictEqual(server.server.options.name, 'Quillmark MCP');
+    assert.strictEqual(server.server.options.name, 'Quillmark');
     assert.strictEqual(server.server.options.version, '1.0.0');
   });
 
