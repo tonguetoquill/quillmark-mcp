@@ -1,5 +1,17 @@
 import { encode } from '@toon-format/toon';
 
+function extractInstructions(quillInfo) {
+  if (typeof quillInfo?.example === 'string') {
+    return quillInfo.example;
+  }
+
+  if (typeof quillInfo?.metadata?.instructions === 'string') {
+    return quillInfo.metadata.instructions;
+  }
+
+  return '';
+}
+
 /**
  * @param {{ resolve: (ref: string) => Promise<{ name: string }>, engine?: { getStrippedSchema: (name: string) => unknown, getQuillInfo: (name: string) => { example?: string, metadata?: Record<string, unknown> } } }} registry
  * @param {string} ref - Quill reference identifier
@@ -29,12 +41,9 @@ export async function getSpecs(registry, ref, deps = {}) {
 
   const schemaObject = engine.getStrippedSchema(bundle.name);
   const quillInfo = engine.getQuillInfo(bundle.name);
-  const instructions = typeof quillInfo?.example === 'string'
-    ? quillInfo.example
-    : (typeof quillInfo?.metadata?.instructions === 'string' ? quillInfo.metadata.instructions : '');
 
   return {
     schema: encodeSchema(schemaObject),
-    instructions,
+    instructions: extractInstructions(quillInfo),
   };
 }
