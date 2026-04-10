@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { QuillmarkMCP } from './mcp/index.js';
+import { createDefaultMCP } from './mcp/index.js';
 import { RenderAndHostStrategy } from './strategies/index.js';
 
 export function resolveQuillsDir(quillsDir, cwd = process.cwd()) {
@@ -20,7 +20,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
       process.exitCode = code;
     },
     StrategyClass = RenderAndHostStrategy,
-    MCPClass = QuillmarkMCP,
+    createMCP = createDefaultMCP,
   } = deps;
 
   const { values } = parseArgs({
@@ -44,7 +44,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
     baseUrl: values['base-url'],
   });
 
-  const mcp = new MCPClass({ quillsDir, strategy });
+  const mcp = createMCP({ quillsDir, strategy });
   await mcp.start();
 }
 
