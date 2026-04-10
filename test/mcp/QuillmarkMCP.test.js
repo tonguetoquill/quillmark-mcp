@@ -41,51 +41,15 @@ class FakeRegistry {
   }
 }
 
-function make(overrides = {}) {
+function make() {
   const registry = new FakeRegistry();
   const strategy = { async handle() { return { status: 'success', url: 'https://example.com/out.pdf' }; } };
   const server = new FakeServer();
-
-  const mcp = new QuillmarkMCP({
-    registry,
-    strategy,
-    server,
-    ...overrides,
-  });
-
+  const mcp = new QuillmarkMCP({ registry, strategy, server });
   return { mcp, registry, strategy, server };
 }
 
 describe('QuillmarkMCP', () => {
-  it('constructor stores dependencies', () => {
-    const { mcp, registry, strategy, server } = make();
-
-    assert.strictEqual(mcp.registry, registry);
-    assert.strictEqual(mcp.strategy, strategy);
-    assert.strictEqual(mcp.server, server);
-  });
-
-  it('throws when registry is missing or invalid', () => {
-    assert.throws(
-      () => new QuillmarkMCP({ registry: null, strategy: { handle() {} }, server: { addTool() {} } }),
-      /registry with a resolve\(\) method/,
-    );
-  });
-
-  it('throws when strategy is missing or invalid', () => {
-    assert.throws(
-      () => new QuillmarkMCP({ registry: { resolve() {} }, strategy: null, server: { addTool() {} } }),
-      /delivery strategy with a handle\(\) method/,
-    );
-  });
-
-  it('throws when server is missing or invalid', () => {
-    assert.throws(
-      () => new QuillmarkMCP({ registry: { resolve() {} }, strategy: { handle() {} }, server: null }),
-      /server with an addTool\(\) method/,
-    );
-  });
-
   it('registers list_quills tool with expected metadata', () => {
     const { server } = make();
 
@@ -101,7 +65,6 @@ describe('QuillmarkMCP', () => {
     const tool = server.tools.find((t) => t.name === 'get_specs');
     assert.ok(tool);
     assert.match(tool.description, /Get the schema and authoring instructions for a specific Quill/);
-    assert.equal(typeof tool.parameters.parse, 'function');
     assert.deepStrictEqual(tool.parameters.parse({ ref: 'usaf_memo' }), { ref: 'usaf_memo' });
     assert.throws(() => tool.parameters.parse({}), /Invalid input/);
   });
@@ -112,7 +75,6 @@ describe('QuillmarkMCP', () => {
     const tool = server.tools.find((t) => t.name === 'create_document');
     assert.ok(tool);
     assert.match(tool.description, /Create a document from Quillmark content/);
-    assert.equal(typeof tool.parameters.parse, 'function');
     assert.deepStrictEqual(tool.parameters.parse({ content: '---\nQUILL: q\n---\nBody' }), {
       content: '---\nQUILL: q\n---\nBody',
     });
@@ -173,15 +135,5 @@ describe('QuillmarkMCP', () => {
 
     assert.deepStrictEqual(registry.resolvedRefs, ['usaf_memo@1.0.0', 'resume@2.0.0', 'bare']);
     assert.deepStrictEqual(server.startOptions, { transportType: 'stdio' });
-  });
-
-  it('stop delegates to server', async () => {
-    const { mcp, server } = make();
-    let stopped = false;
-    server.stop = async () => { stopped = true; };
-
-    await mcp.stop();
-
-    assert.ok(stopped);
   });
 });

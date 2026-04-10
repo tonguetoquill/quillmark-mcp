@@ -85,6 +85,15 @@ describe('integration', () => {
     });
   });
 
+  it('createDefaultMCP wires up the default stack against real fixtures', () => {
+    const strategy = new PassThroughStrategy(async () => ({ status: 'success' }));
+    const mcp = createDefaultMCP({ quillsDir: FIXTURE_QUILLS_DIR, strategy });
+
+    assert.ok(mcp instanceof QuillmarkMCP);
+    assert.equal(mcp.strategy, strategy);
+    assert.ok(typeof mcp.registry.resolve === 'function');
+  });
+
   it('exposes root and subpath exports', async () => {
     assert.equal(typeof QuillmarkMCP, 'function');
     assert.equal(typeof createDefaultMCP, 'function');
