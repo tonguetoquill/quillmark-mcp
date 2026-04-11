@@ -4,11 +4,7 @@ import path from 'node:path';
 import { Quillmark, init } from '@quillmark/wasm';
 
 import { DeliveryStrategy } from './DeliveryStrategy.js';
-
-function log(message) {
-  const timestamp = new Date().toISOString();
-  console.error(`[${timestamp}] RenderAndHostStrategy: ${message}`);
-}
+import { logger } from '../logger.js';
 
 function extensionFromMimeType(mimeType, fallback) {
   if (mimeType === 'application/pdf') {
@@ -42,16 +38,16 @@ export class RenderAndHostStrategy extends DeliveryStrategy {
 
   async handle(quill, validatedContent) {
     try {
-      log(`Rendering document for quill: ${quill.name} (${validatedContent.length} bytes)`);
+      logger.debug({ quill: quill.name, bytes: validatedContent.length }, 'Rendering document');
 
       const parsed = Quillmark.parseMarkdown(validatedContent);
-      log(`Parsed markdown for ${quill.name}`);
+      logger.debug({ quill: quill.name }, 'Parsed markdown');
 
       const renderResult = this.engine.render(parsed, {
         format: this.format,
         quillRef: quill.name,
       });
-      log(`Rendered to ${this.format} format`);
+      logger.debug({ quill: quill.name, format: this.format }, 'Rendered to format');
 
       const artifact = renderResult?.artifacts?.[0];
       if (!artifact || !artifact.bytes) {
@@ -69,7 +65,7 @@ export class RenderAndHostStrategy extends DeliveryStrategy {
         : Uint8Array.from(artifact.bytes);
 
       await writeFile(outputPath, bytes);
-      log(`Wrote artifact to ${outputPath} (${bytes.length} bytes)`);
+      logger.debug({ path: outputPath, bytes: bytes.length }, 'Artifact written');
 
       let url;
       if (this.baseUrl === 'file://') {
@@ -79,14 +75,14 @@ export class RenderAndHostStrategy extends DeliveryStrategy {
         url = `${normalizedBase}/${fileName}`;
       }
 
-      log(`Document rendering complete: ${url}`);
+      logger.info({ quill: quill.name, url }, 'Document rendered successfully');
       return {
         status: 'success',
         url,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log(`Error rendering document for ${quill.name}: ${message}`);
+      logger.error({ quill: quill.name, error: message }, 'Document rendering failed');
 
       return {
         status: 'error',
