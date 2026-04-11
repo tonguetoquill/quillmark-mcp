@@ -64,7 +64,7 @@ describe('bin', () => {
     assert.ok(createMCPOptions.strategy instanceof FakeStrategy);
     assert.deepEqual(startOptions, {
       transportType: 'httpStream',
-      httpStream: { host: 'localhost', port: 8080, endpoint: '/mcp' },
+      httpStream: { host: 'localhost', port: 8080, endpoint: '/mcp', artifactsDir: 'out' },
     });
     assert.ok(logs.some((l) => l.includes('streamable HTTP')));
     assert.ok(logs.some((l) => l.includes('http://localhost:8080/mcp')));
@@ -89,7 +89,7 @@ it('respects --bind and --endpoint args', async () => {
 
     assert.deepEqual(startOptions, {
       transportType: 'httpStream',
-      httpStream: { host: '0.0.0.0', port: 3000, endpoint: '/api/mcp' },
+      httpStream: { host: '0.0.0.0', port: 3000, endpoint: '/api/mcp', artifactsDir: '.artifacts' },
     });
     assert.ok(logs.some((l) => l.includes('http://0.0.0.0:3000/api/mcp')));
   });

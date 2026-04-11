@@ -1,5 +1,8 @@
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -17,10 +20,51 @@ function stringifyToolResult(result) {
   }
 }
 
+const MIME_TYPES = {
+  '.pdf': 'application/pdf',
+  '.svg': 'image/svg+xml',
+  '.txt': 'text/plain',
+};
+
 function normalizePath(urlPath) {
   return urlPath.endsWith('/') && urlPath.length > 1
     ? urlPath.slice(0, -1)
     : urlPath;
+}
+
+async function serveFile(res, artifactsDir, fileName) {
+  // Reject any path with separators or traversal sequences — filenames only.
+  if (!fileName || fileName.includes('/') || fileName.includes('\\') || fileName.includes('..')) {
+    res.statusCode = 400;
+    res.end('Bad Request');
+    return;
+  }
+
+  const filePath = path.join(artifactsDir, fileName);
+  if (!filePath.startsWith(artifactsDir + path.sep)) {
+    res.statusCode = 403;
+    res.end('Forbidden');
+    return;
+  }
+
+  try {
+    const fileStat = await stat(filePath);
+    const ext = path.extname(fileName).toLowerCase();
+    res.setHeader('Content-Type', MIME_TYPES[ext] ?? 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', fileStat.size);
+    const stream = createReadStream(filePath);
+    await new Promise((resolve, reject) => {
+      stream.on('end', resolve);
+      stream.on('error', reject);
+      stream.pipe(res);
+    });
+  } catch (err) {
+    if (!res.headersSent) {
+      res.statusCode = err.code === 'ENOENT' ? 404 : 500;
+      res.end(err.code === 'ENOENT' ? 'Not Found' : 'Internal Server Error');
+    }
+  }
 }
 
 function normalizeToolArgs(args) {
@@ -78,10 +122,22 @@ export class McpSdkServerAdapter {
       await this.server.connect(transport);
 
       const authToken = startOptions.httpStream?.authToken;
+      const artifactsDir = startOptions.httpStream?.artifactsDir
+        ? path.resolve(startOptions.httpStream.artifactsDir)
+        : null;
+      const artifactsPath = normalizePath(startOptions.httpStream?.artifactsPath ?? '/artifacts');
 
       const httpServer = createServer(async (req, res) => {
         const url = new URL(req.url ?? '/', `http://${host}:${port}`);
-        if (normalizePath(url.pathname) !== endpoint) {
+        const pathname = normalizePath(url.pathname);
+
+        if (artifactsDir && url.pathname.startsWith(artifactsPath + '/')) {
+          const fileName = url.pathname.slice(artifactsPath.length + 1);
+          await serveFile(res, artifactsDir, fileName);
+          return;
+        }
+
+        if (pathname !== endpoint) {
           res.statusCode = 404;
           res.end('Not Found');
           return;

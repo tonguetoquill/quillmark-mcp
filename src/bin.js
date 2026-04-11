@@ -38,7 +38,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
     options: {
       'quills-dir': { type: 'string', default: './quills' },
       'output-dir': { type: 'string', default: '.artifacts' },
-      'base-url': { type: 'string', default: 'file://' },
+      'base-url': { type: 'string', default: '' },
       'bind': { type: 'string', default: 'localhost:8080' },
       'endpoint': { type: 'string', default: '/mcp' },
     },
@@ -51,19 +51,18 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
     return;
   }
 
-  const strategy = new StrategyClass({
-    outputDir: values['output-dir'],
-    baseUrl: values['base-url'],
-  });
+  const { host, port } = parseBind(values.bind);
+  const endpoint = values.endpoint;
+  const outputDir = values['output-dir'];
+  const baseUrl = values['base-url'] || `http://${host}:${port}/artifacts`;
+
+  const strategy = new StrategyClass({ outputDir, baseUrl });
 
   const mcp = await createMCP({ quillsDir, strategy });
 
-  const { host, port } = parseBind(values.bind);
-  const endpoint = values.endpoint;
-
   await mcp.start({
     transportType: 'httpStream',
-    httpStream: { host, port, endpoint },
+    httpStream: { host, port, endpoint, artifactsDir: outputDir },
   });
 
   consoleError(`Transport: streamable HTTP`);
