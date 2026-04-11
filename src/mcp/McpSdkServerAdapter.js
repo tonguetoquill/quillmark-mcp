@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -26,6 +27,13 @@ function normalizeToolArgs(args) {
   return args && typeof args === 'object' ? args : {};
 }
 
+// The MCP spec requires `structuredContent` to be a record (plain object).
+// Arrays and primitives are not allowed, so we only attach it when the
+// tool's return value is a plain object.
+function isPlainRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 export class McpSdkServerAdapter {
   constructor({ name = 'Quillmark', version = '1.0.0' } = {}) {
     this.server = new McpServer({ name, version });
@@ -41,10 +49,13 @@ export class McpSdkServerAdapter {
     this.server.registerTool(tool.name, config, async (args) => {
       const result = await tool.execute(normalizeToolArgs(args));
 
-      return {
+      const response = {
         content: [{ type: 'text', text: stringifyToolResult(result) }],
-        structuredContent: result,
       };
+      if (isPlainRecord(result)) {
+        response.structuredContent = result;
+      }
+      return response;
     });
   }
 
@@ -56,8 +67,13 @@ export class McpSdkServerAdapter {
       const port = startOptions.httpStream?.port ?? 8080;
       const endpoint = normalizePath(startOptions.httpStream?.endpoint ?? '/mcp');
 
-      // Use enableJsonResponse: true for plain JSON responses instead of SSE streams
-      const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true });
+      // Stateful mode: the SDK requires a session generator for a single reusable
+      // transport (stateless mode forbids reuse across requests in @modelcontextprotocol/sdk >=1.29).
+      // enableJsonResponse=true returns plain JSON instead of SSE streams.
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        enableJsonResponse: true,
+      });
 
       await this.server.connect(transport);
 
