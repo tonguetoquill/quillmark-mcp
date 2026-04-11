@@ -43,11 +43,11 @@ export class QuillmarkMCP {
         logger.debug('Tool called: list_quills');
         try {
           const result = await listQuills(this.registry);
-          logger.info({ count: result.length }, 'list_quills completed');
+          logger.info(`list_quills completed (count: ${result.length})`);
           return result;
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          logger.error({ error: message }, 'list_quills failed');
+          logger.error(`list_quills failed: ${message}`);
           throw error;
         }
       },
@@ -60,14 +60,14 @@ export class QuillmarkMCP {
         ref: z.string(),
       }),
       execute: async ({ ref }) => {
-        logger.debug({ ref }, 'Tool called: get_specs');
+        logger.debug(`Tool called: get_specs (ref: ${ref})`);
         try {
           const result = await getSpecs(this.registry, ref);
-          logger.info({ ref }, 'get_specs completed');
+          logger.info(`get_specs completed (ref: ${ref})`);
           return result;
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          logger.error({ ref, error: message }, 'get_specs failed');
+          logger.error(`get_specs failed (ref: ${ref}): ${message}`);
           throw error;
         }
       },
@@ -80,19 +80,19 @@ export class QuillmarkMCP {
         content: z.string(),
       }),
       execute: async ({ content }) => {
-        logger.debug({ bytes: content.length }, 'Tool called: create_document');
+        logger.debug(`Tool called: create_document (bytes: ${content.length})`);
         try {
           const result = await createDocument(this.registry, this.strategy, content);
           if (result.status === 'success') {
-            logger.info({ url: result.url }, 'create_document completed successfully');
+            logger.info(`create_document completed successfully (url: ${result.url})`);
           } else {
             const errorCount = result.errors?.length ?? 0;
-            logger.warn({ errorCount }, 'create_document completed with errors');
+            logger.warn(`create_document completed with errors (count: ${errorCount})`);
           }
           return result;
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          logger.error({ error: message }, 'create_document failed');
+          logger.error(`create_document failed: ${message}`);
           throw error;
         }
       },
@@ -102,11 +102,11 @@ export class QuillmarkMCP {
   async start(startOptions = { transportType: 'stdio' }) {
     logger.info('Initializing Quillmark MCP server');
     const quills = await this.registry.getAvailableQuills();
-    logger.info({ count: quills.length }, 'Discovered Quill formats');
+    logger.info(`Discovered Quill formats (count: ${quills.length})`);
 
     if (quills.length > 0) {
       const formats = quills.map((q) => q.name);
-      logger.debug({ formats }, 'Available Quill formats');
+      logger.debug(`Available Quill formats: ${formats.join(', ')}`);
     }
 
     await Promise.all(
@@ -120,7 +120,7 @@ export class QuillmarkMCP {
     );
 
     logger.debug('Preloaded all Quill formats');
-    logger.info({ transport: startOptions.transportType }, 'Starting MCP server');
+    logger.info(`Starting MCP server (transport: ${startOptions.transportType})`);
     await this.server.start(startOptions);
     logger.info('MCP server started');
   }

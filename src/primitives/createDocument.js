@@ -35,7 +35,11 @@ function getErrorMessage(error) {
     return error.message;
   }
   if (error instanceof Map) {
-    // Format validation errors from Map to readable string
+    // If the Map has a 'message' key, use that (common in validation errors)
+    if (error.has('message')) {
+      return String(error.get('message'));
+    }
+    // Otherwise serialize the Map
     const entries = Array.from(error.entries())
       .map(([key, value]) => `${key}: ${value}`)
       .join('; ');
@@ -103,5 +107,14 @@ export async function createDocument(registry, strategy, content) {
     };
   }
 
-  return strategy.handle(quill, content);
+  const result = await strategy.handle(quill, content);
+
+  // Ensure error messages are properly serialized (handles Maps and other objects)
+  if (result.status === 'error' && result.errors && Array.isArray(result.errors)) {
+    result.errors = result.errors.map((error) => ({
+      message: getErrorMessage(error.message || error),
+    }));
+  }
+
+  return result;
 }

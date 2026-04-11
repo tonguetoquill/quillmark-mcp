@@ -6,6 +6,31 @@ import { Quillmark, init } from '@quillmark/wasm';
 import { DeliveryStrategy } from './DeliveryStrategy.js';
 import { logger } from '../logger.js';
 
+function getErrorMessage(error) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (error instanceof Map) {
+    // If the Map has a 'message' key, use that (common in validation errors)
+    if (error.has('message')) {
+      return String(error.get('message'));
+    }
+    // Otherwise serialize the Map
+    const entries = Array.from(error.entries())
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('; ');
+    return entries || 'Unknown validation error';
+  }
+  if (error && typeof error === 'object') {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error);
+}
+
 function extensionFromMimeType(mimeType, fallback) {
   if (mimeType === 'application/pdf') {
     return 'pdf';
@@ -38,16 +63,16 @@ export class RenderAndHostStrategy extends DeliveryStrategy {
 
   async handle(quill, validatedContent) {
     try {
-      logger.debug({ quill: quill.name, bytes: validatedContent.length }, 'Rendering document');
+      logger.debug(`Rendering document (quill: ${quill.name}, bytes: ${validatedContent.length})`);
 
       const parsed = Quillmark.parseMarkdown(validatedContent);
-      logger.debug({ quill: quill.name }, 'Parsed markdown');
+      logger.debug(`Parsed markdown (quill: ${quill.name})`);
 
       const renderResult = this.engine.render(parsed, {
         format: this.format,
         quillRef: quill.name,
       });
-      logger.debug({ quill: quill.name, format: this.format }, 'Rendered to format');
+      logger.debug(`Rendered to format (quill: ${quill.name}, format: ${this.format})`);
 
       const artifact = renderResult?.artifacts?.[0];
       if (!artifact || !artifact.bytes) {
@@ -65,7 +90,7 @@ export class RenderAndHostStrategy extends DeliveryStrategy {
         : Uint8Array.from(artifact.bytes);
 
       await writeFile(outputPath, bytes);
-      logger.debug({ path: outputPath, bytes: bytes.length }, 'Artifact written');
+      logger.debug(`Artifact written (path: ${outputPath}, bytes: ${bytes.length})`);
 
       let url;
       if (this.baseUrl === 'file://') {
@@ -75,14 +100,14 @@ export class RenderAndHostStrategy extends DeliveryStrategy {
         url = `${normalizedBase}/${fileName}`;
       }
 
-      logger.info({ quill: quill.name, url }, 'Document rendered successfully');
+      logger.info(`Document rendered successfully (quill: ${quill.name}, url: ${url})`);
       return {
         status: 'success',
         url,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error({ quill: quill.name, error: message }, 'Document rendering failed');
+      const message = getErrorMessage(error);
+      logger.error(`Document rendering failed (quill: ${quill.name}): ${message}`);
 
       return {
         status: 'error',
