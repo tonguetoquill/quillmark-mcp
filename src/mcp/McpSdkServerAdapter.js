@@ -60,7 +60,7 @@ export class McpSdkServerAdapter {
       await this.server.connect(transport);
 
       const httpServer = createServer(async (req, res) => {
-        const url = new URL(req.url ?? '/', `http://${host}`);
+        const url = new URL(req.url ?? '/', `http://${host}:${port}`);
         if (normalizePath(url.pathname) !== endpoint) {
           res.statusCode = 404;
           res.end('Not Found');
