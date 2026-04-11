@@ -20,6 +20,12 @@ export function parseBind(bind) {
   return { host, port };
 }
 
+function pick(cliValue, envValue, fallback) {
+  if (cliValue !== undefined) return cliValue;
+  if (envValue !== undefined && envValue !== '') return envValue;
+  return fallback;
+}
+
 export async function main(argv = process.argv.slice(2), deps = {}) {
   const {
     cwd = process.cwd(),
@@ -31,34 +37,46 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
     },
     StrategyClass = RenderAndHostStrategy,
     createMCP = createDefaultMCP,
+    env = process.env,
   } = deps;
 
   const { values } = parseArgs({
     args: argv,
     options: {
-      'quills-dir': { type: 'string', default: './quills' },
-      'output-dir': { type: 'string', default: '.artifacts' },
-      'base-url': { type: 'string', default: '' },
-      'bind': { type: 'string', default: 'localhost:8080' },
-      'endpoint': { type: 'string', default: '/mcp' },
+      'quills-dir': { type: 'string' },
+      'output-dir': { type: 'string' },
+      'base-url': { type: 'string' },
+      'bind': { type: 'string' },
+      'endpoint': { type: 'string' },
+      'stdio': { type: 'boolean', default: false },
     },
   });
 
-  const quillsDir = resolveQuillsDir(values['quills-dir'], cwd);
+  const quillsDirRaw = pick(values['quills-dir'], env.QUILLMARK_QUILLS_DIR, './quills');
+  const outputDir = pick(values['output-dir'], env.QUILLMARK_OUTPUT_DIR, '.artifacts');
+  const bind = pick(values.bind, env.QUILLMARK_BIND, 'localhost:8080');
+  const endpoint = pick(values.endpoint, env.QUILLMARK_ENDPOINT, '/mcp');
+  const baseUrlOverride = pick(values['base-url'], env.QUILLMARK_BASE_URL, '');
+  const useStdio = values.stdio === true || env.QUILLMARK_STDIO === '1';
+
+  const quillsDir = resolveQuillsDir(quillsDirRaw, cwd);
   if (!exists(quillsDir)) {
     consoleError(`Quills directory does not exist: ${quillsDir}`);
     setExitCode(1);
     return;
   }
 
-  const { host, port } = parseBind(values.bind);
-  const endpoint = values.endpoint;
-  const outputDir = values['output-dir'];
-  const baseUrl = values['base-url'] || `http://${host}:${port}/artifacts`;
+  const { host, port } = parseBind(bind);
+  const baseUrl = baseUrlOverride || `http://${host}:${port}/artifacts`;
 
   const strategy = new StrategyClass({ outputDir, baseUrl });
-
   const mcp = await createMCP({ quillsDir, strategy });
+
+  if (useStdio) {
+    await mcp.start({ transportType: 'stdio' });
+    consoleError('Transport: stdio');
+    return;
+  }
 
   await mcp.start({
     transportType: 'httpStream',

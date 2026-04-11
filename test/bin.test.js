@@ -23,6 +23,7 @@ describe('bin', () => {
 
     await main(['--quills-dir', './missing'], {
       cwd: '/workspace',
+      env: {},
       exists: () => false,
       consoleError: (message) => {
         stderr = message;
@@ -50,6 +51,7 @@ describe('bin', () => {
 
     await main(['--quills-dir', 'quills', '--output-dir', 'out', '--base-url', 'https://host/base'], {
       cwd: '/workspace',
+      env: {},
       exists: () => true,
       consoleError: (msg) => logs.push(msg),
       StrategyClass: FakeStrategy,
@@ -71,7 +73,7 @@ describe('bin', () => {
     assert.ok(logs.some((l) => l.includes('claude mcp add --transport http')));
   });
 
-it('respects --bind and --endpoint args', async () => {
+  it('respects --bind and --endpoint args', async () => {
     let startOptions;
     const logs = [];
 
@@ -81,6 +83,7 @@ it('respects --bind and --endpoint args', async () => {
       '--endpoint', '/api/mcp',
     ], {
       cwd: '/workspace',
+      env: {},
       exists: () => true,
       consoleError: (msg) => logs.push(msg),
       StrategyClass: class FakeStrategy {},
@@ -92,5 +95,91 @@ it('respects --bind and --endpoint args', async () => {
       httpStream: { host: '0.0.0.0', port: 3000, endpoint: '/api/mcp', artifactsDir: '.artifacts' },
     });
     assert.ok(logs.some((l) => l.includes('http://0.0.0.0:3000/api/mcp')));
+  });
+
+  it('falls back to QUILLMARK_* env vars when CLI flags are absent', async () => {
+    let startOptions;
+    let createMCPOptions;
+    let strategyOptions;
+
+    class FakeStrategy {
+      constructor(options) {
+        strategyOptions = options;
+      }
+    }
+
+    await main([], {
+      cwd: '/workspace',
+      env: {
+        QUILLMARK_QUILLS_DIR: '/env/quills',
+        QUILLMARK_OUTPUT_DIR: '/env/out',
+        QUILLMARK_BIND: '0.0.0.0:9000',
+        QUILLMARK_ENDPOINT: '/env/mcp',
+        QUILLMARK_BASE_URL: 'https://env.example/artifacts',
+      },
+      exists: () => true,
+      consoleError: () => {},
+      StrategyClass: FakeStrategy,
+      createMCP: (options) => {
+        createMCPOptions = options;
+        return { async start(opts) { startOptions = opts; } };
+      },
+    });
+
+    assert.equal(createMCPOptions.quillsDir, '/env/quills');
+    assert.deepEqual(strategyOptions, { outputDir: '/env/out', baseUrl: 'https://env.example/artifacts' });
+    assert.deepEqual(startOptions, {
+      transportType: 'httpStream',
+      httpStream: { host: '0.0.0.0', port: 9000, endpoint: '/env/mcp', artifactsDir: '/env/out' },
+    });
+  });
+
+  it('CLI flags win over env vars', async () => {
+    let startOptions;
+
+    await main(['--bind', '127.0.0.1:7777'], {
+      cwd: '/workspace',
+      env: { QUILLMARK_BIND: '0.0.0.0:9000' },
+      exists: () => true,
+      consoleError: () => {},
+      StrategyClass: class {},
+      createMCP: () => ({ async start(opts) { startOptions = opts; } }),
+    });
+
+    assert.equal(startOptions.httpStream.host, '127.0.0.1');
+    assert.equal(startOptions.httpStream.port, 7777);
+  });
+
+  it('--stdio flag switches transport to stdio and skips HTTP banner', async () => {
+    let startOptions;
+    const logs = [];
+
+    await main(['--stdio'], {
+      cwd: '/workspace',
+      env: {},
+      exists: () => true,
+      consoleError: (msg) => logs.push(msg),
+      StrategyClass: class {},
+      createMCP: () => ({ async start(opts) { startOptions = opts; } }),
+    });
+
+    assert.deepEqual(startOptions, { transportType: 'stdio' });
+    assert.ok(logs.some((l) => l.includes('Transport: stdio')));
+    assert.ok(!logs.some((l) => l.includes('streamable HTTP')));
+  });
+
+  it('QUILLMARK_STDIO=1 env var also switches transport to stdio', async () => {
+    let startOptions;
+
+    await main([], {
+      cwd: '/workspace',
+      env: { QUILLMARK_STDIO: '1' },
+      exists: () => true,
+      consoleError: () => {},
+      StrategyClass: class {},
+      createMCP: () => ({ async start(opts) { startOptions = opts; } }),
+    });
+
+    assert.deepEqual(startOptions, { transportType: 'stdio' });
   });
 });

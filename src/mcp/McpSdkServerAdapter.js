@@ -138,8 +138,12 @@ export class McpSdkServerAdapter {
         }
 
         if (pathname !== endpoint) {
+          // Return JSON 404 so MCP clients probing OAuth discovery
+          // (e.g. /.well-known/oauth-protected-resource) can parse the body
+          // and fall through to unauthenticated access instead of crashing.
           res.statusCode = 404;
-          res.end('Not Found');
+          res.setHeader('content-type', 'application/json');
+          res.end('{"error":"not_found"}');
           return;
         }
 

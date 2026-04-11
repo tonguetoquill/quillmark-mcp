@@ -26,9 +26,71 @@ npx quillmark-mcp
 claude mcp add --transport http quillmark http://localhost:8080/mcp
 ```
 
-Customize the bind address with `--bind {host}:{port}` and `--endpoint`. The `--http`
-flag is accepted for explicitness but streamable HTTP is the default (and only)
-CLI transport.
+Customize the bind address with `--bind {host}:{port}` and `--endpoint`. Pass
+`--stdio` to switch to MCP stdio transport (for clients that pipe directly).
+All CLI flags also accept `QUILLMARK_*` environment-variable fallbacks
+(`QUILLMARK_BIND`, `QUILLMARK_ENDPOINT`, `QUILLMARK_QUILLS_DIR`,
+`QUILLMARK_OUTPUT_DIR`, `QUILLMARK_BASE_URL`, `QUILLMARK_STDIO=1`) — CLI wins
+over env, env wins over defaults.
+
+### Docker (local dev)
+
+> **Status:** local-only. No image is published to a registry yet — you build
+> it yourself. There is no CI pipeline; run the deep-layered test harness on
+> your laptop.
+
+Build:
+
+```sh
+npm run docker:build        # docker build -t quillmark-mcp:dev .
+```
+
+Run (streamable HTTP on `127.0.0.1:8080`):
+
+```sh
+docker run --rm -it \
+  --user 10001:10001 --read-only --tmpfs /tmp \
+  --cap-drop=ALL --security-opt=no-new-privileges:true \
+  -p 127.0.0.1:8080:8080 \
+  -v quillmark-artifacts:/data/artifacts \
+  quillmark-mcp:dev
+```
+
+Register with Claude Code (HTTP transport):
+
+```sh
+claude mcp add --transport http quillmark http://127.0.0.1:8080/mcp
+```
+
+Or, for Claude Desktop stdio bridge, add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "quillmark": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "--user", "10001:10001",
+        "-v", "quillmark-artifacts:/data/artifacts",
+        "quillmark-mcp:dev",
+        "--stdio"
+      ]
+    }
+  }
+}
+```
+
+Run the deep test harness (six layers: lint, unit, build, container black-box,
+MCP protocol compliance, PDF fidelity + stress):
+
+```sh
+npm run test:docker         # runs scripts/docker-test.sh end-to-end
+```
+
+The harness handles its own cleanup (containers, volumes) and auto-skips
+optional tooling (`hadolint`, `dockle`, `trivy`, `docker scout`) when not
+installed.
 
 ### Plug-and-play MCP server (library)
 

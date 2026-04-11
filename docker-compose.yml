@@ -1,0 +1,32 @@
+services:
+  quillmark-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: quillmark-mcp:dev
+    container_name: quillmark-mcp
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 512m
+    cpus: 1.0
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - quillmark-artifacts:/data/artifacts
+    environment:
+      LOG_LEVEL: info
+      QUILLMARK_BIND: 0.0.0.0:8080
+      QUILLMARK_OUTPUT_DIR: /data/artifacts
+      QUILLMARK_QUILLS_DIR: /app/quills
+      QUILLMARK_ENDPOINT: /mcp
+    restart: unless-stopped
+
+volumes:
+  quillmark-artifacts:
