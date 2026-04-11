@@ -5,6 +5,11 @@ import { Quillmark, init } from '@quillmark/wasm';
 
 import { DeliveryStrategy } from './DeliveryStrategy.js';
 
+function log(message) {
+  const timestamp = new Date().toISOString();
+  console.error(`[${timestamp}] RenderAndHostStrategy: ${message}`);
+}
+
 function extensionFromMimeType(mimeType, fallback) {
   if (mimeType === 'application/pdf') {
     return 'pdf';
@@ -37,11 +42,16 @@ export class RenderAndHostStrategy extends DeliveryStrategy {
 
   async handle(quill, validatedContent) {
     try {
+      log(`Rendering document for quill: ${quill.name} (${validatedContent.length} bytes)`);
+
       const parsed = Quillmark.parseMarkdown(validatedContent);
+      log(`Parsed markdown for ${quill.name}`);
+
       const renderResult = this.engine.render(parsed, {
         format: this.format,
         quillRef: quill.name,
       });
+      log(`Rendered to ${this.format} format`);
 
       const artifact = renderResult?.artifacts?.[0];
       if (!artifact || !artifact.bytes) {
@@ -59,6 +69,7 @@ export class RenderAndHostStrategy extends DeliveryStrategy {
         : Uint8Array.from(artifact.bytes);
 
       await writeFile(outputPath, bytes);
+      log(`Wrote artifact to ${outputPath} (${bytes.length} bytes)`);
 
       let url;
       if (this.baseUrl === 'file://') {
@@ -68,12 +79,14 @@ export class RenderAndHostStrategy extends DeliveryStrategy {
         url = `${normalizedBase}/${fileName}`;
       }
 
+      log(`Document rendering complete: ${url}`);
       return {
         status: 'success',
         url,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      log(`Error rendering document for ${quill.name}: ${message}`);
 
       return {
         status: 'error',
