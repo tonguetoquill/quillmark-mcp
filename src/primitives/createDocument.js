@@ -56,7 +56,7 @@ function validateWithEngine(registry, content) {
 /**
  * @param {{ resolve: (ref: string) => Promise<object>, engine?: { dryRun: (content: string) => void } }} registry
  * @param {{ handle: (quill: object, validatedContent: string) => Promise<{ status: string, url?: string, errors?: Array<{ message: string }> }> }} strategy
- * @param {string} content - Full Quillmark document (YAML frontmatter + markdown body)
+ * @param {string} content - Full Quillmark document: YAML frontmatter with QUILL: naming the Quill format, plus markdown body
  * @returns {Promise<{ status: string, url?: string, errors?: Array<{ message: string }> }>}
  */
 export async function createDocument(registry, strategy, content) {
@@ -68,14 +68,14 @@ export async function createDocument(registry, strategy, content) {
   const quillRef = extractQuillRef(frontmatterFields);
 
   if (typeof quillRef !== 'string' || quillRef.trim() === '') {
-    return formatError('QUILL field is required in frontmatter.');
+    return formatError('QUILL: is required in frontmatter to select the Quill format.');
   }
 
   let quill;
   try {
     quill = await registry.resolve(quillRef);
   } catch (error) {
-    return formatError(`Unable to resolve quill reference "${quillRef}": ${getErrorMessage(error)}`);
+    return formatError(`Unable to resolve Quill format reference "${quillRef}": ${getErrorMessage(error)}`);
   }
 
   const validationErrors = validateWithEngine(registry, content);

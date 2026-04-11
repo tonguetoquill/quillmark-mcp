@@ -2,9 +2,9 @@ import { z } from 'zod';
 
 import { createDocument, getSpecs, listQuills } from '../primitives/index.js';
 
-const LIST_QUILLS_DESCRIPTION = 'List available Quills with names and descriptions. Call this when you need to discover which Quill to use. Returns an array of { name, description } objects. Returns an empty list if no Quills are available.';
-const GET_SPECS_DESCRIPTION = 'Get the schema and authoring instructions for a specific Quill. Returns a TOON-encoded schema (token-efficient for LLM consumption) and authoring instructions from the Quill itself. Use the returned schema to structure your content and follow the authoring instructions for content guidance.';
-const CREATE_DOCUMENT_DESCRIPTION = 'Create a document from Quillmark content. Input must be a string containing YAML frontmatter with a QUILL: field and a markdown body. If QUILL: is missing from frontmatter, returns an error with guidance — fix the content and retry. Returns { status, url?, errors? }.';
+const LIST_QUILLS_DESCRIPTION = 'List available Quill formats with names and descriptions. A Quill format is a schematized document template for Quillmark. Call this when you need to discover which format to use. Returns an array of { name, description } objects. Returns an empty list if no Quill formats are available.';
+const GET_SPECS_DESCRIPTION = 'Get the schema and authoring instructions for a specific Quill format. Returns a TOON-encoded schema (token-efficient for LLM consumption) and authoring instructions bundled with that format. Use the returned schema to structure your content and follow the authoring instructions for content guidance.';
+const CREATE_DOCUMENT_DESCRIPTION = 'Create a document from Quillmark content. Input must be a string containing YAML frontmatter with a QUILL: field (selecting the Quill format) and a markdown body. If QUILL: is missing from frontmatter, returns an error with guidance — fix the content and retry. Returns { status, url?, errors? }.';
 
 export class QuillmarkMCP {
   /**

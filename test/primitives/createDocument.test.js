@@ -54,7 +54,7 @@ describe('createDocument', () => {
 
     assert.deepStrictEqual(result, {
       status: 'error',
-      errors: [{ message: 'QUILL field is required in frontmatter.' }],
+      errors: [{ message: 'QUILL: is required in frontmatter to select the Quill format.' }],
     });
   });
 
@@ -78,7 +78,7 @@ describe('createDocument', () => {
 
     assert.deepStrictEqual(result, {
       status: 'error',
-      errors: [{ message: 'Unable to resolve quill reference "usaf_memo": quill_not_found' }],
+      errors: [{ message: 'Unable to resolve Quill format reference "usaf_memo": quill_not_found' }],
     });
   });
 

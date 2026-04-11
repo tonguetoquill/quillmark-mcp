@@ -66,7 +66,7 @@ describe('integration', () => {
     const missingQuill = await createDocument(registry, strategy, '---\nTITLE: Memo\n---\nBody');
     assert.deepStrictEqual(missingQuill, {
       status: 'error',
-      errors: [{ message: 'QUILL field is required in frontmatter.' }],
+      errors: [{ message: 'QUILL: is required in frontmatter to select the Quill format.' }],
     });
 
     registry.engine.dryRun = () => {

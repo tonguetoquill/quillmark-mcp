@@ -55,7 +55,7 @@ describe('QuillmarkMCP', () => {
 
     const tool = server.tools.find((t) => t.name === 'list_quills');
     assert.ok(tool);
-    assert.match(tool.description, /List available Quills with names and descriptions/);
+    assert.match(tool.description, /List available Quill formats with names and descriptions/);
     assert.strictEqual(tool.parameters, undefined);
   });
 
@@ -64,7 +64,7 @@ describe('QuillmarkMCP', () => {
 
     const tool = server.tools.find((t) => t.name === 'get_specs');
     assert.ok(tool);
-    assert.match(tool.description, /Get the schema and authoring instructions for a specific Quill/);
+    assert.match(tool.description, /Get the schema and authoring instructions for a specific Quill format/);
     assert.deepStrictEqual(tool.parameters.parse({ ref: 'usaf_memo' }), { ref: 'usaf_memo' });
     assert.throws(() => tool.parameters.parse({}), /Invalid input/);
   });
