@@ -77,12 +77,24 @@ export class McpSdkServerAdapter {
 
       await this.server.connect(transport);
 
+      const authToken = startOptions.httpStream?.authToken;
+
       const httpServer = createServer(async (req, res) => {
         const url = new URL(req.url ?? '/', `http://${host}:${port}`);
         if (normalizePath(url.pathname) !== endpoint) {
           res.statusCode = 404;
           res.end('Not Found');
           return;
+        }
+
+        if (authToken) {
+          const authHeader = req.headers['authorization'] ?? '';
+          const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+          if (token !== authToken) {
+            res.statusCode = 401;
+            res.end('Unauthorized');
+            return;
+          }
         }
 
         await transport.handleRequest(req, res);

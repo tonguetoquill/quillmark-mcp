@@ -18,7 +18,13 @@
   ],
   "scripts": {
     "test": "node --test",
-    "start": "node src/bin.js"
+    "start": "node src/bin.js",
+    "preversion": "npm test",
+    "postversion": "git push --follow-tags",
+    "release:patch": "npm version patch",
+    "release:minor": "npm version minor",
+    "release:major": "npm version major",
+    "prerelease": "npm version prerelease --preid beta && npm publish --tag beta"
   },
   "repository": {
     "type": "git",
