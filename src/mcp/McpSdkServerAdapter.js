@@ -55,7 +55,9 @@ export class McpSdkServerAdapter {
       const host = startOptions.httpStream?.host ?? 'localhost';
       const port = startOptions.httpStream?.port ?? 8080;
       const endpoint = normalizePath(startOptions.httpStream?.endpoint ?? '/mcp');
-      const transport = new StreamableHTTPServerTransport();
+
+      // Use enableJsonResponse: true for plain JSON responses instead of SSE streams
+      const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true });
 
       await this.server.connect(transport);
 
@@ -67,21 +69,7 @@ export class McpSdkServerAdapter {
           return;
         }
 
-        // Wrap the request to inject Accept headers if missing
-        const wrappedReq = new Proxy(req, {
-          get: (target, prop) => {
-            if (prop === 'headers') {
-              const headers = target.headers || {};
-              if (!headers.accept) {
-                headers.accept = 'application/json, text/event-stream';
-              }
-              return headers;
-            }
-            return target[prop];
-          },
-        });
-
-        await transport.handleRequest(wrappedReq, res);
+        await transport.handleRequest(req, res);
       });
 
       await new Promise((resolve, reject) => {
