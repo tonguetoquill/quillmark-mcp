@@ -1,12 +1,12 @@
 import { FileSystemSource, QuillRegistry } from '@quillmark/registry';
 import { Quillmark, init } from '@quillmark/wasm';
-import { FastMCP } from 'fastmcp';
 
+import { McpSdkServerAdapter } from './McpSdkServerAdapter.js';
 import { QuillmarkMCP } from './QuillmarkMCP.js';
 
 /**
  * Fully-wired QuillmarkMCP with default dependencies:
- * @quillmark/wasm engine, FileSystemSource, QuillRegistry, and a FastMCP server.
+ * @quillmark/wasm engine, FileSystemSource, QuillRegistry, and an MCP SDK server.
  *
  * Read this function as the reference implementation for building your own
  * MCP server — copy it as a starting point and swap pieces as needed.
@@ -23,7 +23,7 @@ export function createDefaultMCP({ quillsDir, strategy }) {
   const engine = new Quillmark();
   const source = new FileSystemSource(quillsDir);
   const registry = new QuillRegistry({ source, engine });
-  const server = new FastMCP({ name: 'Quillmark', version: '1.0.0' });
+  const server = new McpSdkServerAdapter({ name: 'Quillmark', version: '1.0.0' });
 
   return new QuillmarkMCP({ registry, strategy, server });
 }
