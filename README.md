@@ -14,7 +14,23 @@ npm install quillmark-mcp
 
 ## Usage
 
-### Plug-and-play MCP server
+### Use with Claude Code
+
+Start the server, then register it with Claude Code over streamable HTTP:
+
+```sh
+# 1. Start the server (binds to http://localhost:8080/mcp by default)
+npx quillmark-mcp
+
+# 2. Register it with Claude Code
+claude mcp add --transport http quillmark http://localhost:8080/mcp
+```
+
+Customize the bind address with `--host`, `--port`, and `--endpoint`. The `--http`
+flag is accepted for explicitness but streamable HTTP is the default (and only)
+CLI transport.
+
+### Plug-and-play MCP server (library)
 
 ```js
 import { createDefaultMCP, PassThroughStrategy } from 'quillmark-mcp';
@@ -25,7 +41,10 @@ const strategy = new PassThroughStrategy(async (quill, content) => {
 });
 
 const mcp = createDefaultMCP({ quillsDir: './quills', strategy });
-await mcp.start(); // stdio by default
+await mcp.start({
+  transportType: 'httpStream',
+  httpStream: { host: 'localhost', port: 8080, endpoint: '/mcp' },
+});
 ```
 
 ### Custom MCP server

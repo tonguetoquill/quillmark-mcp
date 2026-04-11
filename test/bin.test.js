@@ -29,7 +29,7 @@ describe('bin', () => {
     assert.match(stderr, /Quills directory does not exist: \/workspace\/missing/);
   });
 
-  it('starts MCP with parsed options using streamable HTTP transport', async () => {
+  it('starts MCP with streamable HTTP transport using parsed options', async () => {
     let strategyOptions;
     let startOptions;
     let createMCPOptions;
@@ -61,6 +61,24 @@ describe('bin', () => {
     });
     assert.ok(logs.some((l) => l.includes('streamable HTTP')));
     assert.ok(logs.some((l) => l.includes('http://localhost:8080/mcp')));
+    assert.ok(logs.some((l) => l.includes('claude mcp add --transport http')));
+  });
+
+  it('accepts the --http flag explicitly and still starts streamable HTTP', async () => {
+    let startOptions;
+
+    await main(['--quills-dir', 'quills', '--http'], {
+      cwd: '/workspace',
+      exists: () => true,
+      consoleError: () => {},
+      StrategyClass: class FakeStrategy {},
+      createMCP: () => ({ async start(opts) { startOptions = opts; } }),
+    });
+
+    assert.deepEqual(startOptions, {
+      transportType: 'httpStream',
+      httpStream: { host: 'localhost', port: 8080, endpoint: '/mcp' },
+    });
   });
 
   it('respects --host, --port, and --endpoint args', async () => {

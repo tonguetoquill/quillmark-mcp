@@ -30,6 +30,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
       'quills-dir': { type: 'string', default: './quills' },
       'output-dir': { type: 'string', default: '.artifacts' },
       'base-url': { type: 'string', default: 'file://' },
+      'http': { type: 'boolean', default: true },
       'port': { type: 'string', default: '8080' },
       'host': { type: 'string', default: 'localhost' },
       'endpoint': { type: 'string', default: '/mcp' },
@@ -50,15 +51,18 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
 
   const mcp = createMCP({ quillsDir, strategy });
 
-  const host = values['host'];
-  const port = parseInt(values['port'], 10);
-  const endpoint = values['endpoint'];
-  const startOptions = { transportType: 'httpStream', httpStream: { host, port, endpoint } };
+  const host = values.host;
+  const port = parseInt(values.port, 10);
+  const endpoint = values.endpoint;
 
-  await mcp.start(startOptions);
+  await mcp.start({
+    transportType: 'httpStream',
+    httpStream: { host, port, endpoint },
+  });
 
   consoleError(`Transport: streamable HTTP`);
   consoleError(`URL: http://${host}:${port}${endpoint}`);
+  consoleError(`Add to Claude Code: claude mcp add --transport http quillmark http://${host}:${port}${endpoint}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
