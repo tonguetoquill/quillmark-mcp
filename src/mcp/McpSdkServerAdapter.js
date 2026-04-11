@@ -67,24 +67,21 @@ export class McpSdkServerAdapter {
           return;
         }
 
-        // Create a proxy for the request that injects required Accept headers
-        const originalHeaders = req.headers;
-        const proxyHeaders = new Proxy(originalHeaders, {
+        // Wrap the request to inject Accept headers if missing
+        const wrappedReq = new Proxy(req, {
           get: (target, prop) => {
-            if (prop === 'accept' && !target.accept) {
-              return 'application/json, text/event-stream';
+            if (prop === 'headers') {
+              const headers = target.headers || {};
+              if (!headers.accept) {
+                headers.accept = 'application/json, text/event-stream';
+              }
+              return headers;
             }
             return target[prop];
           },
         });
 
-        // Replace headers on the request object
-        Object.defineProperty(req, 'headers', {
-          value: proxyHeaders,
-          writable: false,
-        });
-
-        await transport.handleRequest(req, res);
+        await transport.handleRequest(wrappedReq, res);
       });
 
       await new Promise((resolve, reject) => {
