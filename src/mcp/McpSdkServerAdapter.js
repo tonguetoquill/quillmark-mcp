@@ -22,6 +22,10 @@ function normalizePath(urlPath) {
     : urlPath;
 }
 
+function normalizeToolArgs(args) {
+  return args && typeof args === 'object' ? args : {};
+}
+
 export class McpSdkServerAdapter {
   constructor({ name = 'Quillmark', version = '1.0.0' } = {}) {
     this.server = new McpServer({ name, version });
@@ -34,8 +38,8 @@ export class McpSdkServerAdapter {
       inputSchema: tool.parameters,
     };
 
-    this.server.registerTool(tool.name, config, async (args = {}) => {
-      const result = await tool.execute(args);
+    this.server.registerTool(tool.name, config, async (args) => {
+      const result = await tool.execute(normalizeToolArgs(args));
 
       return {
         content: [{ type: 'text', text: stringifyToolResult(result) }],
@@ -44,8 +48,8 @@ export class McpSdkServerAdapter {
     });
   }
 
-  async start(startOptions = { transportType: 'stdio' }) {
-    const transportType = startOptions.transportType ?? 'stdio';
+  async start(startOptions) {
+    const transportType = startOptions?.transportType ?? 'stdio';
 
     if (transportType === 'httpStream') {
       const host = startOptions.httpStream?.host ?? 'localhost';
@@ -56,7 +60,7 @@ export class McpSdkServerAdapter {
       await this.server.connect(transport);
 
       const httpServer = createServer(async (req, res) => {
-        const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+        const url = new URL(req.url ?? '/', 'http://localhost');
         if (normalizePath(url.pathname) !== endpoint) {
           res.statusCode = 404;
           res.end('Not Found');
