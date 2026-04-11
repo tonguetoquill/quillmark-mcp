@@ -65,7 +65,11 @@ export class RenderAndHostStrategy extends DeliveryStrategy {
     try {
       logger.debug(`Rendering document (quill: ${quill.name}, bytes: ${validatedContent.length})`);
 
-      this.engine.registerQuill(quill.data);
+      const canonicalRef = `${quill.name}@${quill.version}`;
+      const existing = this.engine.resolveQuill(canonicalRef) ?? this.engine.resolveQuill(quill.name);
+      if (existing?.metadata?.version !== quill.version) {
+        this.engine.registerQuill(quill.data);
+      }
 
       const parsed = Quillmark.parseMarkdown(validatedContent);
       logger.debug(`Parsed markdown (quill: ${quill.name})`);
