@@ -33,9 +33,10 @@ describe('RenderAndHostStrategy', () => {
   it('handles render errors gracefully', async () => {
     // Create a strategy that will fail during render by passing invalid content
     const strategy = new RenderAndHostStrategy();
+    strategy.engine.registerQuill = () => {};
 
     // Passing empty/invalid content should cause Quillmark to fail
-    const result = await strategy.handle({ name: 'test_quill' }, '');
+    const result = await strategy.handle({ name: 'test_quill', data: {} }, '');
 
     assert.strictEqual(result.status, 'error');
     assert.ok(Array.isArray(result.errors));
@@ -45,12 +46,13 @@ describe('RenderAndHostStrategy', () => {
   it('handles missing artifacts in render result gracefully', async () => {
     const strategy = new RenderAndHostStrategy();
 
-    // Override the engine's render method to return empty artifacts
+    // Override engine methods to isolate artifact-handling logic
+    strategy.engine.registerQuill = () => {};
     strategy.engine.render = () => ({
       artifacts: [],
     });
 
-    const result = await strategy.handle({ name: 'test_quill' }, '---\nQUILL: test\n---\nBody');
+    const result = await strategy.handle({ name: 'test_quill', data: {} }, '---\nQUILL: test\n---\nBody');
 
     assert.strictEqual(result.status, 'error');
     assert.deepStrictEqual(result.errors, [
