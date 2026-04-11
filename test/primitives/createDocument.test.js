@@ -137,4 +137,35 @@ describe('createDocument', () => {
       },
     ]);
   });
+
+  it('formats Map validation errors from dryRun', async () => {
+    const errorMap = new Map([
+      ['recipient', 'is required'],
+      ['subject', 'must be a string'],
+    ]);
+
+    const registry = {
+      async resolve() {
+        return { name: 'usaf_memo' };
+      },
+      engine: {
+        dryRun() {
+          throw errorMap;
+        },
+      },
+    };
+
+    const strategy = {
+      async handle() {
+        throw new Error('should not be called');
+      },
+    };
+
+    const result = await createDocument(registry, strategy, VALID_CONTENT);
+
+    assert.equal(result.status, 'error');
+    assert.equal(result.errors.length, 1);
+    assert.match(result.errors[0].message, /recipient: is required/);
+    assert.match(result.errors[0].message, /subject: must be a string/);
+  });
 });

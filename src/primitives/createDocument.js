@@ -31,7 +31,24 @@ function formatError(message) {
 }
 
 function getErrorMessage(error) {
-  return error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (error instanceof Map) {
+    // Format validation errors from Map to readable string
+    const entries = Array.from(error.entries())
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('; ');
+    return entries || 'Unknown validation error';
+  }
+  if (error && typeof error === 'object') {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error);
 }
 
 function extractQuillRef(frontmatterFields) {
