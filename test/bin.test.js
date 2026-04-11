@@ -71,24 +71,7 @@ describe('bin', () => {
     assert.ok(logs.some((l) => l.includes('claude mcp add --transport http')));
   });
 
-  it('accepts the --http flag explicitly and still starts streamable HTTP', async () => {
-    let startOptions;
-
-    await main(['--quills-dir', 'quills', '--http'], {
-      cwd: '/workspace',
-      exists: () => true,
-      consoleError: () => {},
-      StrategyClass: class FakeStrategy {},
-      createMCP: () => ({ async start(opts) { startOptions = opts; } }),
-    });
-
-    assert.deepEqual(startOptions, {
-      transportType: 'httpStream',
-      httpStream: { host: 'localhost', port: 8080, endpoint: '/mcp' },
-    });
-  });
-
-  it('respects --bind and --endpoint args', async () => {
+it('respects --bind and --endpoint args', async () => {
     let startOptions;
     const logs = [];
 

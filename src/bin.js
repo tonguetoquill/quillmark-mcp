@@ -39,7 +39,6 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
       'quills-dir': { type: 'string', default: './quills' },
       'output-dir': { type: 'string', default: '.artifacts' },
       'base-url': { type: 'string', default: 'file://' },
-      'http': { type: 'boolean', default: true },
       'bind': { type: 'string', default: 'localhost:8080' },
       'endpoint': { type: 'string', default: '/mcp' },
     },

@@ -2,9 +2,6 @@ import log from 'loglevel';
 
 const level = process.env.LOG_LEVEL || 'info';
 
-// Set the log level
-log.setLevel(level);
-
 // Format log messages with timestamp and level
 const originalFactory = log.methodFactory;
 log.methodFactory = (methodName, logLevel, loggerName) => {
