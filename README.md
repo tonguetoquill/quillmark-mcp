@@ -4,7 +4,7 @@ MCP server and composable primitives for [Quillmark](https://quillmark.readthedo
 
 ## Requirements
 
-Node.js >= 25
+Node.js >= 24
 
 ## Install
 

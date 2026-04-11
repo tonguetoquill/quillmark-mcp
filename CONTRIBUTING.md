@@ -8,7 +8,7 @@ cd quillmark-mcp
 npm install
 ```
 
-Node.js >= 25 required.
+Node.js >= 24 required.
 
 ## Tests
 
