@@ -1,3 +1,12 @@
+# quillmark-mcp compose stack
+# ------------------------------------------------------------------
+# One-command bring-up:   ./scripts/install-mcp.sh  (or: docker compose up -d)
+# One-command takedown:   ./scripts/uninstall-mcp.sh (or: docker compose down)
+#
+# Forward-compat: to add a sidecar (worker, reverse proxy, DB, queue) later,
+# drop a new `services:` block below `quillmark-mcp:` with its own build/image
+# and wire it to the existing stack via `depends_on` + a user-defined network.
+# The install command stays the same: docker compose up -d.
 services:
   quillmark-mcp:
     build:
@@ -17,6 +26,7 @@ services:
     mem_limit: 512m
     cpus: 1.0
     ports:
+      # Host-only bind: nothing is exposed beyond 127.0.0.1 per MCP spec guidance.
       - "127.0.0.1:8080:8080"
     volumes:
       - quillmark-artifacts:/data/artifacts
@@ -26,7 +36,22 @@ services:
       QUILLMARK_OUTPUT_DIR: /data/artifacts
       QUILLMARK_QUILLS_DIR: /app/quills
       QUILLMARK_ENDPOINT: /mcp
+      # Artifact URLs returned to MCP clients use this base. Must point at a
+      # host-reachable address (the container binds 0.0.0.0 but 0.0.0.0 is not
+      # routable from clients — we hand out 127.0.0.1 instead).
+      QUILLMARK_BASE_URL: http://127.0.0.1:8080/artifacts
     restart: unless-stopped
+
+  # --- future services go here ---
+  # Example (commented):
+  # worker:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/worker.Dockerfile
+  #   depends_on:
+  #     - quillmark-mcp
+  #   environment:
+  #     QUILLMARK_MCP_URL: http://quillmark-mcp:8080/mcp
 
 volumes:
   quillmark-artifacts:

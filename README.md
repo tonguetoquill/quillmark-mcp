@@ -4,9 +4,56 @@ MCP server and composable primitives for [Quillmark](https://quillmark.readthedo
 
 ## Requirements
 
-Node.js >= 24
+- Node.js ≥ 24 (for local dev or the `npx` path)
+- Docker + Docker Compose plugin (for the one-command install below)
+- Claude Code CLI (optional — the install script registers the server if it's on `PATH`)
 
-## Install
+## Quick start — one-command Docker install
+
+Clone this repo, then:
+
+```sh
+./scripts/install-mcp.sh
+# (open Claude Code, ask it to list quills or render a memo)
+./scripts/uninstall-mcp.sh
+```
+
+That's it. Behind the scenes the install script:
+
+1. Builds `quillmark-mcp:dev` if it isn't already cached
+2. Runs `docker compose up -d` (container bound to `127.0.0.1:8080`)
+3. Clears any poisoned Claude Code OAuth cache entry for this server ([fix for anthropics/claude-code#34008](https://github.com/anthropics/claude-code/issues/34008))
+4. Runs `claude mcp add --transport http quillmark http://127.0.0.1:8080/mcp`
+5. Prints verification commands + teardown instructions
+
+**Custom port** (if `8080` is busy):
+
+```sh
+./scripts/install-mcp.sh --port 9090
+```
+
+**Round-trip test** (install → exercise tools → uninstall, on a test port):
+
+```sh
+npm run test:install
+```
+
+**Future compose expansion.** Adding a sidecar (a worker, a queue, a reverse proxy, a DB) is just another service block in `docker-compose.yml`. The install command stays the same: `docker compose up -d`.
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| Claude Code shows `quillmark - authenticate (MCP)` | `npm run claude:reset && npm run install:mcp` — re-runs the cache surgery and fresh registration. |
+| `Port 8080 is already allocated` | `./scripts/install-mcp.sh --port 9090` (or any other free port). |
+| Artifact URL returns 404 or mentions `0.0.0.0` | Confirm `docker compose logs quillmark-mcp` shows `QUILLMARK_BASE_URL=http://127.0.0.1:…/artifacts` — the compose file sets this explicitly. |
+| `docker: command not found` | Install Docker Desktop ≥ 4.62 (or Docker Engine + compose plugin on Linux). |
+
+### Alternative: Docker MCP Toolkit
+
+If you prefer the Docker Desktop MCP Toolkit UI (custom catalog, Gateway-brokered connections, `docker mcp` CLI plugin), see the [official docs](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/). The install script above gives the same outcome and works on any Docker setup (Docker Desktop, Docker CE, Linux), so it's the recommended default.
+
+## Install (npm)
 
 ```sh
 npm install quillmark-mcp
