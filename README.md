@@ -21,33 +21,35 @@ Clone this repo, then:
 That's it. Behind the scenes the install script:
 
 1. Builds `quillmark-mcp:dev` if it isn't already cached
-2. Runs `docker compose up -d` (container bound to `127.0.0.1:8080`)
-3. Clears any poisoned Claude Code OAuth cache entry for this server ([fix for anthropics/claude-code#34008](https://github.com/anthropics/claude-code/issues/34008))
-4. Runs `claude mcp add --transport http quillmark http://127.0.0.1:8080/mcp`
-5. Prints verification commands + teardown instructions
+2. Creates `~/.quillmark/artifacts` as the host-side artifact drop
+3. Registers Claude Code to spawn a fresh container per session via `docker run -i --rm … --stdio`, with the artifacts dir bind-mounted at the **same absolute path** on both sides so `file://` URLs resolve on the host
+4. Prints verification commands + teardown instructions
 
-**Custom port** (if `8080` is busy):
+**Why stdio, not HTTP?** This server's Streamable HTTP transport only accepts one `initialize` handshake per container lifetime, so Claude Code's multi-connection client hits "Server already initialized" after the first request. Stdio dodges this entirely because every Claude Code session spawns its own fresh container.
+
+**Advanced: HTTP mode** (for curl / MCP Inspector / integration tests, not Claude Code):
 
 ```sh
-./scripts/install-mcp.sh --port 9090
+./scripts/install-mcp.sh --http              # compose up on :8080
+./scripts/install-mcp.sh --http --port 9090  # custom host port
 ```
 
-**Round-trip test** (install → exercise tools → uninstall, on a test port):
+**Round-trip test** (install → exercise tools → uninstall on a test port, HTTP mode):
 
 ```sh
 npm run test:install
 ```
 
-**Future compose expansion.** Adding a sidecar (a worker, a queue, a reverse proxy, a DB) is just another service block in `docker-compose.yml`. The install command stays the same: `docker compose up -d`.
+**Future compose expansion.** Adding a sidecar (a worker, a queue, a reverse proxy, a DB) is just another service block in `docker-compose.yml`. The HTTP mode stays `docker compose up -d` no matter how many services live there.
 
 ### Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| Claude Code shows `quillmark - authenticate (MCP)` | `npm run claude:reset && npm run install:mcp` — re-runs the cache surgery and fresh registration. |
-| `Port 8080 is already allocated` | `./scripts/install-mcp.sh --port 9090` (or any other free port). |
-| Artifact URL returns 404 or mentions `0.0.0.0` | Confirm `docker compose logs quillmark-mcp` shows `QUILLMARK_BASE_URL=http://127.0.0.1:…/artifacts` — the compose file sets this explicitly. |
-| `docker: command not found` | Install Docker Desktop ≥ 4.62 (or Docker Engine + compose plugin on Linux). |
+| Claude Code shows `quillmark - authenticate (MCP)` | That's the HTTP mode bug. Run `./scripts/uninstall-mcp.sh --yes && ./scripts/install-mcp.sh` to switch back to stdio. |
+| Artifact URL is `file://` but the file doesn't exist on the host | Confirm the host dir: `ls -la ~/.quillmark/artifacts/`. Files only land there after a successful `create_document`. |
+| `docker: command not found` | Install Docker Desktop ≥ 4.62 (or Docker Engine on Linux). |
+| "Server already initialized" from curl | You hit HTTP mode's single-initialize limit — kill the container (`docker compose down`) and switch to stdio mode for Claude Code. |
 
 ### Alternative: Docker MCP Toolkit
 

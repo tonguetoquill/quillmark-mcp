@@ -84,15 +84,22 @@ fi
 # 4. Optional purge: volume + image
 # =============================================================================
 if [ "$PURGE" -eq 1 ]; then
-  banner "Purge volume + image"
+  banner "Purge volume + image + artifacts"
 
-  if confirm "Remove quillmark-mcp artifacts volume?"; then
-    # Volume name depends on compose project name (defaults to repo dir name).
+  if confirm "Remove quillmark-mcp named volume (compose/HTTP mode)?"; then
     docker volume ls --format '{{.Name}}' \
       | grep -E 'quillmark-mcp.*quillmark-artifacts$' \
       | xargs -r docker volume rm \
       && ok "volume removed" \
       || warn "volume not found"
+  fi
+
+  ARTIFACTS_DIR="$HOME/.quillmark/artifacts"
+  if [ -d "$ARTIFACTS_DIR" ]; then
+    if confirm "Remove host artifacts dir ($ARTIFACTS_DIR)?"; then
+      rm -rf "$ARTIFACTS_DIR"
+      ok "artifacts dir removed"
+    fi
   fi
 
   if confirm "Remove quillmark-mcp:dev image?"; then

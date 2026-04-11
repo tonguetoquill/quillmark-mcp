@@ -1,30 +1,43 @@
 #!/usr/bin/env bash
-# One-command install: bring up the quillmark-mcp stack with docker compose,
-# clear any poisoned Claude Code OAuth cache, and register the server with
-# Claude Code via `claude mcp add --transport http`.
+# One-command install: build the image, create a host-side artifacts dir,
+# and register quillmark with Claude Code as a stdio-bridge (each Claude
+# Code session spawns a fresh container via `docker run -i --rm`).
+#
+# Why stdio instead of HTTP: the upstream MCP server's StreamableHTTP
+# transport only accepts a single `initialize` handshake per container
+# lifetime, so Claude Code's multi-connection client hits "Server already
+# initialized" on every reconnect. Stdio dodges this entirely because
+# every Claude Code session spawns its own fresh container.
+#
+# Artifact URLs: the server writes to $HOME/.quillmark/artifacts inside
+# the container, and that directory is bind-mounted at the *same absolute
+# path* on the host. With QUILLMARK_BASE_URL=file://, the server hands
+# back file:// URLs like file:///Users/you/.quillmark/artifacts/<id>.pdf
+# which are equally valid on both sides.
 #
 # Usage:
-#   ./scripts/install-mcp.sh                   # default port 8080
-#   ./scripts/install-mcp.sh --port 9090       # custom host port
-#   ./scripts/install-mcp.sh --no-claude       # skip claude mcp add step
-#
-# Idempotent: re-running refreshes the Claude Code registration but leaves
-# a healthy stack alone.
+#   ./scripts/install-mcp.sh                # default stdio-bridge mode
+#   ./scripts/install-mcp.sh --http         # compose+HTTP (test/dev only)
+#   ./scripts/install-mcp.sh --http --port 9090
+#   ./scripts/install-mcp.sh --no-claude    # skip Claude Code registration
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+MODE="stdio"
 PORT="${QUILLMARK_HOST_PORT:-8080}"
 SKIP_CLAUDE=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --stdio)       MODE="stdio"; shift ;;
+    --http)        MODE="http"; shift ;;
     --port)        PORT="$2"; shift 2 ;;
     --port=*)      PORT="${1#*=}"; shift ;;
     --no-claude)   SKIP_CLAUDE=1; shift ;;
     -h|--help)
-      sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
@@ -34,16 +47,15 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# --- output helpers ---
 if [ -t 1 ]; then
-  C_BLUE='\033[1;34m'; C_GREEN='\033[1;32m'; C_RED='\033[1;31m'; C_YELLOW='\033[1;33m'; C_OFF='\033[0m'
+  C_BLUE=$'\033[1;34m'; C_GREEN=$'\033[1;32m'; C_RED=$'\033[1;31m'; C_YELLOW=$'\033[1;33m'; C_OFF=$'\033[0m'
 else
   C_BLUE=''; C_GREEN=''; C_RED=''; C_YELLOW=''; C_OFF=''
 fi
-banner() { printf '\n%b━━━ %s ━━━%b\n' "$C_BLUE" "$*" "$C_OFF"; }
-ok()     { printf '%b✓ %s%b\n' "$C_GREEN" "$*" "$C_OFF"; }
-warn()   { printf '%b! %s%b\n' "$C_YELLOW" "$*" "$C_OFF"; }
-fail()   { printf '\n%b✗ %s%b\n' "$C_RED" "$*" "$C_OFF"; exit 1; }
+banner() { printf '\n%s━━━ %s ━━━%s\n' "$C_BLUE" "$*" "$C_OFF"; }
+ok()     { printf '%s✓ %s%s\n' "$C_GREEN" "$*" "$C_OFF"; }
+warn()   { printf '%s! %s%s\n' "$C_YELLOW" "$*" "$C_OFF"; }
+fail()   { printf '\n%s✗ %s%s\n' "$C_RED" "$*" "$C_OFF"; exit 1; }
 have()   { command -v "$1" >/dev/null 2>&1; }
 
 # =============================================================================
@@ -52,13 +64,12 @@ have()   { command -v "$1" >/dev/null 2>&1; }
 banner "Pre-flight"
 have docker || fail "docker CLI not found"
 docker info >/dev/null 2>&1 || fail "docker daemon not reachable — is Docker Desktop running?"
-docker compose version >/dev/null 2>&1 || fail "'docker compose' plugin not available"
-ok "docker + compose ready"
+ok "docker ready"
 
 if have claude; then
   ok "claude CLI found"
 else
-  warn "claude CLI not found — will skip Claude Code registration step"
+  warn "claude CLI not found — will skip Claude Code registration"
   SKIP_CLAUDE=1
 fi
 
@@ -67,18 +78,34 @@ fi
 # =============================================================================
 banner "Build image"
 if docker image inspect quillmark-mcp:dev >/dev/null 2>&1; then
-  ok "quillmark-mcp:dev already built (use 'docker compose build' to refresh)"
+  ok "quillmark-mcp:dev already built (delete it to force rebuild)"
 else
   docker build -t quillmark-mcp:dev . || fail "docker build failed"
   ok "built quillmark-mcp:dev"
 fi
 
 # =============================================================================
-# Generate per-port compose override if needed
+# Prepare host-side artifacts dir (stdio + http both use this for file:// URLs
+# or as a volume mount)
 # =============================================================================
-OVERRIDE_FILE="docker-compose.override.yml"
-if [ "$PORT" != "8080" ]; then
-  cat > "$OVERRIDE_FILE" <<EOF
+ARTIFACTS_DIR="$HOME/.quillmark/artifacts"
+mkdir -p "$ARTIFACTS_DIR"
+ok "artifacts dir: $ARTIFACTS_DIR"
+
+# =============================================================================
+# Optional HTTP mode: docker compose stack (kept for tests and development;
+# NOT recommended for Claude Code — hits the 'Server already initialized' bug)
+# =============================================================================
+if [ "$MODE" = "http" ]; then
+  banner "HTTP mode (compose)"
+  warn "HTTP + Claude Code is known-broken against this server (server rejects"
+  warn "second initialize). Use this mode only for the Inspector or curl tests."
+
+  docker compose version >/dev/null 2>&1 || fail "'docker compose' plugin required for --http mode"
+
+  OVERRIDE_FILE="docker-compose.override.yml"
+  if [ "$PORT" != "8080" ]; then
+    cat > "$OVERRIDE_FILE" <<EOF
 # Auto-generated by scripts/install-mcp.sh — do not commit.
 services:
   quillmark-mcp:
@@ -87,67 +114,96 @@ services:
     environment:
       QUILLMARK_BASE_URL: http://127.0.0.1:${PORT}/artifacts
 EOF
-  ok "generated ${OVERRIDE_FILE} for host port ${PORT}"
-elif [ -f "$OVERRIDE_FILE" ]; then
-  rm -f "$OVERRIDE_FILE"
-  ok "removed stale ${OVERRIDE_FILE} (using default port 8080)"
+    ok "generated ${OVERRIDE_FILE} for host port ${PORT}"
+  elif [ -f "$OVERRIDE_FILE" ]; then
+    rm -f "$OVERRIDE_FILE"
+  fi
+
+  docker compose up -d || fail "docker compose up failed"
+
+  deadline=$(( $(date +%s) + 30 ))
+  status=""
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' quillmark-mcp 2>/dev/null || echo unknown)"
+    case "$status" in healthy|running) break ;; esac
+    sleep 0.25
+  done
+  if [ "$status" != "healthy" ] && [ "$status" != "running" ]; then
+    docker compose logs --tail 40 quillmark-mcp || true
+    fail "container did not become healthy within 30s (last status: $status)"
+  fi
+  ok "container status: $status"
+
+  if [ "$SKIP_CLAUDE" -eq 0 ] && have claude; then
+    banner "Register with Claude Code (HTTP)"
+    ./scripts/claude-reset.sh quillmark
+    claude mcp remove quillmark 2>/dev/null || true
+    claude mcp add --transport http quillmark "http://127.0.0.1:${PORT}/mcp" \
+      || fail "'claude mcp add' failed"
+    ok "registered quillmark → http://127.0.0.1:${PORT}/mcp"
+    warn "expect 'Server already initialized' on the second request"
+  fi
+
+  banner "Done (HTTP mode)"
+  printf '\n  %s!%s HTTP mode is for curl/Inspector, not Claude Code.\n' "$C_YELLOW" "$C_OFF"
+  printf '     Inspect: curl http://127.0.0.1:%s/mcp\n' "$PORT"
+  printf '     Tear down: ./scripts/uninstall-mcp.sh --yes\n\n'
+  exit 0
 fi
 
 # =============================================================================
-# Start the stack
+# Stdio mode (default) — register Claude Code to spawn a fresh container per session
 # =============================================================================
-banner "Start stack"
-docker compose up -d || fail "docker compose up failed"
+banner "Register with Claude Code (stdio-bridge)"
 
-# Wait for health
-deadline=$(( $(date +%s) + 30 ))
-status=""
-while [ "$(date +%s)" -lt "$deadline" ]; do
-  status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' quillmark-mcp 2>/dev/null || echo unknown)"
-  case "$status" in
-    healthy|running) break ;;
-  esac
-  sleep 0.25
-done
-if [ "$status" != "healthy" ] && [ "$status" != "running" ]; then
-  docker compose logs --tail 40 quillmark-mcp || true
-  fail "container did not become healthy within 30s (last status: $status)"
-fi
-ok "container status: $status"
-
-# =============================================================================
-# Reset cache + register with Claude Code
-# =============================================================================
 if [ "$SKIP_CLAUDE" -eq 1 ]; then
   warn "skipping Claude Code registration"
 else
-  banner "Register with Claude Code"
   ./scripts/claude-reset.sh quillmark
   claude mcp remove quillmark 2>/dev/null || true
-  claude mcp add --transport http quillmark "http://127.0.0.1:${PORT}/mcp" \
+
+  # Each Claude Code session spawns its own container with:
+  #  - the artifacts dir bind-mounted at the SAME absolute path on both sides
+  #    (matching-path trick → file:// URLs resolve on both the container and host)
+  #  - QUILLMARK_BASE_URL=file:// flips RenderAndHostStrategy into returning
+  #    file:// absolute paths
+  #  - QUILLMARK_STDIO=1 + --stdio flips the transport
+  claude mcp add quillmark -- \
+    docker run -i --rm \
+      --user 10001:10001 \
+      --read-only --tmpfs /tmp \
+      --cap-drop=ALL --security-opt=no-new-privileges:true \
+      -v "${ARTIFACTS_DIR}:${ARTIFACTS_DIR}" \
+      -e "QUILLMARK_OUTPUT_DIR=${ARTIFACTS_DIR}" \
+      -e "QUILLMARK_BASE_URL=file://" \
+      -e "QUILLMARK_STDIO=1" \
+      quillmark-mcp:dev --stdio \
     || fail "'claude mcp add' failed"
-  ok "registered quillmark → http://127.0.0.1:${PORT}/mcp"
+
+  ok "registered quillmark as stdio-bridge"
 fi
 
 # =============================================================================
 # Success banner
 # =============================================================================
-banner "Done"
+banner "Done (stdio-bridge)"
 cat <<EOF
 
-  ${C_GREEN}✓${C_OFF} quillmark-mcp is running at http://127.0.0.1:${PORT}/mcp
-$( [ "$SKIP_CLAUDE" -eq 0 ] && printf '  %b✓%b Claude Code is connected\n' "$C_GREEN" "$C_OFF" )
+  ${C_GREEN}✓${C_OFF} quillmark is registered with Claude Code as a stdio MCP server
+  ${C_GREEN}✓${C_OFF} Each Claude Code session will spawn a fresh container on demand
+  ${C_GREEN}✓${C_OFF} Artifacts land in ${ARTIFACTS_DIR} (same path on host and container)
 
   Verify:
-    docker compose ps
-$( [ "$SKIP_CLAUDE" -eq 0 ] && printf '    claude mcp list | grep quillmark\n' )
-    curl -s http://127.0.0.1:${PORT}/.well-known/oauth-protected-resource
+    claude mcp list | grep quillmark
+    claude mcp get quillmark
 
   Use it:
-    Open Claude Code and ask it to list quills, or render a memo.
+    Open Claude Code in this project and ask it to list quills or render a memo.
+    No HTTP auth prompt. Returned URLs will be file://${ARTIFACTS_DIR}/<id>.pdf
+    which you can open directly with: open "<url>"
 
   Tear down:
-    ./scripts/uninstall-mcp.sh              # keep image + volume
-    ./scripts/uninstall-mcp.sh --yes --purge  # remove everything
+    ./scripts/uninstall-mcp.sh                  # deregister only
+    ./scripts/uninstall-mcp.sh --yes --purge    # also remove image + artifacts dir
 
 EOF
