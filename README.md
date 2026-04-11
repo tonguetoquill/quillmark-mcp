@@ -26,7 +26,7 @@ npx quillmark-mcp
 claude mcp add --transport http quillmark http://localhost:8080/mcp
 ```
 
-Customize the bind address with `--host`, `--port`, and `--endpoint`. The `--http`
+Customize the bind address with `--bind {host}:{port}` and `--endpoint`. The `--http`
 flag is accepted for explicitness but streamable HTTP is the default (and only)
 CLI transport.
 

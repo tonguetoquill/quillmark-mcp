@@ -2,12 +2,19 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 
-import { main, resolveQuillsDir } from '../src/bin.js';
+import { main, resolveQuillsDir, parseBind } from '../src/bin.js';
 
 describe('bin', () => {
   it('resolves quillsDir relative to cwd', () => {
     assert.equal(resolveQuillsDir('quills', '/workspace'), '/workspace/quills');
     assert.equal(resolveQuillsDir('/already/absolute', '/workspace'), '/already/absolute');
+  });
+
+  it('parseBind splits host and port', () => {
+    assert.deepEqual(parseBind('localhost:8080'), { host: 'localhost', port: 8080 });
+    assert.deepEqual(parseBind('0.0.0.0:3000'), { host: '0.0.0.0', port: 3000 });
+    assert.deepEqual(parseBind('::1:9000'), { host: '::1', port: 9000 });
+    assert.throws(() => parseBind('nocolon'), /Invalid --bind/);
   });
 
   it('returns non-zero exit code when quillsDir does not exist', async () => {
@@ -81,14 +88,13 @@ describe('bin', () => {
     });
   });
 
-  it('respects --host, --port, and --endpoint args', async () => {
+  it('respects --bind and --endpoint args', async () => {
     let startOptions;
     const logs = [];
 
     await main([
       '--quills-dir', 'quills',
-      '--host', '0.0.0.0',
-      '--port', '3000',
+      '--bind', '0.0.0.0:3000',
       '--endpoint', '/api/mcp',
     ], {
       cwd: '/workspace',

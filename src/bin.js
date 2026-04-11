@@ -11,6 +11,15 @@ export function resolveQuillsDir(quillsDir, cwd = process.cwd()) {
   return path.isAbsolute(quillsDir) ? quillsDir : path.resolve(cwd, quillsDir);
 }
 
+export function parseBind(bind) {
+  const lastColon = bind.lastIndexOf(':');
+  if (lastColon === -1) throw new Error(`Invalid --bind value "${bind}": expected {host}:{port}`);
+  const host = bind.slice(0, lastColon);
+  const port = parseInt(bind.slice(lastColon + 1), 10);
+  if (!host || Number.isNaN(port)) throw new Error(`Invalid --bind value "${bind}": expected {host}:{port}`);
+  return { host, port };
+}
+
 export async function main(argv = process.argv.slice(2), deps = {}) {
   const {
     cwd = process.cwd(),
@@ -31,8 +40,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
       'output-dir': { type: 'string', default: '.artifacts' },
       'base-url': { type: 'string', default: 'file://' },
       'http': { type: 'boolean', default: true },
-      'port': { type: 'string', default: '8080' },
-      'host': { type: 'string', default: 'localhost' },
+      'bind': { type: 'string', default: 'localhost:8080' },
       'endpoint': { type: 'string', default: '/mcp' },
     },
   });
@@ -51,8 +59,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
 
   const mcp = createMCP({ quillsDir, strategy });
 
-  const host = values.host;
-  const port = parseInt(values.port, 10);
+  const { host, port } = parseBind(values.bind);
   const endpoint = values.endpoint;
 
   await mcp.start({
