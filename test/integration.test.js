@@ -85,13 +85,13 @@ describe('integration', () => {
     });
   });
 
-  it('createDefaultMCP wires up the default stack against real fixtures', () => {
+  it('createDefaultMCP wires up the default stack against real fixtures', async () => {
     const strategy = {
       async handle() {
         return { status: 'success' };
       },
     };
-    const mcp = createDefaultMCP({ quillsDir: FIXTURE_QUILLS_DIR, strategy });
+    const mcp = await createDefaultMCP({ quillsDir: FIXTURE_QUILLS_DIR, strategy });
 
     assert.ok(mcp instanceof QuillmarkMCP);
     assert.equal(mcp.strategy, strategy);

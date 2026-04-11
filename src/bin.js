@@ -57,7 +57,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
     baseUrl: values['base-url'],
   });
 
-  const mcp = createMCP({ quillsDir, strategy });
+  const mcp = await createMCP({ quillsDir, strategy });
 
   const { host, port } = parseBind(values.bind);
   const endpoint = values.endpoint;

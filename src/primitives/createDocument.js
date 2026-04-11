@@ -75,7 +75,7 @@ function validateWithEngine(registry, content) {
 }
 
 /**
- * @param {{ resolve: (ref: string) => Promise<object>, getAvailableQuills?: () => Promise<Array<{ name: string, version?: string }>>, engine?: { dryRun: (content: string) => void } }} registry
+ * @param {{ resolve: (ref: string) => Promise<object>, engine?: { dryRun: (content: string) => void } }} registry
  * @param {{ handle: (quill: object, validatedContent: string) => Promise<{ status: string, url?: string, errors?: Array<{ message: string }> }> }} strategy
  * @param {string} content - Full Quillmark document: YAML frontmatter with QUILL: naming the Quill format, plus markdown body
  * @returns {Promise<{ status: string, url?: string, errors?: Array<{ message: string }> }>}
@@ -96,27 +96,7 @@ export async function createDocument(registry, strategy, content) {
   try {
     quill = await registry.resolve(quillRef);
   } catch (error) {
-    // If direct resolution fails, try to find the quill in available quills
-    // and resolve with the full versioned reference
-    if (typeof registry.getAvailableQuills === 'function') {
-      try {
-        const availableQuills = await registry.getAvailableQuills();
-        const matchingQuill = availableQuills.find((q) => q.name === quillRef);
-
-        if (matchingQuill) {
-          const fullRef = matchingQuill.version
-            ? `${matchingQuill.name}@${matchingQuill.version}`
-            : matchingQuill.name;
-          quill = await registry.resolve(fullRef);
-        } else {
-          return formatError(`Unable to resolve Quill format reference "${quillRef}": ${getErrorMessage(error)}`);
-        }
-      } catch (innerError) {
-        return formatError(`Unable to resolve Quill format reference "${quillRef}": ${getErrorMessage(innerError)}`);
-      }
-    } else {
-      return formatError(`Unable to resolve Quill format reference "${quillRef}": ${getErrorMessage(error)}`);
-    }
+    return formatError(`Unable to resolve Quill format reference "${quillRef}": ${getErrorMessage(error)}`);
   }
 
   const validationErrors = validateWithEngine(registry, content);
