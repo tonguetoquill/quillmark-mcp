@@ -14,14 +14,14 @@ function extractInstructions(quillInfo) {
 
 /**
  * @param {{ resolve: (ref: string) => Promise<{ name: string }>, engine?: { getStrippedSchema: (name: string) => unknown, getQuillInfo: (name: string) => { example?: string, metadata?: Record<string, unknown> } } }} registry
- * @param {string} ref - Quill reference identifier
+ * @param {string} ref - Identifier for the Quill format (e.g. package name or name@version)
  * @param {{ encodeSchema?: (schema: unknown) => string }} [deps]
  * @returns {Promise<{ schema: string, instructions: string }>} TOON-encoded schema + authoring instructions
- * @throws {Error} If the quill reference is invalid or unavailable
+ * @throws {Error} If the Quill format reference is invalid or unavailable
  */
 export async function getSpecs(registry, ref, deps = {}) {
   if (typeof ref !== 'string' || ref.trim() === '') {
-    throw new Error('Quill reference must be a non-empty string.');
+    throw new Error('Quill format reference must be a non-empty string.');
   }
 
   const encodeSchema = deps.encodeSchema ?? encode;
@@ -31,7 +31,7 @@ export async function getSpecs(registry, ref, deps = {}) {
     bundle = await registry.resolve(ref);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Unable to resolve quill reference "${ref}": ${message}`, { cause: error });
+    throw new Error(`Unable to resolve Quill format reference "${ref}": ${message}`, { cause: error });
   }
 
   const engine = registry.engine;

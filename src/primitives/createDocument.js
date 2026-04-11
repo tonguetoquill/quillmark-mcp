@@ -31,7 +31,28 @@ function formatError(message) {
 }
 
 function getErrorMessage(error) {
-  return error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (error instanceof Map) {
+    // If the Map has a 'message' key, use that (common in validation errors)
+    if (error.has('message')) {
+      return String(error.get('message'));
+    }
+    // Otherwise serialize the Map
+    const entries = Array.from(error.entries())
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('; ');
+    return entries || 'Unknown validation error';
+  }
+  if (error && typeof error === 'object') {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error);
 }
 
 function extractQuillRef(frontmatterFields) {
@@ -56,7 +77,7 @@ function validateWithEngine(registry, content) {
 /**
  * @param {{ resolve: (ref: string) => Promise<object>, engine?: { dryRun: (content: string) => void } }} registry
  * @param {{ handle: (quill: object, validatedContent: string) => Promise<{ status: string, url?: string, errors?: Array<{ message: string }> }> }} strategy
- * @param {string} content - Full Quillmark document (YAML frontmatter + markdown body)
+ * @param {string} content - Full Quillmark document: YAML frontmatter with QUILL: naming the Quill format, plus markdown body
  * @returns {Promise<{ status: string, url?: string, errors?: Array<{ message: string }> }>}
  */
 export async function createDocument(registry, strategy, content) {
@@ -68,14 +89,14 @@ export async function createDocument(registry, strategy, content) {
   const quillRef = extractQuillRef(frontmatterFields);
 
   if (typeof quillRef !== 'string' || quillRef.trim() === '') {
-    return formatError('QUILL field is required in frontmatter.');
+    return formatError('QUILL: is required in frontmatter to select the Quill format.');
   }
 
   let quill;
   try {
     quill = await registry.resolve(quillRef);
   } catch (error) {
-    return formatError(`Unable to resolve quill reference "${quillRef}": ${getErrorMessage(error)}`);
+    return formatError(`Unable to resolve Quill format reference "${quillRef}": ${getErrorMessage(error)}`);
   }
 
   const validationErrors = validateWithEngine(registry, content);
@@ -86,5 +107,14 @@ export async function createDocument(registry, strategy, content) {
     };
   }
 
-  return strategy.handle(quill, content);
+  const result = await strategy.handle(quill, content);
+
+  // Ensure error messages are properly serialized (handles Maps and other objects)
+  if (result.status === 'error' && result.errors && Array.isArray(result.errors)) {
+    result.errors = result.errors.map((error) => ({
+      message: getErrorMessage(error.message || error),
+    }));
+  }
+
+  return result;
 }

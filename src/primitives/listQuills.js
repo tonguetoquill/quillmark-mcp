@@ -1,4 +1,6 @@
 /**
+ * Lists installed Quill formats (document templates) from the registry.
+ *
  * @param {{ getAvailableQuills: () => Promise<Array<{ name: string, description?: string }>> }} registry
  * @returns {Promise<Array<{ name: string, description: string }>>}
  */

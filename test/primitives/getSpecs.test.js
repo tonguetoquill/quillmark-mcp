@@ -55,7 +55,7 @@ describe('getSpecs', () => {
 
     await assert.rejects(
       () => getSpecs(registry, 'unknown_quill'),
-      /Unable to resolve quill reference "unknown_quill": quill_not_found/,
+      /Unable to resolve Quill format reference "unknown_quill": quill_not_found/,
     );
   });
 

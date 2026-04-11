@@ -1,17 +1,30 @@
 {
   "name": "quillmark-mcp",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "",
   "main": "./src/index.js",
+  "bin": {
+    "quillmark-mcp": "./src/bin.js"
+  },
   "exports": {
     ".": "./src/index.js",
     "./primitives": "./src/primitives/index.js",
     "./strategies": "./src/strategies/index.js",
     "./mcp": "./src/mcp/index.js"
   },
+  "files": [
+    "src/",
+    "quills/"
+  ],
   "scripts": {
     "test": "node --test",
-    "start": "node src/index.js"
+    "start": "node src/bin.js",
+    "preversion": "npm test",
+    "postversion": "git push --follow-tags",
+    "release:patch": "npm version patch",
+    "release:minor": "npm version minor",
+    "release:major": "npm version major",
+    "prerelease": "npm version prerelease --preid beta && npm publish --tag beta"
   },
   "repository": {
     "type": "git",
@@ -26,12 +39,14 @@
   },
   "homepage": "https://github.com/nibsbin/quillmark-mcp#readme",
   "engines": {
-    "node": ">=25.0.0"
+    "node": ">=24.0.0"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@quillmark/registry": "^0.12.0",
     "@quillmark/wasm": "^0.51.1",
     "@toon-format/toon": "^2.1.0",
-    "fastmcp": "^3.35.0"
-  }
+    "loglevel": "^1.9.1"
+  },
+  "devDependencies": {}
 }

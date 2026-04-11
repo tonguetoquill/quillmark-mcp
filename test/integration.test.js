@@ -5,14 +5,9 @@ import { describe, it } from 'node:test';
 import { FileSystemSource, QuillRegistry } from '@quillmark/registry';
 import { Quillmark, init } from '@quillmark/wasm';
 
-import {
-  QuillmarkMCP,
-  createDocument,
-  getSpecs,
-  listQuills,
-  PassThroughStrategy,
-  RenderAndHostStrategy,
-} from '../src/index.js';
+import { createDefaultMCP } from '../src/index.js';
+import { QuillmarkMCP } from '../src/mcp/index.js';
+import { listQuills, getSpecs, createDocument } from '../src/primitives/index.js';
 
 const FIXTURE_QUILLS_DIR = fileURLToPath(new URL('./fixtures/quills', import.meta.url));
 
@@ -37,11 +32,13 @@ describe('integration', () => {
     assert.ok(specs.schema.length > 0);
     assert.equal(specs.instructions, 'Keep tone formal.');
 
-    const strategy = new PassThroughStrategy(async (quill, content) => {
-      assert.equal(quill.name, 'usaf_memo');
-      assert.match(content, /QUILL:\s*usaf_memo/);
-      return { status: 'success', url: 'https://example.com/out.pdf' };
-    });
+    const strategy = {
+      async handle(quill, content) {
+        assert.equal(quill.name, 'usaf_memo');
+        assert.match(content, /QUILL:\s*usaf_memo/);
+        return { status: 'success', url: 'https://example.com/out.pdf' };
+      },
+    };
 
     const result = await createDocument(
       registry,
@@ -60,12 +57,16 @@ describe('integration', () => {
 
     await assert.rejects(() => getSpecs(registry, 'missing_quill'));
 
-    const strategy = new PassThroughStrategy(async () => ({ status: 'success', url: 'https://example.com' }));
+    const strategy = {
+      async handle() {
+        return { status: 'success', url: 'https://example.com' };
+      },
+    };
 
     const missingQuill = await createDocument(registry, strategy, '---\nTITLE: Memo\n---\nBody');
     assert.deepStrictEqual(missingQuill, {
       status: 'error',
-      errors: [{ message: 'QUILL field is required in frontmatter.' }],
+      errors: [{ message: 'QUILL: is required in frontmatter to select the Quill format.' }],
     });
 
     registry.engine.dryRun = () => {
@@ -84,22 +85,38 @@ describe('integration', () => {
     });
   });
 
+  it('createDefaultMCP wires up the default stack against real fixtures', async () => {
+    const strategy = {
+      async handle() {
+        return { status: 'success' };
+      },
+    };
+    const mcp = await createDefaultMCP({ quillsDir: FIXTURE_QUILLS_DIR, strategy });
+
+    assert.ok(mcp instanceof QuillmarkMCP);
+    assert.equal(mcp.strategy, strategy);
+    assert.ok(typeof mcp.registry.resolve === 'function');
+  });
+
   it('exposes root and subpath exports', async () => {
-    assert.equal(typeof QuillmarkMCP, 'function');
-    assert.equal(typeof listQuills, 'function');
-    assert.equal(typeof getSpecs, 'function');
-    assert.equal(typeof createDocument, 'function');
-    assert.equal(typeof PassThroughStrategy, 'function');
-    assert.equal(typeof RenderAndHostStrategy, 'function');
+    // Public API: only createDefaultMCP and DeliveryStrategy at root
+    assert.equal(typeof createDefaultMCP, 'function');
 
+    // Internal APIs available via subpath imports
     const root = await import('quillmark-mcp');
-    const primitives = await import('quillmark-mcp/primitives');
-    const strategies = await import('quillmark-mcp/strategies');
-    const mcp = await import('quillmark-mcp/mcp');
+    assert.equal(typeof root.createDefaultMCP, 'function');
 
-    assert.equal(typeof root.QuillmarkMCP, 'function');
+    const primitives = await import('quillmark-mcp/primitives');
     assert.equal(typeof primitives.listQuills, 'function');
-    assert.equal(typeof strategies.PassThroughStrategy, 'function');
-    assert.equal(typeof mcp.QuillmarkMCP, 'function');
+    assert.equal(typeof primitives.getSpecs, 'function');
+    assert.equal(typeof primitives.createDocument, 'function');
+
+    const strategies = await import('quillmark-mcp/strategies');
+    assert.equal(typeof strategies.DeliveryStrategy, 'function');
+    assert.equal(typeof strategies.RenderAndHostStrategy, 'function');
+
+    const mcpModule = await import('quillmark-mcp/mcp');
+    assert.equal(typeof mcpModule.QuillmarkMCP, 'function');
+    assert.equal(typeof mcpModule.createDefaultMCP, 'function');
   });
 });

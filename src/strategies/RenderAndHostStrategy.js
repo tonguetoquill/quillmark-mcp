@@ -1,9 +1,35 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { Quillmark } from '@quillmark/wasm';
+import { Quillmark, init } from '@quillmark/wasm';
 
 import { DeliveryStrategy } from './DeliveryStrategy.js';
+import { logger } from '../logger.js';
+
+function getErrorMessage(error) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (error instanceof Map) {
+    // If the Map has a 'message' key, use that (common in validation errors)
+    if (error.has('message')) {
+      return String(error.get('message'));
+    }
+    // Otherwise serialize the Map
+    const entries = Array.from(error.entries())
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('; ');
+    return entries || 'Unknown validation error';
+  }
+  if (error && typeof error === 'object') {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error);
+}
 
 function extensionFromMimeType(mimeType, fallback) {
   if (mimeType === 'application/pdf') {
@@ -23,85 +49,76 @@ function extensionFromMimeType(mimeType, fallback) {
 
 export class RenderAndHostStrategy extends DeliveryStrategy {
   /**
-   * @param {{ engine?: { render: (parsed: unknown, opts: { format: string, quillRef: string }) => { artifacts: Array<{ bytes: Uint8Array | number[], mimeType?: string }> } }, outputDir?: string, baseUrl?: string, format?: string, renderDocument?: (args: { quill: { name: string }, content: string, engine?: object, format: string }) => Promise<{ artifacts: Array<{ bytes: Uint8Array | number[], mimeType?: string }> }> | { artifacts: Array<{ bytes: Uint8Array | number[], mimeType?: string }> }, saveArtifact?: (args: { artifact: { bytes: Uint8Array | number[], mimeType?: string }, quill: { name: string }, outputDir: string, baseUrl: string, format: string }) => Promise<{ url: string }> | { url: string } }} [options]
+   * @param {{ outputDir?: string, baseUrl?: string, format?: string }} [options]
    */
   constructor(options = {}) {
     super();
 
-    this.engine = options.engine;
+    init();
+    this.engine = new Quillmark();
     this.outputDir = options.outputDir ?? path.resolve(process.cwd(), '.artifacts');
     this.baseUrl = options.baseUrl ?? 'file://';
     this.format = options.format ?? 'pdf';
-    this.renderDocument = options.renderDocument ?? this.defaultRenderDocument.bind(this);
-    this.saveArtifact = options.saveArtifact ?? this.defaultSaveArtifact.bind(this);
   }
 
   async handle(quill, validatedContent) {
     try {
-      const renderResult = await this.renderDocument({
-        quill,
-        content: validatedContent,
-        engine: this.engine,
+      logger.debug(`Rendering document (quill: ${quill.name}, bytes: ${validatedContent.length})`);
+
+      const canonicalRef = `${quill.name}@${quill.version}`;
+      const existing = this.engine.resolveQuill(canonicalRef) ?? this.engine.resolveQuill(quill.name);
+      if (existing?.metadata?.version !== quill.version) {
+        this.engine.registerQuill(quill.data);
+      }
+
+      const parsed = Quillmark.parseMarkdown(validatedContent);
+      logger.debug(`Parsed markdown (quill: ${quill.name})`);
+
+      const renderResult = this.engine.render(parsed, {
         format: this.format,
+        quillRef: quill.name,
       });
+      logger.debug(`Rendered to format (quill: ${quill.name}, format: ${this.format})`);
 
       const artifact = renderResult?.artifacts?.[0];
       if (!artifact || !artifact.bytes) {
         throw new Error('Render result did not include any artifacts.');
       }
 
-      const saveResult = await this.saveArtifact({
-        artifact,
-        quill,
-        outputDir: this.outputDir,
-        baseUrl: this.baseUrl,
-        format: this.format,
-      });
+      await mkdir(this.outputDir, { recursive: true });
 
+      const extension = extensionFromMimeType(artifact.mimeType, this.format);
+      const fileName = `${quill.name}-${randomUUID()}.${extension}`;
+      const outputPath = path.join(this.outputDir, fileName);
+
+      const bytes = artifact.bytes instanceof Uint8Array
+        ? artifact.bytes
+        : Uint8Array.from(artifact.bytes);
+
+      await writeFile(outputPath, bytes);
+      logger.debug(`Artifact written (path: ${outputPath}, bytes: ${bytes.length})`);
+
+      let url;
+      if (this.baseUrl === 'file://') {
+        url = `file://${outputPath}`;
+      } else {
+        const normalizedBase = this.baseUrl.endsWith('/') ? this.baseUrl.slice(0, -1) : this.baseUrl;
+        url = `${normalizedBase}/${fileName}`;
+      }
+
+      logger.info(`Document rendered successfully (quill: ${quill.name}, url: ${url})`);
       return {
         status: 'success',
-        url: saveResult.url,
+        url,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
+      logger.error(`Document rendering failed (quill: ${quill.name}): ${message}`);
 
       return {
         status: 'error',
         errors: [{ message }],
       };
     }
-  }
-
-  defaultRenderDocument({ quill, content, engine, format }) {
-    if (!engine || typeof engine.render !== 'function') {
-      throw new Error('RenderAndHostStrategy requires an engine with a render() method.');
-    }
-
-    const parsed = Quillmark.parseMarkdown(content);
-    return engine.render(parsed, {
-      format,
-      quillRef: quill.name,
-    });
-  }
-
-  async defaultSaveArtifact({ artifact, quill, outputDir, baseUrl, format }) {
-    await mkdir(outputDir, { recursive: true });
-
-    const extension = extensionFromMimeType(artifact.mimeType, format);
-    const fileName = `${quill.name}-${randomUUID()}.${extension}`;
-    const outputPath = path.join(outputDir, fileName);
-
-    const bytes = artifact.bytes instanceof Uint8Array
-      ? artifact.bytes
-      : Uint8Array.from(artifact.bytes);
-
-    await writeFile(outputPath, bytes);
-
-    if (baseUrl === 'file://') {
-      return { url: `file://${outputPath}` };
-    }
-
-    const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    return { url: `${normalizedBase}/${fileName}` };
   }
 }
