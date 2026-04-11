@@ -38,7 +38,7 @@
 
 // Mainmatter configuration
 #mainmatter[
-  data.BODY
+  #data.BODY
 ]
 
 // Backmatter
@@ -69,7 +69,7 @@
       ..if "date" in card { (date: card.date) },
       ..if "action" in card { (action: card.action) },
     )[
-      card.BODY
+      #card.BODY
     ]
   }
 }
