@@ -5,14 +5,9 @@ import { describe, it } from 'node:test';
 import { FileSystemSource, QuillRegistry } from '@quillmark/registry';
 import { Quillmark, init } from '@quillmark/wasm';
 
-import {
-  QuillmarkMCP,
-  createDefaultMCP,
-  createDocument,
-  getSpecs,
-  listQuills,
-  RenderAndHostStrategy,
-} from '../src/index.js';
+import { createDefaultMCP } from '../src/index.js';
+import { QuillmarkMCP } from '../src/mcp/index.js';
+import { listQuills, getSpecs, createDocument } from '../src/primitives/index.js';
 
 const FIXTURE_QUILLS_DIR = fileURLToPath(new URL('./fixtures/quills', import.meta.url));
 
@@ -104,22 +99,24 @@ describe('integration', () => {
   });
 
   it('exposes root and subpath exports', async () => {
-    assert.equal(typeof QuillmarkMCP, 'function');
+    // Public API: only createDefaultMCP and DeliveryStrategy at root
     assert.equal(typeof createDefaultMCP, 'function');
-    assert.equal(typeof listQuills, 'function');
-    assert.equal(typeof getSpecs, 'function');
-    assert.equal(typeof createDocument, 'function');
-    assert.equal(typeof RenderAndHostStrategy, 'function');
 
+    // Internal APIs available via subpath imports
     const root = await import('quillmark-mcp');
-    const primitives = await import('quillmark-mcp/primitives');
-    const strategies = await import('quillmark-mcp/strategies');
-    const mcp = await import('quillmark-mcp/mcp');
-
-    assert.equal(typeof root.QuillmarkMCP, 'function');
     assert.equal(typeof root.createDefaultMCP, 'function');
+
+    const primitives = await import('quillmark-mcp/primitives');
     assert.equal(typeof primitives.listQuills, 'function');
-    assert.equal(typeof mcp.QuillmarkMCP, 'function');
-    assert.equal(typeof mcp.createDefaultMCP, 'function');
+    assert.equal(typeof primitives.getSpecs, 'function');
+    assert.equal(typeof primitives.createDocument, 'function');
+
+    const strategies = await import('quillmark-mcp/strategies');
+    assert.equal(typeof strategies.DeliveryStrategy, 'function');
+    assert.equal(typeof strategies.RenderAndHostStrategy, 'function');
+
+    const mcpModule = await import('quillmark-mcp/mcp');
+    assert.equal(typeof mcpModule.QuillmarkMCP, 'function');
+    assert.equal(typeof mcpModule.createDefaultMCP, 'function');
   });
 });
