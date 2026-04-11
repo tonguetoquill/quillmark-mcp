@@ -51,7 +51,7 @@ export class McpSdkServerAdapter {
       const host = startOptions.httpStream?.host ?? 'localhost';
       const port = startOptions.httpStream?.port ?? 8080;
       const endpoint = normalizePath(startOptions.httpStream?.endpoint ?? '/mcp');
-      const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+      const transport = new StreamableHTTPServerTransport();
 
       await this.server.connect(transport);
 
