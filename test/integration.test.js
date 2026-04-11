@@ -11,7 +11,6 @@ import {
   createDocument,
   getSpecs,
   listQuills,
-  PassThroughStrategy,
   RenderAndHostStrategy,
 } from '../src/index.js';
 
@@ -38,11 +37,13 @@ describe('integration', () => {
     assert.ok(specs.schema.length > 0);
     assert.equal(specs.instructions, 'Keep tone formal.');
 
-    const strategy = new PassThroughStrategy(async (quill, content) => {
-      assert.equal(quill.name, 'usaf_memo');
-      assert.match(content, /QUILL:\s*usaf_memo/);
-      return { status: 'success', url: 'https://example.com/out.pdf' };
-    });
+    const strategy = {
+      async handle(quill, content) {
+        assert.equal(quill.name, 'usaf_memo');
+        assert.match(content, /QUILL:\s*usaf_memo/);
+        return { status: 'success', url: 'https://example.com/out.pdf' };
+      },
+    };
 
     const result = await createDocument(
       registry,
@@ -61,7 +62,11 @@ describe('integration', () => {
 
     await assert.rejects(() => getSpecs(registry, 'missing_quill'));
 
-    const strategy = new PassThroughStrategy(async () => ({ status: 'success', url: 'https://example.com' }));
+    const strategy = {
+      async handle() {
+        return { status: 'success', url: 'https://example.com' };
+      },
+    };
 
     const missingQuill = await createDocument(registry, strategy, '---\nTITLE: Memo\n---\nBody');
     assert.deepStrictEqual(missingQuill, {
@@ -86,7 +91,11 @@ describe('integration', () => {
   });
 
   it('createDefaultMCP wires up the default stack against real fixtures', () => {
-    const strategy = new PassThroughStrategy(async () => ({ status: 'success' }));
+    const strategy = {
+      async handle() {
+        return { status: 'success' };
+      },
+    };
     const mcp = createDefaultMCP({ quillsDir: FIXTURE_QUILLS_DIR, strategy });
 
     assert.ok(mcp instanceof QuillmarkMCP);
@@ -100,7 +109,6 @@ describe('integration', () => {
     assert.equal(typeof listQuills, 'function');
     assert.equal(typeof getSpecs, 'function');
     assert.equal(typeof createDocument, 'function');
-    assert.equal(typeof PassThroughStrategy, 'function');
     assert.equal(typeof RenderAndHostStrategy, 'function');
 
     const root = await import('quillmark-mcp');
@@ -111,7 +119,6 @@ describe('integration', () => {
     assert.equal(typeof root.QuillmarkMCP, 'function');
     assert.equal(typeof root.createDefaultMCP, 'function');
     assert.equal(typeof primitives.listQuills, 'function');
-    assert.equal(typeof strategies.PassThroughStrategy, 'function');
     assert.equal(typeof mcp.QuillmarkMCP, 'function');
     assert.equal(typeof mcp.createDefaultMCP, 'function');
   });

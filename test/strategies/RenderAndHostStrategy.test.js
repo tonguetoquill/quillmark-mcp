@@ -1,52 +1,60 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import * as fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { RenderAndHostStrategy } from '../../src/strategies/RenderAndHostStrategy.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 describe('RenderAndHostStrategy', () => {
-  it('renders content and returns a URL', async () => {
+  it('initializes with configurable outputDir and baseUrl', () => {
     const strategy = new RenderAndHostStrategy({
-      renderDocument({ quill, content, format }) {
-        assert.strictEqual(quill.name, 'usaf_memo');
-        assert.strictEqual(content, 'validated content');
-        assert.strictEqual(format, 'pdf');
-
-        return {
-          artifacts: [
-            {
-              bytes: Uint8Array.from([37, 80, 68, 70]),
-              mimeType: 'application/pdf',
-            },
-          ],
-        };
-      },
-      saveArtifact({ quill, format }) {
-        assert.strictEqual(quill.name, 'usaf_memo');
-        assert.strictEqual(format, 'pdf');
-        return { url: 'https://cdn.example.com/usaf_memo.pdf' };
-      },
+      outputDir: '/tmp/artifacts',
+      baseUrl: 'https://cdn.example.com',
+      format: 'pdf',
     });
 
-    const result = await strategy.handle({ name: 'usaf_memo' }, 'validated content');
+    assert.strictEqual(strategy.outputDir, '/tmp/artifacts');
+    assert.strictEqual(strategy.baseUrl, 'https://cdn.example.com');
+    assert.strictEqual(strategy.format, 'pdf');
+    assert.ok(strategy.engine, 'engine should be initialized');
+  });
 
-    assert.deepStrictEqual(result, {
-      status: 'success',
-      url: 'https://cdn.example.com/usaf_memo.pdf',
-    });
+  it('uses sensible defaults', () => {
+    const strategy = new RenderAndHostStrategy();
+
+    assert.match(strategy.outputDir, /\.artifacts$/);
+    assert.strictEqual(strategy.baseUrl, 'file://');
+    assert.strictEqual(strategy.format, 'pdf');
   });
 
   it('handles render errors gracefully', async () => {
-    const strategy = new RenderAndHostStrategy({
-      renderDocument() {
-        throw new Error('render failed');
-      },
+    // Create a strategy that will fail during render by passing invalid content
+    const strategy = new RenderAndHostStrategy();
+
+    // Passing empty/invalid content should cause Quillmark to fail
+    const result = await strategy.handle({ name: 'test_quill' }, '');
+
+    assert.strictEqual(result.status, 'error');
+    assert.ok(Array.isArray(result.errors));
+    assert.ok(result.errors[0].message);
+  });
+
+  it('handles missing artifacts in render result gracefully', async () => {
+    const strategy = new RenderAndHostStrategy();
+
+    // Override the engine's render method to return empty artifacts
+    strategy.engine.render = () => ({
+      artifacts: [],
     });
 
-    const result = await strategy.handle({ name: 'usaf_memo' }, 'validated content');
+    const result = await strategy.handle({ name: 'test_quill' }, '---\nQUILL: test\n---\nBody');
 
-    assert.deepStrictEqual(result, {
-      status: 'error',
-      errors: [{ message: 'render failed' }],
-    });
+    assert.strictEqual(result.status, 'error');
+    assert.deepStrictEqual(result.errors, [
+      { message: 'Render result did not include any artifacts.' },
+    ]);
   });
 });
