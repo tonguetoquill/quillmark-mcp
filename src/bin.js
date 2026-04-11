@@ -15,6 +15,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   const {
     cwd = process.cwd(),
     exists = existsSync,
+    consoleLog = console.log,
     consoleError = console.error,
     setExitCode = (code) => {
       process.exitCode = code;
@@ -29,6 +30,9 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
       'quills-dir': { type: 'string', default: './quills' },
       'output-dir': { type: 'string', default: '.artifacts' },
       'base-url': { type: 'string', default: 'file://' },
+      'port': { type: 'string', default: '8080' },
+      'host': { type: 'string', default: 'localhost' },
+      'endpoint': { type: 'string', default: '/mcp' },
     },
   });
 
@@ -45,7 +49,16 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   });
 
   const mcp = createMCP({ quillsDir, strategy });
-  await mcp.start();
+
+  const host = values['host'];
+  const port = parseInt(values['port'], 10);
+  const endpoint = values['endpoint'];
+  const startOptions = { transportType: 'httpStream', httpStream: { host, port, endpoint } };
+
+  await mcp.start(startOptions);
+
+  consoleError(`Transport: streamable HTTP`);
+  consoleError(`URL: http://${host}:${port}${endpoint}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -29,10 +29,11 @@ describe('bin', () => {
     assert.match(stderr, /Quills directory does not exist: \/workspace\/missing/);
   });
 
-  it('starts MCP with parsed options', async () => {
+  it('starts MCP with parsed options using streamable HTTP transport', async () => {
     let strategyOptions;
-    let started = false;
+    let startOptions;
     let createMCPOptions;
+    const logs = [];
 
     class FakeStrategy {
       constructor(options) {
@@ -43,20 +44,46 @@ describe('bin', () => {
     await main(['--quills-dir', 'quills', '--output-dir', 'out', '--base-url', 'https://host/base'], {
       cwd: '/workspace',
       exists: () => true,
+      consoleError: (msg) => logs.push(msg),
       StrategyClass: FakeStrategy,
       createMCP: (options) => {
         createMCPOptions = options;
-        return { async start() { started = true; } };
+        return { async start(opts) { startOptions = opts; } };
       },
     });
 
-    assert.deepEqual(strategyOptions, {
-      outputDir: 'out',
-      baseUrl: 'https://host/base',
-    });
-
+    assert.deepEqual(strategyOptions, { outputDir: 'out', baseUrl: 'https://host/base' });
     assert.equal(createMCPOptions.quillsDir, path.resolve('/workspace', 'quills'));
     assert.ok(createMCPOptions.strategy instanceof FakeStrategy);
-    assert.equal(started, true);
+    assert.deepEqual(startOptions, {
+      transportType: 'httpStream',
+      httpStream: { host: 'localhost', port: 8080, endpoint: '/mcp' },
+    });
+    assert.ok(logs.some((l) => l.includes('streamable HTTP')));
+    assert.ok(logs.some((l) => l.includes('http://localhost:8080/mcp')));
+  });
+
+  it('respects --host, --port, and --endpoint args', async () => {
+    let startOptions;
+    const logs = [];
+
+    await main([
+      '--quills-dir', 'quills',
+      '--host', '0.0.0.0',
+      '--port', '3000',
+      '--endpoint', '/api/mcp',
+    ], {
+      cwd: '/workspace',
+      exists: () => true,
+      consoleError: (msg) => logs.push(msg),
+      StrategyClass: class FakeStrategy {},
+      createMCP: () => ({ async start(opts) { startOptions = opts; } }),
+    });
+
+    assert.deepEqual(startOptions, {
+      transportType: 'httpStream',
+      httpStream: { host: '0.0.0.0', port: 3000, endpoint: '/api/mcp' },
+    });
+    assert.ok(logs.some((l) => l.includes('http://0.0.0.0:3000/api/mcp')));
   });
 });
