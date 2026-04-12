@@ -1,0 +1,27 @@
+[package]
+name = "ttq-static-analysis-report"
+version = "0.2.0"
+compiler = "0.14.0"
+entrypoint = "src/lib.typ"
+repository = "https://github.com/nibsbin/ttq-static-analysis-report"
+authors = ["Nibs"]
+license = "MIT"
+description = "Cybersecurity assessment report template for weapon system and mission software baselines."
+
+keywords = [
+    "security",
+    "analysis",
+    "report",
+    "weapon-system",
+    "vulnerability",
+    "assessment",
+    "audit",
+    "template",
+]
+categories = ["report"]
+disciplines = ["computer-science", "engineering"]
+
+[template]
+path = "template"
+entrypoint = "report.typ"
+thumbnail = "thumbnail.png"
