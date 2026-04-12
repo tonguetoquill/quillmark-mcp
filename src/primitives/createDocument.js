@@ -209,7 +209,12 @@ export async function createDocument(registry, strategy, content) {
     };
   }
 
-  const result = await strategy.handle(quill, content);
+  let result;
+  try {
+    result = await strategy.handle(quill, content);
+  } catch (error) {
+    return formatError(`Strategy failed: ${getErrorMessage(error)}`);
+  }
 
   // Ensure error messages are properly serialized (handles Maps and other objects)
   if (result.status === 'error' && result.errors && Array.isArray(result.errors)) {
