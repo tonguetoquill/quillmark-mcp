@@ -7,6 +7,8 @@ on:
       - 'src/**'
       - 'docs/wiki/**'
       - 'jsdoc.json'
+      - '.github/workflows/wiki.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -19,29 +21,36 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v6
+        with:
+          path: source
+
+      - name: Checkout wiki
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version-file: .nvmrc
+          node-version-file: source/.nvmrc
           cache: npm
+          cache-dependency-path: source/package-lock.json
 
       - name: Install dependencies
         run: npm ci
+        working-directory: source
 
       - name: Regenerate API Reference from JSDoc
         run: npx jsdoc2md --files 'src/**/*.js' --configure jsdoc.json > docs/wiki/API-Reference.md
+        working-directory: source
 
-      - name: Publish to GitHub Wiki
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Copy wiki pages and push
         run: |
-          WIKI_DIR=$(mktemp -d)
-          git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.wiki.git" "$WIKI_DIR"
-          cp docs/wiki/*.md "$WIKI_DIR/"
-          cd "$WIKI_DIR"
+          cp source/docs/wiki/*.md wiki/
+          cd wiki
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
