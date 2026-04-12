@@ -29,8 +29,7 @@ Examples of unacceptable behavior:
 
 ## Enforcement
 
-Instances of unacceptable behavior may be reported to the project maintainer at
-the email address associated with the @ark-232 GitHub account. All complaints
+Instances of unacceptable behavior may be reported to the project maintainer. All complaints
 will be reviewed and investigated promptly and fairly.
 
 ## Attribution
