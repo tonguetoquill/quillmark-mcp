@@ -7,7 +7,7 @@
   "name": "Quillmark MCP",
   "includeVersion": true,
   "githubPages": true,
-  "readme": "./README.md",
+  "readme": "none",
   "excludePrivate": true,
   "excludeInternal": true,
   "navigation": {
