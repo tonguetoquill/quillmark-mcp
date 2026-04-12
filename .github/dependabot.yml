@@ -1,0 +1,61 @@
+version: 2
+updates:
+  # npm dependencies — group minor + patch into one weekly PR to cut noise,
+  # surface majors separately so they get individual review.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Anchorage
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - area:devops
+    groups:
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: chore(deps)
+      include: scope
+
+  # GitHub Actions versions — usually safe to batch.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Anchorage
+    labels:
+      - dependencies
+      - area:devops
+    groups:
+      actions-all:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+          - major
+    commit-message:
+      prefix: chore(actions)
+      include: scope
+
+  # Docker base image updates (node:24-slim, etc.)
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Anchorage
+    labels:
+      - dependencies
+      - area:devops
+    commit-message:
+      prefix: chore(docker)
+      include: scope

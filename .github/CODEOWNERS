@@ -1,0 +1,26 @@
+# CODEOWNERS
+#
+# Default owner for everything not matched below.
+* @ark-232
+
+# Server core — require owner review for any change to the rendering path.
+/src/mcp/          @ark-232
+/src/primitives/   @ark-232
+/src/strategies/   @ark-232
+
+# Test harness and fixtures — changes here affect CI.
+/test/             @ark-232
+/scripts/          @ark-232
+
+# Docker image and deployment — security-sensitive.
+/Dockerfile        @ark-232
+/docker-compose.yml @ark-232
+/docker/           @ark-232
+
+# DevOps infrastructure.
+/.github/          @ark-232
+
+# Policy files.
+/SECURITY.md            @ark-232
+/CODE_OF_CONDUCT.md     @ark-232
+/CHANGELOG.md           @ark-232

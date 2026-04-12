@@ -1,0 +1,73 @@
+name: Client validation
+description: Track end-to-end validation of a specific MCP client against quillmark-mcp
+title: "Validate <Client Name> end-to-end"
+labels: ["status:needs-validation", "area:client-integration", "help wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is for tracking the end-to-end validation of a specific MCP client
+        against the Quillmark server. See [`docs/STATUS.md`](../../blob/main/docs/STATUS.md)
+        for what "validated" means (acceptance criteria).
+
+        The maintainer creates one of these per unvalidated client; contributors pick
+        them up and close them by opening a PR that flips the client's status from
+        🚧 to ✅ in `docs/STATUS.md`.
+
+  - type: input
+    id: client
+    attributes:
+      label: Client name
+      placeholder: "e.g. Cursor, VS Code Copilot, Codex CLI"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Transport
+      options:
+        - Streamable HTTP (local 127.0.0.1)
+        - stdio (local)
+        - Streamable HTTP (public URL / tunnel required)
+        - stdio via mcp-remote shim
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup steps
+      description: Exact steps to wire the client up, from a clean machine.
+      render: shell
+      placeholder: |
+        ./scripts/install-mcp.sh
+        # Paste <config snippet> into <file path>
+        # Restart <client>
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: acceptance
+    attributes:
+      label: Acceptance criteria (all must be checked to close)
+      options:
+        - label: Server starts in the client's expected transport mode
+        - label: Client's tool picker lists `list_quills`, `get_specs`, `create_document` (or `compose_document` in local-model mode)
+        - label: A `create_document`/`compose_document` call succeeds and returns a `status: success` response
+        - label: Returned URL resolves to a valid PDF (`%PDF` magic, ≥10 KB, opens in a PDF viewer)
+        - label: Evidence recorded (commit SHA, screenshot, or terminal log)
+        - label: PR opens updating `docs/STATUS.md` and the client doc's status banner
+
+  - type: textarea
+    id: blockers
+    attributes:
+      label: Known blockers
+      description: Anything that prevents validation right now — missing features, upstream bugs, missing access, etc.
+
+  - type: textarea
+    id: links
+    attributes:
+      label: Related links
+      description: Relevant upstream issues, docs, or related validation PRs.
