@@ -185,6 +185,54 @@ describe('createDocument', () => {
     ]);
   });
 
+  it('returns structured error when strategy.handle() throws an Error', async () => {
+    const registry = {
+      async resolve() {
+        return { name: 'usaf_memo' };
+      },
+      engine: {
+        dryRun() {},
+      },
+    };
+
+    const strategy = {
+      async handle() {
+        throw new Error('disk full');
+      },
+    };
+
+    const result = await createDocument(registry, strategy, VALID_CONTENT);
+
+    assert.deepStrictEqual(result, {
+      status: 'error',
+      errors: [{ message: 'Strategy failed: disk full' }],
+    });
+  });
+
+  it('returns structured error when strategy.handle() throws a non-Error value', async () => {
+    const registry = {
+      async resolve() {
+        return { name: 'usaf_memo' };
+      },
+      engine: {
+        dryRun() {},
+      },
+    };
+
+    const strategy = {
+      async handle() {
+        throw 'unexpected failure';
+      },
+    };
+
+    const result = await createDocument(registry, strategy, VALID_CONTENT);
+
+    assert.deepStrictEqual(result, {
+      status: 'error',
+      errors: [{ message: 'Strategy failed: unexpected failure' }],
+    });
+  });
+
   it('formats Map validation errors from dryRun', async () => {
     const errorMap = new Map([
       ['recipient', 'is required'],

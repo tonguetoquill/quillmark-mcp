@@ -23,9 +23,19 @@ An MCP server for [Quillmark](https://quillmark.readthedocs.io/en/latest/) — s
 
 ```sh
 ./scripts/install-mcp.sh
-# → HTTP server running at http://127.0.0.1:8080/mcp
-# → prints a config snippet for every supported client
+# → builds the Docker image
+# → starts the HTTP server at http://127.0.0.1:8080/mcp
+# → prints a copy-paste config snippet for every supported client
 ```
+
+**Claude Code** (most common path):
+
+```sh
+./scripts/install-mcp.sh                          # start the server
+claude mcp add --transport http quillmark http://127.0.0.1:8080/mcp
+```
+
+> **`--transport http` is required.** Without it, `claude mcp add` defaults to stdio and tries to execute the URL as a shell command. This is the most common setup mistake.
 
 Then pick your client and paste the snippet:
 

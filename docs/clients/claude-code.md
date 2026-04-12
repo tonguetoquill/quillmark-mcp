@@ -18,6 +18,8 @@ One command:
 claude mcp add --transport http quillmark http://127.0.0.1:8080/mcp
 ```
 
+> **`--transport http` is required.** Without it, Claude Code defaults to stdio and tries to execute the URL as a shell command. If you see `Warning: looks like a URL, but is being interpreted as a stdio server`, re-run with the flag.
+
 Scopes (`--scope` flag, optional):
 
 - `local` (default) — this project, your user only. Stored in `~/.claude.json`.
@@ -51,6 +53,7 @@ Paste the printed `claude mcp add quillmark -- docker run ...` command into your
 
 | Symptom | Fix |
 |---|---|
+| `Warning: looks like a URL, but is being interpreted as a stdio server` | You forgot `--transport http`. Run: `claude mcp remove quillmark && claude mcp add --transport http quillmark http://127.0.0.1:8080/mcp` |
 | `MCP error: Not Found` | Wrong URL — the endpoint is `/mcp`, not `/`. |
 | `Server already initialized` | Outdated server image. Rebuild: `docker rmi quillmark-mcp:dev && ./scripts/install-mcp.sh`. The stateless fix landed in the same refactor that added this doc. |
 | Tool calls return `errors:[{message: "quill not found"}]` | Your frontmatter is missing `QUILL: <name>`. Run `get_specs` first. |

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Unguarded `strategy.handle()` in `createDocument`.** A throwing strategy bypassed the non-throwing contract, propagating an unstructured exception to the MCP tool handler. Now wrapped in try/catch matching the `registry.resolve()` pattern.
+- **`console.error` in `McpSdkServerAdapter`.** Replaced with structured `logger.error()` for consistent timestamped logging. Added `logger.debug()` for per-request server close errors previously swallowed silently.
+
 ### Added
 - **Codex CLI validated end-to-end.** Codex CLI v0.120.0 connects via Streamable HTTP, calls all three MCP tools natively, and produces a valid 113 KB PDF. Fixed `codex mcp add` syntax in docs (requires `--url` flag). Added gotcha about `--full-auto` sandbox auto-cancelling MCP tool calls.
 - **Comprehensive technical documentation.** 18 hand-written GitHub Wiki pages (architecture, CLI, tools, strategies, Docker, testing, security, etc.) + auto-generated TypeDoc API reference site at https://nibsbin.github.io/quillmark-mcp/ with per-module pages, cross-linked navigation, sidebar, full-text search, and dark/light toggle. Landing page shows module index directly. Auto-deploys on push to main.
