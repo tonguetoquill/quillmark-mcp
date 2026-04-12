@@ -25,7 +25,7 @@ A stack is marked **Tested** only if *all* of the following are true:
 | [VS Code Copilot Chat](./clients/vscode.md) | Streamable HTTP | 🚧 In Progress | Config fixture only; `servers` key verified in snapshot test | *(tracking issue TBD)* |
 | [Cline](./clients/cline.md) | Streamable HTTP | 🚧 In Progress | Config fixture only | *(tracking issue TBD)* |
 | [Continue](./clients/continue.md) | Streamable HTTP | 🚧 In Progress | Config fixture only | *(tracking issue TBD)* |
-| [Codex CLI](./clients/codex.md) | Streamable HTTP / stdio | 🚧 In Progress | TOML fixture only | *(tracking issue TBD)* |
+| [Codex CLI](./clients/codex.md) | Streamable HTTP | ✅ **Tested** | Codex CLI v0.120.0 native MCP calls over HTTP; 113 KB PDF produced | [#18](https://github.com/nibsbin/quillmark-mcp/issues/18) |
 | [ChatGPT Business+](./clients/chatgpt.md) | Streamable HTTP (cloud) | 🚧 In Progress | Requires publicly reachable HTTPS URL | *(tracking issue TBD)* |
 | [OpenAI Responses API (hosted MCP tool)](./clients/openai-api.md) | Streamable HTTP (cloud) | 🚧 In Progress | Requires publicly reachable HTTPS URL | *(tracking issue TBD)* |
 | [OpenAI Agents SDK](./clients/openai-api.md) | Streamable HTTP / stdio | 🚧 In Progress | Python code sample generated, never executed | *(tracking issue TBD)* |

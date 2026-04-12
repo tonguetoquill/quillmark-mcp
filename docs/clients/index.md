@@ -25,7 +25,7 @@ Then open the doc for your client below and paste the snippet it generated.
 | [VS Code Copilot](./vscode.md) | HTTP | 🚧 In progress | Local IDE | ⚠ uses `servers` key, not `mcpServers` |
 | [Cline](./cline.md) | HTTP | 🚧 In progress | VS Code extension | `cline_mcp_settings.json` |
 | [Continue](./continue.md) | HTTP | 🚧 In progress | VS Code / JetBrains | `.continue/mcpServers/*.json` |
-| [Codex CLI](./codex.md) | HTTP | 🚧 In progress | OpenAI CLI | `~/.codex/config.toml` |
+| [Codex CLI](./codex.md) | HTTP | ✅ Tested | OpenAI CLI | `~/.codex/config.toml` |
 | [ChatGPT Business+](./chatgpt.md) | HTTP | 🚧 In progress | Web (cloud) | Requires a **public** URL — see doc |
 | [OpenAI Responses API](./openai-api.md) | HTTP (hosted) | 🚧 In progress | Your code | Responses API + Agents SDK samples |
 | [OpenAI Agents SDK](./openai-api.md) | HTTP / stdio | 🚧 In progress | Your code | Agents SDK supports local MCP |

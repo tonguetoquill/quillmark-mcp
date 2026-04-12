@@ -1,7 +1,8 @@
 # OpenAI Codex CLI
 
-> **Status:** 🚧 **In Progress** — TOML fixture + doc ready, no live Codex CLI session has been driven through the full chain yet.
-> Help validate this stack: see [`docs/STATUS.md`](../STATUS.md) for acceptance criteria and the tracking issue. <!-- ISSUE:codex -->
+> **Status:** ✅ **Tested** — end-to-end validated with Codex CLI v0.120.0 via Streamable HTTP.
+> Codex natively called `list_quills`, `get_specs`, and `create_document` over HTTP, producing a 113 KB PDF.
+> Last validated: 2026-04-11. Tracking: [#18](https://github.com/nibsbin/quillmark-mcp/issues/18).
 
 Codex CLI (the `codex` command) is OpenAI's answer to Claude Code. It speaks MCP, supports stdio and Streamable HTTP, and stores config in TOML.
 
@@ -17,7 +18,7 @@ Two equivalent options.
 ### Option A — `codex mcp add` (if available in your version)
 
 ```sh
-codex mcp add quillmark http://127.0.0.1:8080/mcp
+codex mcp add quillmark --url http://127.0.0.1:8080/mcp
 ```
 
 ### Option B — edit config.toml directly
@@ -86,4 +87,5 @@ node src/bin.js config codex --mode stdio
 ## Gotchas
 
 - **Untrusted projects** skip project-scoped TOML. If you edit `.codex/config.toml` and nothing happens, mark the project as trusted first.
+- **`codex exec --full-auto` auto-cancels MCP tool calls.** The `--full-auto` sandbox requires explicit approval for MCP tools, which can't be granted in non-interactive mode. Use `--dangerously-bypass-approvals-and-sandbox` if you need unattended `codex exec` with MCP tools. Interactive mode (`codex` without `exec`) prompts normally.
 - **Per-tool approval.** Use `[mcp_servers.quillmark.tools.create_document] approval_mode = "approve"` to force a confirmation prompt on each render. Helpful in autonomous agent loops.
