@@ -1,9 +1,0 @@
-{
-  "source": {
-    "includePattern": ".+\\.js$"
-  },
-  "plugins": [],
-  "opts": {
-    "encoding": "utf8"
-  }
-}

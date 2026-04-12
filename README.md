@@ -4,7 +4,8 @@
 [![Node 24+](https://img.shields.io/badge/node-%3E%3D24-brightgreen)](./.nvmrc)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](./LICENSE)
 [![Status matrix](https://img.shields.io/badge/validation-see%20STATUS.md-yellow)](./docs/STATUS.md)
-[![Wiki](https://img.shields.io/badge/docs-GitHub%20Wiki-blue)](https://github.com/nibsbin/quillmark-mcp/wiki)
+[![API Docs](https://img.shields.io/badge/docs-API%20Reference-blue)](https://nibsbin.github.io/quillmark-mcp/)
+[![Wiki](https://img.shields.io/badge/wiki-GitHub%20Wiki-lightgrey)](https://github.com/nibsbin/quillmark-mcp/wiki)
 
 An MCP server for [Quillmark](https://quillmark.readthedocs.io/en/latest/) — schematized document rendering for any LLM, any model, any app. One Docker container, a snippet generator that prints copy-paste configs for every major MCP client, and an automated Ollama-via-MCPHost path for local models.
 

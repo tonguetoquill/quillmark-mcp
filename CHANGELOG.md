@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Codex CLI validated end-to-end.** Codex CLI v0.120.0 connects via Streamable HTTP, calls all three MCP tools natively, and produces a valid 113 KB PDF. Fixed `codex mcp add` syntax in docs (requires `--url` flag). Added gotcha about `--full-auto` sandbox auto-cancelling MCP tool calls.
-- **Comprehensive technical documentation via GitHub Wiki.** 18 hand-written wiki pages covering architecture, CLI, MCP tools, primitives, strategies, config generator, quill system, Docker, testing, env vars, errors, sidecar, security, and package surface. Auto-generated API reference from JSDoc via `jsdoc-to-markdown`. Wiki auto-publishes on push to main via `Andrew-Chen-Wang/github-wiki-action@v4`.
+- **Comprehensive technical documentation.** 18 hand-written GitHub Wiki pages (architecture, CLI, tools, strategies, Docker, testing, security, etc.) + auto-generated TypeDoc API reference site deployed to GitHub Pages with per-module pages, cross-linked navigation, sidebar, search, and dark/light toggle. Auto-deploys on push to main.
 - **JSDoc annotations on all 32 JS files.** Every source, test, and infrastructure JS file has comprehensive JSDoc comments covering module purpose, exported functions, params, returns, throws, and design rationale.
 
 ## [0.1.0] - 2026-04-12
