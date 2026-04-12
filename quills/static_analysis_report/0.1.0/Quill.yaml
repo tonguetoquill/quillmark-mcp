@@ -1,0 +1,619 @@
+Quill:
+  name: static_analysis_report
+  version: "0.1.0"
+  backend: typst
+  plate_file: plate.typ
+  example_file: example.md
+  description: Cybersecurity assessment report template for weapon system and mission software baselines
+
+main:
+  fields:
+    # Header / Cover Page
+    report_title:
+      title: Report title
+      type: string
+      default: "Weapon System Cybersecurity Report"
+      ui:
+        group: Header
+      description: Main title displayed on the cover page.
+  
+    subtitle:
+      title: Report subtitle
+      type: string
+      default: ""
+      ui:
+        group: Header
+      description: Optional subtitle displayed below the main title. Leave empty to omit.
+
+    report_type:
+      title: Report type line
+      type: string
+      default: "WEAPON SYSTEM CYBERSECURITY ASSESSMENT REPORT"
+      ui:
+        group: Header
+      description: Formal report type text shown on the cover page.
+  
+    classification:
+      title: Classification level
+      type: string
+      default: unclassified
+      enum:
+        - unclassified
+        - fouo
+        - cui
+        - confidential
+      ui:
+        group: Header
+      description: Classification level used for top/bottom banners and running header/footer.
+  
+    classification_caveats:
+      title: Classification caveats
+      type: string
+      default: ""
+      ui:
+        group: Header
+      description: Optional caveat suffix appended to the classification banner (e.g. NOFORN).
+  
+    document_number:
+      title: Document control number
+      type: string
+      default: "UNSPECIFIED"
+      ui:
+        group: Header
+      description: Document identifier displayed in the running footer.
+
+    seal_image:
+      title: Official seal image path
+      type: string
+      default: ""
+      ui:
+        group: Header
+      description: Optional path to an official seal image. Leave empty to use text fallback.
+
+    version:
+      title: Report version
+      type: string
+      default: "1.0"
+      ui:
+        group: Header
+      description: Version shown in the document control block.
+
+    supersedes:
+      title: Supersedes reference
+      type: string
+      default: ""
+      ui:
+        group: Header
+      description: Optional prior report identifier superseded by this report.
+
+    preparing_organization:
+      title: Preparing organization
+      type: string
+      default: ""
+      ui:
+        group: Header
+      description: Organization responsible for preparing the report.
+
+    poc_name:
+      title: Point of contact name
+      type: string
+      default: ""
+      ui:
+        group: Header
+      description: Point of contact name displayed on the cover page.
+
+    poc_title:
+      title: Point of contact title
+      type: string
+      default: ""
+      ui:
+        group: Header
+      description: Point of contact title displayed on the cover page.
+
+    poc_email:
+      title: Point of contact email
+      type: string
+      default: ""
+      ui:
+        group: Header
+      description: Point of contact email displayed on the cover page.
+
+    poc_phone:
+      title: Point of contact phone
+      type: string
+      default: ""
+      ui:
+        group: Header
+      description: Point of contact phone displayed on the cover page.
+
+    distribution_statement:
+      title: Distribution statement
+      type: string
+      default: "a"
+      ui:
+        group: Header
+      description: Distribution statement keyword (a-f) or full custom statement text.
+
+    cover_stamp:
+      title: Cover stamp text
+      type: string
+      default: ""
+      ui:
+        group: Header
+      description: Optional stamp text (for example DRAFT or REVIEWED) rendered on the cover.
+
+    authority:
+      title: Authority statement
+      type: string
+      default: ""
+      ui:
+        group: Header
+      description: Optional authority statement rendered on an inside-cover page.
+
+    handling_notice:
+      title: Handling notice
+      type: string
+      default: ""
+      ui:
+        group: Header
+      description: Optional handling/disclosure notice rendered on an inside-cover page.
+
+    executive_summary:
+      title: Executive summary
+      type: string
+      default: ""
+      ui:
+        group: Header
+      description: Optional narrative executive summary text.
+  
+    system_name:
+      title: System designation
+      type: string
+      required: true
+      examples:
+        - RAPTOR-9X Fire Control Mission Software Package (MSP)
+      ui:
+        group: Header
+      description: Name or designation of the weapon system or mission software baseline under assessment.
+  
+    system_identifier:
+      title: Baseline identifier
+      type: string
+      required: true
+      examples:
+        - WS-R9X-FCS-MSP-02.04.01-BL47
+      ui:
+        group: Header
+      description: Part number, build ID, or other unique baseline identifier for the assessed software image.
+  
+    system_version:
+      title: System version
+      type: string
+      required: true
+      examples:
+        - "2.4.1"
+      ui:
+        group: Header
+      description: Version string of the assessed system software baseline.
+  
+    platform:
+      title: Runtime / platform
+      type: string
+      default: ""
+      examples:
+        - Green Hills INTEGRITY RTOS 19.0 (ARMv8-A)
+        - Embedded Linux (Yocto) on mission computer
+      ui:
+        group: Header
+      description: Operating environment or platform for the assessed software (for example RTOS, embedded Linux, or hypervisor partition).
+  
+    scan_date:
+      title: Date of the analysis scan (YYYY-MM-DD)
+      type: string
+      required: true
+      examples:
+        - "2025-07-03"
+      ui:
+        group: Header
+      description: Date the cybersecurity assessment or analysis was performed, in YYYY-MM-DD format.
+  
+    file_name:
+      title: Scanned file name
+      type: string
+      required: true
+      examples:
+        - R9X-FCS-MSP_v2.4.1-signed.bin
+      ui:
+        group: File Information
+      description: "Name of the analyzed artifact (for example signed firmware image, container, or installer)."
+  
+    # Security Score
+    security_score:
+      title: Overall security score (0-100)
+      type: number
+      required: true
+      examples:
+        - 44
+      ui:
+        group: Scorecard
+      description: Aggregate security score from 0 (worst) to 100 (best).
+  
+    risk_level:
+      title: Risk level assessment
+      type: string
+      required: true
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+        - CRITICAL
+      examples:
+        - MEDIUM
+      ui:
+        group: Scorecard
+      description: Overall risk level based on the security score and findings.
+  
+    # Severity Counts
+    findings_high:
+      title: Count of high-severity findings
+      type: number
+      default: 0
+      ui:
+        group: Scorecard
+      description: Number of high-severity issues found.
+  
+    findings_warning:
+      title: Count of warning-level findings
+      type: number
+      default: 0
+      ui:
+        group: Scorecard
+      description: Number of warning/medium-severity issues found.
+  
+    findings_info:
+      title: Count of informational findings
+      type: number
+      default: 0
+      ui:
+        group: Scorecard
+      description: Number of informational findings.
+  
+    findings_secure:
+      title: Count of secure findings
+      type: number
+      default: 0
+      ui:
+        group: Scorecard
+      description: Number of security features confirmed as present.
+  
+    findings_hotspot:
+      title: Count of hotspot findings
+      type: number
+      default: 0
+      ui:
+        group: Scorecard
+      description: Number of security hotspots requiring review.
+  
+    # File Information
+    file_size:
+      title: File size
+      type: string
+      default: ""
+      examples:
+        - "52.3 MB"
+      ui:
+        group: File Information
+      description: Size of the analyzed file.
+  
+    md5:
+      title: MD5 hash
+      type: string
+      default: ""
+      ui:
+        group: File Information
+      description: MD5 hash of the analyzed file.
+  
+    sha1:
+      title: SHA1 hash
+      type: string
+      default: ""
+      ui:
+        group: File Information
+      description: SHA1 hash of the analyzed file.
+  
+    sha256:
+      title: SHA256 hash
+      type: string
+      default: ""
+      ui:
+        group: File Information
+      description: SHA256 hash of the analyzed file.
+  
+    # System profile
+    system_type:
+      title: System category
+      type: string
+      default: ""
+      examples:
+        - Safety-critical embedded fire-control subsystem
+        - Mission computer middleware
+      ui:
+        group: System
+      description: High-level category or role of the assessed system (for example flight-critical, maintenance, or ground support).
+  
+    # Build & Platform
+    sdk_name:
+      title: SDK name
+      type: string
+      default: ""
+      ui:
+        group: Build & Platform
+      description: Name of the SDK or toolchain used to build the system software.
+  
+    sdk_version:
+      title: SDK version
+      type: string
+      default: ""
+      ui:
+        group: Build & Platform
+      description: Version of the SDK.
+  
+    build_number:
+      title: Build number
+      type: string
+      default: ""
+      ui:
+        group: Build & Platform
+      description: Build number of the system software baseline.
+  
+    platform_version:
+      title: Platform version
+      type: string
+      default: ""
+      ui:
+        group: Build & Platform
+      description: Target platform version.
+  
+    min_os_version:
+      title: Minimum OS version
+      type: string
+      default: ""
+      ui:
+        group: Build & Platform
+      description: Minimum OS or runtime version required by the system software, if applicable.
+  
+    supported_platforms:
+      title: Supported platforms
+      type: string
+      default: ""
+      examples:
+        - "RAPTOR-9X Weapon Computer Assembly (WCA-3)"
+      ui:
+        group: Build & Platform
+      description: Comma-separated list of hardware or deployment targets supported by the system software.
+  
+    # Binary Information
+    architecture:
+      title: Binary architecture
+      type: string
+      default: ""
+      examples:
+        - ARM64
+      ui:
+        group: Binary Information
+      description: CPU architecture of the binary.
+  
+    sub_architecture:
+      title: Sub-architecture
+      type: string
+      default: ""
+      examples:
+        - ARM64E
+      ui:
+        group: Binary Information
+      description: CPU sub-architecture.
+  
+    bit_width:
+      title: Bit width
+      type: string
+      default: ""
+      examples:
+        - "64-bit"
+      ui:
+        group: Binary Information
+      description: Bit width of the binary (32-bit or 64-bit).
+  
+    endianness:
+      title: Endianness
+      type: string
+      default: ""
+      examples:
+        - Little Endian
+      ui:
+        group: Binary Information
+      description: Byte order of the binary.
+  
+    # Analysis Data Arrays
+    binary_findings:
+      title: Binary code analysis findings
+      type: array
+      default: []
+      ui:
+        group: Findings
+      description: >
+        Array of binary code analysis findings. Each item is a YAML mapping with keys:
+        issue (string), severity (high|warning|info|secure), standards (e.g. CWE-330),
+        description (string).
+      examples:
+        - - issue: "Insecure Random Function"
+            severity: high
+            standards: "CWE-330"
+            description: "System image uses insecure random number generation"
+  
+    security_features:
+      title: Binary security feature checks
+      type: array
+      default: []
+      ui:
+        group: Findings
+      description: >
+        Array of binary security feature checks. Each item is a YAML mapping with keys:
+        protection (string), status (True/False string), severity (high|warning|info|secure),
+        description (string).
+      examples:
+        - - protection: "NX (Non-Executable Stack)"
+            status: "True"
+            severity: secure
+            description: "Stack is marked non-executable"
+  
+    dependencies:
+      title: Framework and library dependency analysis
+      type: array
+      default: []
+      ui:
+        group: Dependencies
+      description: >
+        Array of dependency analysis results. Each item is a YAML mapping with keys:
+        path (string), nx, stack_canary, arc, rpath, code_signature, encrypted.
+        Security-check values are severity levels: high, warning, info, secure.
+      examples:
+        - - path: "Frameworks/libswiftCore.dylib"
+            nx: secure
+            stack_canary: secure
+            arc: secure
+            rpath: secure
+            code_signature: secure
+            encrypted: info
+  
+    domains:
+      title: Domain malware check results
+      type: array
+      default: []
+      ui:
+        group: Network
+      description: >
+        Array of domain check results. Each item is a YAML mapping with keys:
+        url (string), status (string), ip (string), country (string), city (string).
+      examples:
+        - - url: "api.example.com"
+            status: "OK"
+            ip: "192.0.2.1"
+            country: "United States"
+            city: "San Francisco, CA"
+  
+    emails_found:
+      title: Email addresses discovered in the binary
+      type: array
+      default: []
+      ui:
+        group: Reconnaissance
+      description: >
+        Array of discovered email addresses. Each item is a YAML mapping with keys:
+        value (string), source (string).
+      examples:
+        - - value: "support@example.com"
+            source: "Main Binary"
+  
+    urls_found:
+      title: URLs discovered in the binary
+      type: array
+      default: []
+      ui:
+        group: Reconnaissance
+      description: >
+        Array of discovered URLs. Each item is a YAML mapping with keys:
+        value (string), source (string).
+      examples:
+        - - value: "https://api.example.com/v1/"
+            source: "Main Binary"
+  
+    secrets_found:
+      title: API keys and secrets discovered
+      type: array
+      default: []
+      ui:
+        group: Reconnaissance
+      description: >
+        Array of discovered secrets. Each item is a YAML mapping with keys:
+        value (string), source (string).
+      examples:
+        - - value: "Test API key material detected"
+            source: "embedded manifest"
+  
+    scan_logs:
+      title: Scan execution log entries
+      type: array
+      default: []
+      ui:
+        group: Logs
+      description: >
+        Array of scan log entries. Each item is a YAML mapping with keys:
+        timestamp (string), event (string), status (string, typically "OK" or error text).
+      examples:
+        - - timestamp: "2025-07-03 14:32:01"
+            event: "Analysis started"
+            status: "OK"
+
+    recommendations:
+      title: Findings recommendations
+      type: array
+      default: []
+      ui:
+        group: Findings
+      description: >
+        Array of recommendation records. Each item can include priority, finding_reference,
+        and recommended_action (or action/recommendation aliases).
+      examples:
+        - - priority: "HIGH"
+            finding_reference: "CWE-330"
+            recommended_action: "Replace insecure PRNG with a cryptographically secure source."
+
+    acronyms:
+      title: Acronyms appendix entries
+      type: array
+      default: []
+      ui:
+        group: Footer
+      description: >
+        Array of acronym records for Appendix A. Each item can include acronym/expansion
+        (or term/definition aliases).
+      examples:
+        - - acronym: "ASLR"
+            expansion: "Address Space Layout Randomization"
+
+    references:
+      title: References appendix entries
+      type: array
+      default: []
+      ui:
+        group: Footer
+      description: >
+        Array of reference strings or records for Appendix B.
+      examples:
+        - - "NIST SP 800-53 Rev. 5, Security and Privacy Controls for Information Systems and Organizations"
+  
+    # Network
+    ofac_warning:
+      title: OFAC sanctioned countries warning text
+      type: string
+      default: ""
+      ui:
+        group: Network
+      description: If the system communicates with OFAC-sanctioned countries, provide warning text here. Leave empty to omit the warning block.
+  
+    # Footer
+    generator_name:
+      title: Report generator tool name
+      type: string
+      default: MobSF
+      ui:
+        group: Footer
+      description: Name of the tool that generated this report.
+  
+    generator_version:
+      title: Report generator version
+      type: string
+      default: ""
+      ui:
+        group: Footer
+      description: Version of the report generator tool.
