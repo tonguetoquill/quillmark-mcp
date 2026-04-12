@@ -1,3 +1,16 @@
+/**
+ * @module test/primitives/listQuills
+ *
+ * Tests for the {@link listQuills} primitive.
+ *
+ * Covers:
+ * - Projection of quill metadata (name + description only, version stripped)
+ * - Empty registry handling (returns [])
+ * - Registry error resilience (returns [] on throw)
+ * - Non-string description normalization to empty string
+ *
+ * All tests use a stub registry object injected directly — no filesystem or network.
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 

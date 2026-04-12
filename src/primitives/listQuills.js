@@ -1,8 +1,21 @@
 /**
+ * @module listQuills
+ */
+
+/**
  * Lists installed Quill formats (document templates) from the registry.
  *
- * @param {{ getAvailableQuills: () => Promise<Array<{ name: string, description?: string }>> }} registry
- * @returns {Promise<Array<{ name: string, description: string }>>}
+ * Non-throwing by design: registry failures (network, WASM init, corrupt
+ * packages) are swallowed and produce an empty array so the MCP tool layer
+ * always returns a valid response. Descriptions are normalised to strings —
+ * missing or non-string descriptions become `''` to guarantee a uniform
+ * shape for downstream consumers.
+ *
+ * @param {object} registry
+ *   The package registry that can enumerate installed Quill formats.
+ *   Must expose `getAvailableQuills()` returning `Promise<Array<{ name, description }>>`.
+ * @returns {Promise<Array<object>>}
+ *   Resolved list of quills (`{ name: string, description: string }`) with normalised descriptions, or `[]` on any error.
  */
 export async function listQuills(registry) {
   try {

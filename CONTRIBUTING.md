@@ -222,6 +222,16 @@ npm run test:docker   # Layer 5d starts a container with the env var and validat
 
 This is a self-approve workflow — there's no second reviewer gate today. The tradeoff is speed; the safety net is CI + the test harness. If something breaks on main, fix forward in a new PR.
 
+## Documentation
+
+Technical docs live in `docs/wiki/` and auto-publish to the [GitHub Wiki](https://github.com/nibsbin/quillmark-mcp/wiki) on every push to main (via `.github/workflows/wiki.yml`).
+
+- **Hand-written pages** cover architecture, CLI, tools, strategies, quills, Docker, testing, security, and more.
+- **API Reference** is auto-generated from JSDoc annotations by `jsdoc-to-markdown`. Run `npm run docs:api` locally to regenerate.
+- **To add/edit wiki pages**: edit files in `docs/wiki/`, open a PR. The wiki auto-syncs after merge.
+- **When adding new source files**: add JSDoc annotations (`@module`, `@param`, `@returns`, `@throws`). The API reference picks them up automatically on next push to main.
+- **JSDoc rules**: use JSDoc Closure-style types (`{Function}`, `{object}`, `{string}`) — not TypeScript arrow syntax. See existing annotations for examples.
+
 ## References
 
 - `README.md` — stack, architecture, install paths, tool reference

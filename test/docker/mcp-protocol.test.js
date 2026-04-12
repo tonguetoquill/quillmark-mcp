@@ -1,5 +1,15 @@
-// Layer 5 — MCP protocol compliance.
-// Proves the container speaks a conformant MCP dialect, not just HTTP.
+/**
+ * @module mcp-protocol
+ * @description Layer 5 MCP protocol compliance tests.
+ *
+ * Validates that the Docker container speaks a conformant MCP dialect — not
+ * just HTTP 200s, but correct JSON-RPC framing, capability negotiation,
+ * tool enumeration, and tool invocation via both HTTP and stdio transports.
+ *
+ * Uses the official MCP SDK {@link Client} as the primary test driver (Layers
+ * 5, 5b2, 5c, 5d) and raw `fetch` for low-level HTTP plumbing assertions
+ * (Layer 5b).
+ */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { describe, it, before, after } from 'node:test';
@@ -10,10 +20,38 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 import { SHOULD_RUN, IMAGE, startHttpContainer, jsonRpc, rpc } from './helpers.js';
 
+/**
+ * Conditional test runner. When `SHOULD_RUN` is false (no Docker daemon or
+ * image unavailable), every suite in this file is silently skipped rather
+ * than failing CI. This pattern lets the full test matrix declare Layer 5
+ * suites unconditionally while remaining safe in environments without Docker.
+ *
+ * @type {typeof describe}
+ */
 const maybe = SHOULD_RUN ? describe : describe.skip;
 
+/**
+ * The canonical tool surface exposed to Claude Code in default mode.
+ *
+ * Exactly 3 tools — `list_quills`, `get_specs`, `create_document` — form the
+ * Claude Code integration contract. Any change to this set is a breaking
+ * change for every Claude Code user whose system prompt references these
+ * tools. The 4th tool (`compose_document`) is gated behind
+ * `QUILLMARK_LOCAL_MODEL_MODE` and tested separately in Layer 5d.
+ *
+ * @type {Set<string>}
+ * @constant
+ */
 const EXPECTED_TOOLS = new Set(['list_quills', 'get_specs', 'create_document']);
 
+/**
+ * @description Layer 5: HTTP transport protocol compliance via the MCP SDK Client.
+ *
+ * Exercises the full MCP lifecycle over StreamableHTTP — initialize handshake,
+ * capability advertisement, tool enumeration, successful tool calls, and
+ * structured error responses — proving the container is a first-class MCP
+ * server, not just an HTTP endpoint that happens to return JSON.
+ */
 maybe('Layer 5: MCP protocol compliance (HTTP transport)', () => {
   let ctx;
   let client;
@@ -126,6 +164,14 @@ maybe('Layer 5: MCP protocol compliance (HTTP transport)', () => {
   });
 });
 
+/**
+ * @description Layer 5b: low-level HTTP plumbing assertions via raw `fetch`.
+ *
+ * Bypasses the SDK to verify HTTP-level behavior the SDK abstracts away:
+ * correct Content-Type on initialize responses (`application/json`, not SSE),
+ * and proper 4xx rejection when the required `Accept` header is missing.
+ * Guards against transport regressions invisible to the SDK client.
+ */
 maybe('Layer 5b: low-level HTTP plumbing', () => {
   let ctx;
 
@@ -163,13 +209,18 @@ maybe('Layer 5b: low-level HTTP plumbing', () => {
   });
 });
 
+/**
+ * @description Layer 5b2: stateless HTTP client reconnect regression guard.
+ *
+ * The server runs `StreamableHTTPServerTransport` in stateless mode
+ * (`sessionIdGenerator: undefined`). A single container must therefore
+ * accept multiple independent initialize handshakes — which is exactly what
+ * Claude Code does when it reconnects mid-conversation. Before the stateless
+ * flip, the second `Client.connect()` would fail with "Server already
+ * initialized". These tests ensure both sequential and concurrent client
+ * connections succeed against the same container.
+ */
 maybe('Layer 5b2: stateless HTTP supports client reconnects', () => {
-  // Regression guard: the server runs StreamableHTTPServerTransport in
-  // stateless mode (sessionIdGenerator: undefined). A single container must
-  // therefore accept multiple independent initialize handshakes — which is
-  // exactly what Claude Code does when it reconnects. Before the stateless
-  // flip, the second Client.connect() would fail with "Server already
-  // initialized".
   let ctx;
 
   before(async () => {
@@ -220,6 +271,15 @@ maybe('Layer 5b2: stateless HTTP supports client reconnects', () => {
   });
 });
 
+/**
+ * @description Layer 5c: stdio transport variant.
+ *
+ * Spawns a throwaway container with `--stdio` and wires the SDK's
+ * `StdioClientTransport` directly to the Docker process's stdin/stdout.
+ * Proves the same tool surface is reachable over stdio — the transport
+ * Claude Code uses when configured via `install-mcp.sh` in stdio-bridge
+ * mode rather than HTTP.
+ */
 maybe('Layer 5c: stdio transport variant', () => {
   let client;
 
@@ -257,12 +317,19 @@ maybe('Layer 5c: stdio transport variant', () => {
   });
 });
 
+/**
+ * @description Layer 5d: local-model mode `compose_document` gating.
+ *
+ * Starts a separate container with `QUILLMARK_LOCAL_MODEL_MODE=1` and asserts
+ * the 4th tool (`compose_document`) appears alongside the base 3. This tool
+ * accepts pre-structured fields + body (no frontmatter), letting local/open
+ * models that struggle with Markdown frontmatter still produce valid documents.
+ *
+ * Default-mode containers (every other Layer 5 suite) must see exactly 3 tools
+ * — that is the Claude Code compatibility guarantee. The gating env var is the
+ * only mechanism that unlocks `compose_document`.
+ */
 maybe('Layer 5d: local-model mode exposes compose_document ONLY when env var is set', () => {
-  // Gated-tool test. Starts a separate container with
-  // QUILLMARK_LOCAL_MODEL_MODE=1, asserts the 4th tool appears, and renders
-  // a real memo through it. Default-mode containers (used by every other
-  // Layer 5 test) must still see exactly 3 tools — that's the Claude Code
-  // compatibility guarantee.
   let ctx;
   let client;
   let exampleMemo;

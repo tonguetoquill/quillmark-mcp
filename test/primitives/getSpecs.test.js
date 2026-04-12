@@ -1,3 +1,17 @@
+/**
+ * @module test/primitives/getSpecs
+ *
+ * Tests for the {@link getSpecs} primitive.
+ *
+ * Covers:
+ * - Happy path: resolves ref, encodes schema via TOON encoder, returns instructions
+ * - Error propagation for unknown/invalid quill refs
+ * - Error propagation when the registry itself fails
+ * - Instructions passthrough (returned verbatim, no trimming)
+ *
+ * Stubs: registry (resolve, engine.getStrippedSchema, engine.getQuillInfo) and
+ * an optional TOON encoder ({ encodeSchema }) passed as the third argument.
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 

@@ -1,3 +1,10 @@
+/**
+ * @module integration.test
+ * @description Integration tests covering the cold-start discovery journey
+ * (listQuills -> getSpecs -> createDocument), primitive error paths,
+ * createDefaultMCP factory wiring, and package subpath exports.
+ */
+
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
@@ -9,8 +16,14 @@ import { createDefaultMCP } from '../src/index.js';
 import { QuillmarkMCP } from '../src/mcp/index.js';
 import { listQuills, getSpecs, createDocument } from '../src/primitives/index.js';
 
+/** @constant {string} FIXTURE_QUILLS_DIR - Absolute path to test fixture quill definitions (e.g. usaf_memo). */
 const FIXTURE_QUILLS_DIR = fileURLToPath(new URL('./fixtures/quills', import.meta.url));
 
+/**
+ * Bootstraps a fresh QuillRegistry backed by the fixture quills directory.
+ * Initialises the WASM engine as a side-effect.
+ * @returns {QuillRegistry} Registry ready for listQuills / getSpecs / createDocument.
+ */
 function createRegistry() {
   init();
   const engine = new Quillmark();
@@ -20,7 +33,9 @@ function createRegistry() {
   });
 }
 
+/** @description Full integration suite — exercises primitives, factory, and package exports against real fixture data. */
 describe('integration', () => {
+  /** @description Walks the happy-path discovery flow: list -> specs -> render via a stub strategy. */
   it('supports cold-start discovery journey end-to-end', async () => {
     const registry = createRegistry();
     const available = await listQuills(registry);
@@ -52,6 +67,7 @@ describe('integration', () => {
     });
   });
 
+  /** @description Validates error handling: unknown quill, missing QUILL frontmatter, and engine validation failure. */
   it('covers primitive error paths', async () => {
     const registry = createRegistry();
 
@@ -85,6 +101,7 @@ describe('integration', () => {
     });
   });
 
+  /** @description Ensures createDefaultMCP returns a QuillmarkMCP with a working registry and the provided strategy. */
   it('createDefaultMCP wires up the default stack against real fixtures', async () => {
     const strategy = {
       async handle() {
@@ -98,6 +115,7 @@ describe('integration', () => {
     assert.ok(typeof mcp.registry.resolve === 'function');
   });
 
+  /** @description Verifies package.json exports map: root, /primitives, /strategies, /mcp subpaths. */
   it('exposes root and subpath exports', async () => {
     // Public API: only createDefaultMCP and DeliveryStrategy at root
     assert.equal(typeof createDefaultMCP, 'function');

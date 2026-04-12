@@ -1,11 +1,20 @@
-// Golden-fixture tests for src/cli/config.js.
-//
-// Every supported (client, mode) pair generates a snippet; we diff against
-// test/fixtures/configs/<client>-<mode>.<ext>. Regenerate with
-// UPDATE_SNAPSHOTS=1 npm test, then review + commit the diff.
-//
-// Extra assertions: parse JSON/TOML snippets to prove they're syntactically
-// valid. Catches schema drift that a pure string diff would miss.
+/**
+ * @module config-snapshot
+ *
+ * Golden-fixture snapshot tests for {@link module:src/cli/config generateConfig}.
+ *
+ * For every supported `(client, mode)` pair the generator emits a config
+ * snippet; we diff its output byte-for-byte against a committed fixture in
+ * `test/fixtures/configs/<client>-<mode>.<ext>`. This catches accidental
+ * schema drift, key renames, and formatting regressions.
+ *
+ * **Regeneration**: `UPDATE_SNAPSHOTS=1 npm test` writes new fixtures in
+ * place. Review the diff, then commit.
+ *
+ * Supplementary assertions parse the generated JSON/TOML to prove syntactic
+ * validity and enforce client-specific key contracts (e.g. VS Code `servers`
+ * vs Claude Desktop `mcpServers`).
+ */
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -15,6 +24,13 @@ import { describe, it } from 'node:test';
 
 import { generateConfig, SUPPORTED_CLIENTS, isSupported } from '../../src/cli/config.js';
 
+/**
+ * Absolute path to `test/fixtures/configs/` — the directory holding committed
+ * golden snapshots. Resolved relative to this file so it works regardless of
+ * the working directory `node --test` is invoked from.
+ *
+ * @constant {string}
+ */
 const FIXTURE_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',
@@ -22,9 +38,13 @@ const FIXTURE_DIR = path.resolve(
   'configs',
 );
 
-// Fixture extensions: code-sample snippets intentionally do NOT use .js/.mjs
-// because Node's --test runner picks up any .js file under test/ and tries to
-// execute it. .snap is the Jest convention and Node ignores it.
+/**
+ * Map from snippet format to fixture file extension. Code-sample formats use
+ * `.snap` suffixes (e.g. `js.snap`, `sh.snap`) so Node's `--test` runner does
+ * not accidentally pick them up as executable test files.
+ *
+ * @constant {Record<string, string>}
+ */
 const EXTENSIONS = {
   json: 'json',
   toml: 'toml',
@@ -35,21 +55,47 @@ const EXTENSIONS = {
   python: 'py.snap',
 };
 
+/** @constant {string[]} Transport modes under test. */
 const MODES = ['http', 'stdio'];
+
+/**
+ * When `UPDATE_SNAPSHOTS=1` is set in the environment, snapshot mismatches
+ * overwrite the fixture on disk instead of failing. This lets you regenerate
+ * all golden files in one pass, then inspect the diff before committing.
+ *
+ * @constant {boolean}
+ */
 const UPDATE = process.env.UPDATE_SNAPSHOTS === '1';
 
+/**
+ * Lazily creates the fixture directory if it does not yet exist.
+ * @returns {Promise<void>}
+ */
 async function ensureFixtureDir() {
   if (!existsSync(FIXTURE_DIR)) {
     await mkdir(FIXTURE_DIR, { recursive: true });
   }
 }
 
+/**
+ * Derives the fixture file path for a given `(client, mode, format)` triple.
+ * @param {string} client - e.g. `"cursor"`, `"claude-desktop"`
+ * @param {string} mode   - `"http"` or `"stdio"`
+ * @param {string} format - snippet format key (maps through {@link EXTENSIONS})
+ * @returns {string} Absolute path to the fixture file
+ */
 function fixturePath(client, mode, format) {
   const ext = EXTENSIONS[format] ?? 'txt';
   return path.join(FIXTURE_DIR, `${client}-${mode}.${ext}`);
 }
 
 describe('src/cli/config.js — snippet generator', () => {
+  /*
+   * Cartesian product: SUPPORTED_CLIENTS x MODES.
+   * Unsupported combos (e.g. claude-desktop + http) are skipped via
+   * `isSupported()`. Each surviving pair gets a fixture-diff test case
+   * registered dynamically with `it()`.
+   */
   for (const client of SUPPORTED_CLIENTS) {
     for (const mode of MODES) {
       if (!isSupported(client, mode)) continue;
@@ -97,6 +143,11 @@ describe('src/cli/config.js — snippet generator', () => {
     }
   });
 
+  /**
+   * Claude Desktop expects `mcpServers` at the top level — using `servers`
+   * silently breaks registration. Assert the key name AND that the default
+   * server entry (`quillmark`) is present with `command: "docker"`.
+   */
   it('Claude Desktop snippet uses mcpServers key (not servers)', () => {
     const snippet = generateConfig({ client: 'claude-desktop', mode: 'stdio' });
     const parsed = JSON.parse(snippet.content);
@@ -105,6 +156,11 @@ describe('src/cli/config.js — snippet generator', () => {
     assert.equal(parsed.mcpServers.quillmark.command, 'docker');
   });
 
+  /**
+   * VS Code is the opposite of Claude Desktop: it requires `servers` (not
+   * `mcpServers`). Having both keys present is also wrong — assert absence
+   * of `mcpServers` explicitly.
+   */
   it('VS Code snippet uses servers key (not mcpServers) — critical footgun', () => {
     const snippet = generateConfig({ client: 'vscode', mode: 'http' });
     const parsed = JSON.parse(snippet.content);
@@ -132,6 +188,11 @@ describe('src/cli/config.js — snippet generator', () => {
     assert.match(snippet.content, /"--stdio"/);
   });
 
+  /**
+   * When `authToken` is supplied, the generator must inject an
+   * `Authorization: Bearer <token>` header into the snippet. Verifies the
+   * token value round-trips through generation + JSON parse intact.
+   */
   it('auth-token is threaded into HTTP snippets as bearer', () => {
     const snippet = generateConfig({
       client: 'cursor',
@@ -145,6 +206,11 @@ describe('src/cli/config.js — snippet generator', () => {
     );
   });
 
+  /**
+   * `--name` lets users register the same MCP server under a custom key
+   * (e.g. `quillmark-dev`). Assert the override replaces — not supplements —
+   * the default `quillmark` key.
+   */
   it('--name override changes the server key', () => {
     const snippet = generateConfig({ client: 'cursor', mode: 'http', name: 'quillmark-dev' });
     const parsed = JSON.parse(snippet.content);

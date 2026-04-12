@@ -1,22 +1,43 @@
+/**
+ * @module mcp/QuillmarkMCP
+ * Orchestrator that wires a QuillRegistry, a DeliveryStrategy, and an MCP server
+ * adapter together, exposing Quillmark capabilities as MCP tools.
+ */
+
 import { z } from 'zod';
 
 import { createDocument, getSpecs, listQuills } from '../primitives/index.js';
 import { composeContent } from '../primitives/composeYaml.js';
 import { logger } from '../logger.js';
 
+/** @private */
 const LIST_QUILLS_DESCRIPTION = 'List available Quill formats with names and descriptions. A Quill format is a schematized document template for Quillmark. Call this when you need to discover which format to use. Returns an array of { name, description } objects. Returns an empty list if no Quill formats are available.';
+/** @private */
 const GET_SPECS_DESCRIPTION = 'Get the schema and authoring instructions for a specific Quill format. Returns a TOON-encoded schema (token-efficient for LLM consumption) and authoring instructions bundled with that format. Use the returned schema to structure your content and follow the authoring instructions for content guidance.';
+/** @private */
 const CREATE_DOCUMENT_DESCRIPTION = 'Create a document from Quillmark content. Input must be a string containing YAML frontmatter with a QUILL: field (selecting the Quill format) and a markdown body. If QUILL: is missing from frontmatter, returns an error with guidance — fix the content and retry. Returns { status, url?, errors? }.';
+/** @private */
 const COMPOSE_DOCUMENT_DESCRIPTION = 'Compose and render a document from structured fields. Use this instead of create_document when you want the server to assemble the YAML frontmatter for you — pass the Quill name, a JSON object of frontmatter fields, and the markdown body. The server handles all YAML syntax, escaping, and delimiter placement. Returns { status, url?, errors? }. Call get_specs first to learn which fields the chosen Quill requires.';
 
+/**
+ * Top-level orchestrator that registers Quillmark MCP tools and manages the
+ * server lifecycle.
+ *
+ * Validates that injected dependencies satisfy their contracts at construction
+ * time (fail-fast), registers the tool suite, and delegates transport concerns
+ * to the provided server adapter.
+ */
 export class QuillmarkMCP {
   /**
-   * @param {{
-   *   registry: object,
-   *   strategy: { handle: (quill: object, content: string) => Promise<{ status: string, url?: string, errors?: Array<{ message: string }> }> },
-   *   server: { addTool: (tool: object) => void, start: (options?: object) => Promise<void>, stop: () => Promise<void> },
-   *   localModelMode?: boolean,
-   * }} options
+   * @param {object} options
+   * @param {object} options.registry - QuillRegistry instance. Must expose `resolve(ref)` and `getAvailableQuills()`.
+   * @param {object} options.strategy - Delivery strategy that renders content into a deliverable artifact.
+   *   Must expose `handle(quill, content)` returning a Promise of `{ status, url?, errors? }`.
+   * @param {object} options.server - MCP server adapter (e.g. McpSdkServerAdapter) that exposes tools over a transport.
+   *   Must expose `addTool(tool)`, `start(options?)`, and `stop()`.
+   * @param {boolean} [options.localModelMode=false] - When true, registers the extra `compose_document`
+   *   tool for clients with weaker YAML generation (e.g. small local Ollama models).
+   * @throws {TypeError} If any dependency is missing or doesn't satisfy its interface contract.
    */
   constructor({ registry, strategy, server, localModelMode = false }) {
     if (!registry || typeof registry.resolve !== 'function') {
@@ -39,6 +60,21 @@ export class QuillmarkMCP {
     this.registerTools();
   }
 
+  /**
+   * Register the Quillmark MCP tool suite on the server adapter.
+   *
+   * Tools registered:
+   * 1. **list_quills** — Discover available quill formats (no params).
+   * 2. **get_specs** — Retrieve schema + authoring instructions for a quill (param: `ref`).
+   * 3. **create_document** — Render a document from raw Quillmark content (param: `content`).
+   * 4. **compose_document** (localModelMode only) — Render from structured fields so the
+   *    server handles YAML assembly (params: `quill`, `fields`, `body`).
+   *
+   * All tool execute handlers delegate to the primitives layer and wrap errors
+   * for structured MCP responses.
+   *
+   * @private
+   */
   registerTools() {
     this.server.addTool({
       name: 'list_quills',
@@ -144,6 +180,16 @@ export class QuillmarkMCP {
     }
   }
 
+  /**
+   * Preload all quill definitions and start the MCP server.
+   *
+   * Quill preloading resolves every known quill before accepting requests.
+   * This pays the WASM init cost once at startup rather than on the first
+   * tool call, avoiding latency spikes for clients.
+   *
+   * @param {object} [startOptions={ transportType: 'stdio' }] - Transport options passed through to the server adapter's `start()`.
+   * @returns {Promise<void>}
+   */
   async start(startOptions = { transportType: 'stdio' }) {
     logger.info('Initializing Quillmark MCP server');
     const quills = await this.registry.getAvailableQuills();
@@ -170,6 +216,12 @@ export class QuillmarkMCP {
     logger.info('MCP server started');
   }
 
+  /**
+   * Gracefully shut down the MCP server.
+   * Delegates to the server adapter's `stop()` method.
+   *
+   * @returns {Promise<void>}
+   */
   async stop() {
     await this.server.stop();
   }

@@ -1,6 +1,17 @@
-// Layer 6 — PDF fidelity + rendering stress.
-// Validates that the PDFs the container emits are structurally sane,
-// consistent, and don't leak memory under load.
+/**
+ * @module test/docker/pdf-validation
+ *
+ * Layer 6 -- PDF fidelity and rendering stress.
+ *
+ * Validates structural correctness, determinism, and memory stability of
+ * PDFs emitted by the Quillmark container. Tests run against a live
+ * Docker container over Streamable HTTP MCP transport.
+ *
+ * Gate: skipped unless the Docker helpers' `SHOULD_RUN` flag is truthy
+ * (requires Docker socket + image available). Uses the `maybe` pattern:
+ * `const maybe = SHOULD_RUN ? describe : describe.skip` so the entire
+ * suite becomes a no-op in environments without Docker.
+ */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -11,8 +22,17 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 
 import { SHOULD_RUN, startHttpContainer, docker } from './helpers.js';
 
+/** @type {import('node:test').describe | import('node:test').describe['skip']} */
 const maybe = SHOULD_RUN ? describe : describe.skip;
 
+/**
+ * Call `create_document` via MCP and return the artifact URL.
+ * Throws if the tool reports a non-success status.
+ *
+ * @param {import('@modelcontextprotocol/sdk/client/index.js').Client} client - Connected MCP client.
+ * @param {string} content - Markdown memo content (with YAML front-matter).
+ * @returns {Promise<string>} Absolute URL to the rendered PDF artifact.
+ */
 async function renderMemo(client, content) {
   const result = await client.callTool({
     name: 'create_document',
@@ -25,16 +45,34 @@ async function renderMemo(client, content) {
   return body.url;
 }
 
+/**
+ * Fetch a PDF artifact by URL and return the raw buffer.
+ *
+ * @param {string} url - Artifact URL returned by {@link renderMemo}.
+ * @returns {Promise<Buffer>} Raw PDF bytes.
+ */
 async function downloadPdf(url) {
   const res = await fetch(url);
   if (res.status !== 200) throw new Error(`download ${url}: status ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
 }
 
+/**
+ * SHA-256 hex digest of a buffer.
+ *
+ * @param {Buffer} buf
+ * @returns {string} Hex-encoded SHA-256 hash.
+ */
 function sha(buf) {
   return createHash('sha256').update(buf).digest('hex');
 }
 
+/**
+ * Sample the container's current memory usage via `docker stats`.
+ *
+ * @param {string} containerName - Docker container name or ID.
+ * @returns {number} Current memory usage in MiB, or 0 if unparseable.
+ */
 function readMemMB(containerName) {
   // docker stats needs --no-stream; format MemUsage like "42.3MiB / 512MiB".
   const raw = docker(['stats', '--no-stream', '--format', '{{.MemUsage}}', containerName]);
@@ -61,12 +99,14 @@ maybe('Layer 6: PDF fidelity + rendering stress', () => {
     ctx?.stop();
   });
 
+  /** Validate magic bytes: first 5 bytes must be `%PDF-` per ISO 32000. */
   it('rendered PDF starts with %PDF- magic bytes', async () => {
     const url = await renderMemo(client, exampleMemo);
     const pdf = await downloadPdf(url);
     assert.equal(pdf.subarray(0, 5).toString('ascii'), '%PDF-');
   });
 
+  /** Validate EOF marker: last 1024 bytes must contain `%%EOF` (ISO 32000 trailer). */
   it('rendered PDF contains %%EOF marker near the end', async () => {
     const url = await renderMemo(client, exampleMemo);
     const pdf = await downloadPdf(url);
@@ -74,6 +114,7 @@ maybe('Layer 6: PDF fidelity + rendering stress', () => {
     assert.match(tail, /%%EOF\s*$/);
   });
 
+  /** Validate minimum size: >10 KB guards against empty/error stubs. */
   it('rendered PDF is non-trivial in size (> 10 KB)', async () => {
     const url = await renderMemo(client, exampleMemo);
     const pdf = await downloadPdf(url);
@@ -81,6 +122,7 @@ maybe('Layer 6: PDF fidelity + rendering stress', () => {
       `expected PDF > 10KB, got ${pdf.length} bytes (likely an empty or error document)`);
   });
 
+  /** Validate version header: must match `%PDF-1.x` (Typst emits PDF 1.x). */
   it('rendered PDF advertises a PDF version in the header', async () => {
     const url = await renderMemo(client, exampleMemo);
     const pdf = await downloadPdf(url);
@@ -88,6 +130,7 @@ maybe('Layer 6: PDF fidelity + rendering stress', () => {
     assert.match(header, /^%PDF-1\.\d/, `unexpected PDF header: ${header}`);
   });
 
+  /** Validate page objects: at least one `/Type /Page(s)` ref must exist in the binary. */
   it('rendered PDF declares at least one /Type /Page object', async () => {
     const url = await renderMemo(client, exampleMemo);
     const pdf = await downloadPdf(url);
@@ -100,6 +143,7 @@ maybe('Layer 6: PDF fidelity + rendering stress', () => {
     );
   });
 
+  /** Validate font embedding: `/Type /Font` must be present (catches missing bundled fonts). */
   it('rendered PDF embeds at least one Font object', async () => {
     const url = await renderMemo(client, exampleMemo);
     const pdf = await downloadPdf(url);
@@ -110,6 +154,7 @@ maybe('Layer 6: PDF fidelity + rendering stress', () => {
     );
   });
 
+  /** Safety gate: PDF must not contain `/JavaScript` actions (no executable content). */
   it('rendered PDF contains no /JavaScript actions (safety sanity)', async () => {
     const url = await renderMemo(client, exampleMemo);
     const pdf = await downloadPdf(url);
@@ -117,6 +162,10 @@ maybe('Layer 6: PDF fidelity + rendering stress', () => {
     assert.doesNotMatch(body, /\/JavaScript\b/, 'PDF unexpectedly contains /JavaScript');
   });
 
+  /**
+   * Determinism check: two renders of identical input should produce identical
+   * (or near-identical, within 256-byte tolerance) output.
+   */
   it('two renders of the same input produce bytewise-identical output', async () => {
     const [urlA, urlB] = await Promise.all([
       renderMemo(client, exampleMemo),
@@ -133,6 +182,10 @@ maybe('Layer 6: PDF fidelity + rendering stress', () => {
     }
   });
 
+  /**
+   * Memory stability: 10 sequential renders must all produce valid PDFs and
+   * container memory growth must stay under 200 MiB (catches leaks in Typst/node).
+   */
   it('10 sequential renders all succeed and memory stays bounded', async () => {
     const before = readMemMB(ctx.name);
     const urls = [];
@@ -153,6 +206,10 @@ maybe('Layer 6: PDF fidelity + rendering stress', () => {
     );
   });
 
+  /**
+   * Crash recovery: malformed YAML front-matter must fail gracefully without
+   * killing the container. A subsequent valid render must still succeed.
+   */
   it('malformed input does not crash the container (recoverable)', async () => {
     const result = await client.callTool({
       name: 'create_document',
