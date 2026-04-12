@@ -1,25 +1,54 @@
 # quillmark-mcp
 
-An MCP server and composable primitives for [Quillmark](https://quillmark.readthedocs.io/en/latest/) — schematized document rendering for LLM consumers. Ships a containerized one-command install for Claude Code, a host-native library path for custom pipelines, and a deep-layered local test harness.
+[![CI](https://github.com/nibsbin/quillmark-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/nibsbin/quillmark-mcp/actions/workflows/ci.yml)
+[![Node 24+](https://img.shields.io/badge/node-%3E%3D24-brightgreen)](./.nvmrc)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](./LICENSE)
+[![Status matrix](https://img.shields.io/badge/validation-see%20STATUS.md-yellow)](./docs/STATUS.md)
+
+An MCP server for [Quillmark](https://quillmark.readthedocs.io/en/latest/) — schematized document rendering for any LLM, any model, any app. One Docker container, a snippet generator that prints copy-paste configs for every major MCP client, and an automated Ollama-via-MCPHost path for local models.
 
 - **Renders** Typst-based document templates ("quills") via `@quillmark/wasm` — no native `typst` binary, no system fonts, everything in a single WASM module.
 - **Delivers** rendered artifacts via a pluggable `DeliveryStrategy` (the default writes to disk and returns a `file://` or `http://` URL).
-- **Exposes** three MCP tools (`list_quills`, `get_specs`, `create_document`) that work with any MCP-compliant client — Claude Code, Claude Desktop, MCP Inspector, Cursor, custom SDK clients.
-- **Ships** a locked-down multi-stage Docker image (non-root uid 10001, read-only FS, tini, healthcheck) and a six-layer host-side validation harness (~76 assertions).
+- **Exposes** 3 MCP tools by default (`list_quills`, `get_specs`, `create_document`) and a 4th (`compose_document`) in local-model mode for clients whose models can't reliably produce raw YAML.
+- **Ships** a locked-down multi-stage Docker image (non-root uid 10001, read-only FS, tini, healthcheck) and a six-layer host-side validation harness (91 unit tests, 18 Docker MCP protocol tests, 10 PDF fidelity tests).
+- **Prints** per-client config snippets via `node src/bin.js config <client>` — zero file I/O into your IDE/CLI settings; you paste yourself.
+
+> **⚠ Validation status is not uniform across clients.** Two stacks are empirically validated end-to-end (Claude Code + Ollama via MCPHost with `qwen3:8b`). The rest have docs and config snippets but no live client verification yet. See [`docs/STATUS.md`](./docs/STATUS.md) for the authoritative matrix and how to help validate the in-progress ones.
 
 ---
 
 ## Quick start — one command install
 
-Clone the repo and run:
-
 ```sh
 ./scripts/install-mcp.sh
-# open Claude Code, ask it to render a memo
-./scripts/uninstall-mcp.sh
+# → HTTP server running at http://127.0.0.1:8080/mcp
+# → prints a config snippet for every supported client
 ```
 
-The install script builds the image if needed, creates `~/.quillmark/artifacts`, and registers quillmark with Claude Code as a **stdio-bridge**: each Claude Code session spawns a fresh container via `docker run -i --rm … --stdio`, with the artifacts directory bind-mounted at the same absolute path on both sides so `file://` URLs resolve on the host.
+Then pick your client and paste the snippet:
+
+| Client | Transport | Status | Doc |
+|---|---|---|---|
+| **Claude Code** | Streamable HTTP | ✅ Tested | [docs/clients/claude-code.md](./docs/clients/claude-code.md) |
+| **Ollama via MCPHost** (`qwen3:8b`) | HTTP sidecar + compose_document | ✅ Tested | [docs/clients/ollama.md](./docs/clients/ollama.md) — automated via `./scripts/install-ollama.sh` |
+| Claude Desktop | stdio (via `mcp-remote`) | 🚧 In progress | [docs/clients/claude-desktop.md](./docs/clients/claude-desktop.md) |
+| Cursor | Streamable HTTP | 🚧 In progress | [docs/clients/cursor.md](./docs/clients/cursor.md) |
+| VS Code Copilot Chat | Streamable HTTP | 🚧 In progress | [docs/clients/vscode.md](./docs/clients/vscode.md) — ⚠ `servers` key, not `mcpServers` |
+| Cline | Streamable HTTP | 🚧 In progress | [docs/clients/cline.md](./docs/clients/cline.md) |
+| Continue | Streamable HTTP | 🚧 In progress | [docs/clients/continue.md](./docs/clients/continue.md) |
+| Codex CLI | HTTP / stdio | 🚧 In progress | [docs/clients/codex.md](./docs/clients/codex.md) |
+| ChatGPT Business+ | Streamable HTTP (cloud) | 🚧 In progress | [docs/clients/chatgpt.md](./docs/clients/chatgpt.md) — requires public HTTPS URL |
+| OpenAI Responses API + Agents SDK | Streamable HTTP | 🚧 In progress | [docs/clients/openai-api.md](./docs/clients/openai-api.md) |
+| Ollama via MCPO (Open WebUI) | stdio → OpenAPI | 🚧 In progress | [docs/clients/ollama.md](./docs/clients/ollama.md) |
+
+For a side-by-side comparison and setup tips, see [`docs/clients/index.md`](./docs/clients/index.md). To help validate an in-progress stack, see [`docs/STATUS.md`](./docs/STATUS.md).
+
+Tear down:
+
+```sh
+./scripts/uninstall-mcp.sh --yes           # stop + remove containers
+./scripts/uninstall-mcp.sh --yes --purge   # also remove image + host artifacts dir
+```
 
 **Requirements**
 
@@ -27,8 +56,8 @@ The install script builds the image if needed, creates `~/.quillmark/artifacts`,
 |---|---|---|
 | Node.js | ≥ 24 | Engines field; ESM + `node --test` + built-in `fetch` |
 | Docker | any modern release | Builds + runs the image |
-| Docker Compose plugin | any | `--http` mode + `npm run test:docker` layer 4 |
-| Claude Code CLI | optional | The install script registers the server automatically if it's on `PATH` |
+| Docker Compose plugin | any | Default HTTP deployment + `npm run test:docker` layer 4 |
+| Client CLI (`claude`, `codex`, etc.) | optional | Only needed if you want to use that client's own `mcp add` command instead of pasting into config files |
 
 ---
 
@@ -99,14 +128,14 @@ The install script builds the image if needed, creates `~/.quillmark/artifacts`,
 
 ### Transports — stdio vs HTTP
 
-Both are supported but they're **not interchangeable** for Claude Code:
+Both are supported and both work with multi-connection clients. Streamable HTTP runs in **stateless mode** (`sessionIdGenerator: undefined` per SDK 1.29 semantics) with a fresh `McpServer` + transport per request, so concurrent clients and reconnects never collide.
 
-| Mode | When to use | Works with Claude Code? |
+| Mode | When to use | Supported clients |
 |---|---|---|
-| **stdio** (default) | Claude Code, Claude Desktop, Inspector, SDK clients | **Yes** — fresh container per session |
-| **HTTP (Streamable)** | curl, Inspector's HTTP mode, custom integrations | **No** — Claude Code opens multiple connections and the upstream `StreamableHTTPServerTransport` only accepts one `initialize` handshake per container lifetime, so the second connection gets `Invalid Request: Server already initialized`. |
+| **HTTP (Streamable)** — default | `docker compose up -d` → one long-running container on `127.0.0.1:8080/mcp`. Every HTTP-capable client hits the same endpoint. | Claude Code, Cursor, VS Code Copilot, Cline, Continue, Codex CLI, ChatGPT Business+ (via public tunnel), OpenAI Responses/Agents SDK, Ollama via MCPHost |
+| **stdio** — per-session | Each client session spawns a fresh `docker run -i --rm … --stdio` container. No long-running process. | Claude Desktop (JSON config accepts only stdio), Ollama via MCPO bridge |
 
-HTTP mode is still available via `./scripts/install-mcp.sh --http` for curl and Inspector workflows; it's just not the way to wire up Claude Code against this server today.
+The snippet generator (`node src/bin.js config <client>`) knows which mode each client needs and fills in the right shape.
 
 ### Artifact URL strategies
 
@@ -136,27 +165,42 @@ Registered in `src/mcp/QuillmarkMCP.js`. Schemas are Zod objects; descriptions a
 
 ## Installation paths
 
-### 1. One-command Docker install (recommended for Claude Code)
+### 1. One-command Docker install (recommended)
 
 ```sh
 ./scripts/install-mcp.sh
 ```
 
-Registers Claude Code to spawn a fresh container per session using `claude mcp add quillmark -- docker run -i --rm … --stdio`. Uses the matching-path volume trick so artifacts land in `~/.quillmark/artifacts/` on the host.
+Builds the image, brings up the HTTP server (`docker compose up -d`), creates `~/.quillmark/artifacts/`, and prints a copy-paste config snippet for every supported client. No user config files are modified — you paste into whichever client you use.
+
+**Flags:**
+
+```sh
+./scripts/install-mcp.sh --target claude-code       # print only one client's snippet
+./scripts/install-mcp.sh --mode stdio               # skip compose; per-session container model
+./scripts/install-mcp.sh --port 9090                # custom host port
+./scripts/install-mcp.sh --no-server                # just build the image and print snippets
+./scripts/install-mcp.sh --name quillmark-dev       # override the server name in snippets
+```
+
+**Per-client docs:** [`docs/clients/`](./docs/clients/index.md) — one file per target with the exact snippet, verification steps, and troubleshooting.
+
+**Snippet generator on its own:**
+
+```sh
+node src/bin.js config <client> [--mode http|stdio] [--url URL] [--name NAME]
+# clients: claude-code, claude-desktop, cursor, vscode, cline, continue,
+#          codex, chatgpt, openai-responses, openai-agents,
+#          ollama-mcphost, ollama-mcpo
+```
+
+Pure function — no file writes, deterministic output, covered by golden-fixture tests.
 
 **Tear down:**
 
 ```sh
-./scripts/uninstall-mcp.sh                 # deregister only
-./scripts/uninstall-mcp.sh --yes --purge   # also remove image + host artifacts dir
-```
-
-**Advanced flags:**
-
-```sh
-./scripts/install-mcp.sh --http              # HTTP + compose mode (Inspector/curl only)
-./scripts/install-mcp.sh --http --port 9090  # custom host port
-./scripts/install-mcp.sh --no-claude         # skip Claude Code registration
+./scripts/uninstall-mcp.sh --yes           # stop compose stack
+./scripts/uninstall-mcp.sh --yes --purge   # also drop image + volume + host artifacts dir
 ```
 
 ### 2. npm (library mode)
@@ -333,14 +377,16 @@ Pass your strategy into `createDefaultMCP({ quillsDir, strategy: new S3Strategy(
 
 | Symptom | Fix |
 |---|---|
-| Claude Code shows `quillmark - authenticate (MCP)` or `Failed to connect` | You're registered in HTTP mode (known-broken with Claude Code). Run `./scripts/uninstall-mcp.sh --yes && ./scripts/install-mcp.sh` to switch back to stdio. |
-| `Server already initialized` (`-32600`) when POSTing to `/mcp` | HTTP mode limitation — the server only accepts one initialize per container lifetime. Use stdio for real client work. |
-| Artifact `file://` URL points to a file that doesn't exist on the host | The install script's matching-path volume mount needs `~/.quillmark/artifacts` on both sides. Confirm with `ls -la ~/.quillmark/artifacts/` after a render. |
+| `MCP error: Not Found` in any client | Wrong URL — the endpoint is `/mcp`, not `/`. Use `http://127.0.0.1:8080/mcp`. |
+| `Server already initialized` when POSTing to `/mcp` | Stale image. Rebuild: `docker rmi quillmark-mcp:dev && ./scripts/install-mcp.sh`. The stateless-HTTP fix is in SDK-compatible images only (see `src/mcp/McpSdkServerAdapter.js`). |
+| Client tool-picker shows no quillmark tools | Config pasted into the wrong key. VS Code uses `servers`; everyone else uses `mcpServers`. Double-check against the client-specific doc. |
+| Artifact `file://` URL points to a file that doesn't exist on the host (stdio mode) | The matching-path volume mount needs `$HOME/.quillmark/artifacts` on both sides. Confirm with `ls -la ~/.quillmark/artifacts/` after a render. |
 | `docker: command not found` | Install Docker Desktop or Docker Engine + compose plugin. |
-| `Port 8080 is already allocated` (HTTP mode) | `./scripts/install-mcp.sh --http --port 9090` |
-| Rebuild not picking up code changes | `docker rmi quillmark-mcp:dev && ./scripts/install-mcp.sh` — forces a fresh build. |
+| `Port 8080 is already allocated` | `./scripts/install-mcp.sh --port 9090` (or edit `docker-compose.override.yml`). |
+| Rebuild not picking up code changes | `docker rmi quillmark-mcp:dev && ./scripts/install-mcp.sh`. |
+| ChatGPT / Responses API hosted MCP can't reach the server | Those paths run in OpenAI's cloud and cannot reach `127.0.0.1`. Expose the server via Cloudflare Tunnel / Tailscale Funnel / ngrok and use the public URL. |
 
-**Alternative: Docker MCP Toolkit.** If you prefer the Docker Desktop MCP Toolkit UI (`docker mcp catalog`, Gateway-brokered connections), see the [official docs](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/). Our install script gives the same outcome and works on any Docker setup.
+**Alternative: Docker MCP Toolkit.** If you prefer the Docker Desktop MCP Toolkit UI (`docker mcp catalog`, Gateway-brokered connections), see the [official docs](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/). Our install script works standalone on any Docker setup; a future PR will add an `mcp/quillmark` entry to the Docker MCP registry for one-click Toolkit installs.
 
 ---
 
@@ -349,9 +395,11 @@ Pass your strategy into `createDefaultMCP({ quillsDir, strategy: new S3Strategy(
 ```
 quillmark-mcp/
 ├── src/
-│   ├── bin.js                    # CLI entry point
+│   ├── bin.js                    # CLI entry point (incl. `config <client>` subcommand)
 │   ├── index.js                  # npm package root export
 │   ├── logger.js                 # loglevel wrapper (stderr-only)
+│   ├── cli/
+│   │   └── config.js              # client-agnostic snippet generator (pure function)
 │   ├── mcp/
 │   │   ├── createDefaultMCP.js   # engine + registry + adapter + QuillmarkMCP wiring
 │   │   ├── McpSdkServerAdapter.js  # HTTP router + artifact server + stdio dispatch
@@ -364,6 +412,20 @@ quillmark-mcp/
 │       ├── DeliveryStrategy.js    # abstract base
 │       └── RenderAndHostStrategy.js
 │
+├── docs/
+│   └── clients/                   # per-client walkthroughs (one .md per target)
+│       ├── index.md               # comparison table + 30-second setup
+│       ├── claude-code.md
+│       ├── claude-desktop.md
+│       ├── cursor.md
+│       ├── vscode.md
+│       ├── cline.md
+│       ├── continue.md
+│       ├── codex.md
+│       ├── chatgpt.md
+│       ├── openai-api.md
+│       └── ollama.md
+│
 ├── quills/                        # bundled template library
 │   └── usaf_memo/0.2.0/           # USAF AFH 33-337 memorandum template
 │       ├── Quill.yaml             # schema + metadata
@@ -373,18 +435,23 @@ quillmark-mcp/
 ├── test/
 │   ├── bin.test.js, integration.test.js, smoke.test.js
 │   ├── mcp/, primitives/, strategies/   # host unit tests
+│   ├── cli/
+│   │   └── config-snapshot.test.js  # golden fixtures for every client × mode
 │   ├── docker/
 │   │   ├── helpers.js             # shared docker-run helpers
 │   │   ├── container.test.js      # Layer 4 — black-box container
-│   │   ├── mcp-protocol.test.js   # Layer 5 — MCP protocol compliance
+│   │   ├── mcp-protocol.test.js   # Layer 5 — MCP protocol + stateless reconnect
 │   │   ├── pdf-validation.test.js # Layer 6 — PDF fidelity + stress
 │   │   └── install.test.js        # install round-trip
-│   └── fixtures/quills/           # test quill used by unit tests
+│   └── fixtures/
+│       ├── configs/               # golden snippets (one per client/mode)
+│       └── quills/                # test quill used by unit tests
 │
 ├── scripts/
-│   ├── install-mcp.sh             # one-command stdio-bridge install
-│   ├── uninstall-mcp.sh           # one-command takedown
-│   ├── claude-reset.sh            # clear poisoned mcpOAuth cache (issue #34008)
+│   ├── install-mcp.sh             # build image + bring up server + print client snippets
+│   ├── install-ollama.sh          # fully-automated Ollama + MCPHost + Quillmark setup
+│   ├── uninstall-mcp.sh           # stop compose + optional purge
+│   ├── claude-reset.sh            # (legacy) clear poisoned mcpOAuth cache
 │   ├── docker-test.sh             # six-layer validation harness
 │   └── test-mcp-install.sh        # install round-trip test
 │

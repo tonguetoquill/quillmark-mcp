@@ -74,17 +74,32 @@ See `README.md` → "Repository layout" for the full tree. The short version:
 
 ```
 src/
-  bin.js            # CLI + env-var fallbacks + signal routing
+  bin.js            # CLI + env-var fallbacks + signal routing + `config <client>` subcommand
+  cli/config.js     # client-agnostic snippet generator (pure function)
   primitives/       # pure functions — no internal state
   strategies/       # DeliveryStrategy (abstract) + RenderAndHostStrategy
   mcp/              # McpSdkServerAdapter + QuillmarkMCP + createDefaultMCP
 test/
-  *.test.js         # host unit tests
-  docker/*.test.js  # docker-gated via DOCKER_TEST=1 (or DOCKER_INSTALL_TEST=1)
+  *.test.js               # host unit tests
+  cli/*.test.js           # snippet generator goldens
+  docker/*.test.js        # docker-gated via DOCKER_TEST=1 (or DOCKER_INSTALL_TEST=1)
+  fixtures/configs/       # golden config snippets (one per client/mode)
+docs/
+  clients/                # one markdown walkthrough per supported client
 scripts/
-  *.sh              # install, uninstall, test harnesses
+  *.sh                    # install, uninstall, test harnesses
 Dockerfile, docker-compose.yml, .dockerignore
 ```
+
+### Adding a new MCP client target
+
+1. Add an entry to `SUPPORTED` in `src/cli/config.js` with the supported mode(s).
+2. Add a templating function for it (e.g. `function newClient(ctx) {...}`) and wire it into the switch in `generateConfig`.
+3. Run `UPDATE_SNAPSHOTS=1 npm test` to seed the golden fixture under `test/fixtures/configs/<client>-<mode>.<ext>`. Review the diff.
+4. Add a walkthrough doc at `docs/clients/<client>.md`. Keep it under ~60 lines: what you get, install, verify, gotchas.
+5. Link it from `docs/clients/index.md` and the per-client list in `README.md`.
+
+The snippet generator is the source of truth; the doc's snippet block should come straight from `node src/bin.js config <client>`. Don't hand-copy strings — they'll drift.
 
 ## Which tests to run for which change
 
@@ -92,14 +107,16 @@ Dockerfile, docker-compose.yml, .dockerignore
 |---|---|
 | `src/primitives/*` | `npm test` |
 | `src/strategies/*` | `npm test` |
+| `src/cli/config.js` (snippet generator) | `npm test` — when intentional, re-seed with `UPDATE_SNAPSHOTS=1 npm test` and review the fixture diff |
 | `src/mcp/QuillmarkMCP.js` (tool registration) | `npm test` + `npm run test:docker` (Layer 5) |
-| `src/mcp/McpSdkServerAdapter.js` (HTTP routing, JSON 404) | `npm run test:docker` (Layers 4 + 5) |
-| `src/bin.js` (CLI, env vars, transports) | `npm test` + manual stdio smoke |
+| `src/mcp/McpSdkServerAdapter.js` (HTTP routing, JSON 404, stateless transport) | `npm run test:docker` (Layers 4 + 5) |
+| `src/bin.js` (CLI, env vars, transports, `config` subcommand) | `npm test` + manual stdio smoke |
 | `Dockerfile` or `.dockerignore` | `npm run test:docker` (all 6 layers) |
 | `docker-compose.yml` | `npm run test:install` |
 | `scripts/install-mcp.sh` / `uninstall-mcp.sh` | Manual: uninstall → install → smoke → uninstall |
 | `scripts/docker-test.sh` | `npm run test:docker` |
-| `quills/**` or adding a new quill | `npm test` + manual end-to-end Claude Code render |
+| `quills/**` or adding a new quill | `npm test` + manual end-to-end render in any client |
+| `docs/clients/**` | Eyes-only + sanity check one snippet against your target client |
 | Docs (`README.md`, `CONTRIBUTING.md`, `PROGRAM.md`) | Eyes-only |
 
 ## Stdio smoke test (the debug anchor)
@@ -170,16 +187,40 @@ If you touch the Dockerfile, these must still hold after your change:
 
 Layer 4 of the harness will fail loudly if you break any of these. That's intentional.
 
-## Submitting changes
+## Validating a new client stack
+
+The project tracks live end-to-end validation per client in [`docs/STATUS.md`](./docs/STATUS.md). A client is "validated" when someone has:
+
+1. Connected the real client to the quillmark server (HTTP or stdio).
+2. Called `create_document` or `compose_document` and received `{status: "success", url: ...}`.
+3. Confirmed the PDF at that URL is valid (%PDF magic, 10 KB+, renders in a viewer).
+4. Recorded the evidence (screenshot, terminal log, or commit SHA).
+5. Opened a PR flipping the status in `docs/STATUS.md` and the client doc's banner.
+
+If you want to validate an in-progress client, look for issues labeled `status:needs-validation` — each one has setup steps and acceptance criteria.
+
+## The Ollama sidecar architecture
+
+Local models (Qwen 3 8B, Llama 3.1, Mistral-Nemo, etc.) struggle to produce valid YAML frontmatter as a raw string argument. To help them without changing the contract Claude Code and hosted-model clients rely on, `install-ollama.sh` launches a **separate** container named `quillmark-mcp-ollama` on port 8765 with `QUILLMARK_LOCAL_MODEL_MODE=1`. That env var tells the server to expose a 4th tool — `compose_document` — which accepts structured JSON params (`quill`, `fields`, `body`) and assembles the YAML on the server side.
+
+The default port-8080 endpoint is never touched by this flow. Two containers, two ports, two tool surfaces. Claude Code always sees exactly 3 tools.
+
+If you're adding or modifying `compose_document`, run the Layer 5d Docker test:
+```sh
+npm run test:docker   # Layer 5d starts a container with the env var and validates the 4-tool surface
+```
+
+## PR workflow
 
 1. Branch off `main`: `git switch -c feat/<short-name>` or `fix/<short-name>`.
-2. Make your edits. Run the test matrix from the "Which tests to run" table.
-3. Commit in logical chunks. Use imperative, present-tense commit messages (`feat: ...`, `fix: ...`, `docs: ...`).
-4. Push your branch and open a pull request against `main`. In the PR body, include:
-   - Why (the motivation, not the diff — the diff speaks)
-   - What changed at a high level
-   - How you tested it (which `npm run` commands, which manual smoke)
-5. CI isn't wired up yet — the release gate is running the harness locally and being honest about what you ran.
+2. Make your edits. Run the test matrix from the "Which tests to run" table above.
+3. Commit in logical chunks. Use imperative, present-tense commit messages (`feat: ...`, `fix: ...`, `docs: ...`). No co-author trailers.
+4. Push your branch and open a pull request against `main`. The [`.github/PULL_REQUEST_TEMPLATE.md`](./.github/PULL_REQUEST_TEMPLATE.md) has a checklist — fill it out.
+5. CI runs `npm test` automatically. If your change touches server/Docker code, add the `test:docker` label to trigger the full six-layer harness.
+6. Once CI is green, self-approve (`gh pr review --approve` or the GH web UI) and squash-merge.
+7. Delete the branch (squash-merge with `--delete-branch` does this automatically).
+
+This is a self-approve workflow — there's no second reviewer gate today. The tradeoff is speed; the safety net is CI + the test harness. If something breaks on main, fix forward in a new PR.
 
 ## References
 
