@@ -1,7 +1,6 @@
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -80,17 +79,27 @@ function isPlainRecord(value) {
 
 export class McpSdkServerAdapter {
   constructor({ name = 'Quillmark', version = '1.0.0' } = {}) {
+    this.name = name;
+    this.version = version;
+    this.tools = [];
+    // A long-lived server is only used for stdio mode (one process = one session).
+    // HTTP mode builds a fresh McpServer per request (stateless pattern below).
     this.server = new McpServer({ name, version });
     this.httpServer = null;
   }
 
   addTool(tool) {
+    this.tools.push(tool);
+    this.#registerToolOn(this.server, tool);
+  }
+
+  #registerToolOn(mcpServer, tool) {
     const config = {
       description: tool.description,
       inputSchema: tool.parameters,
     };
 
-    this.server.registerTool(tool.name, config, async (args) => {
+    mcpServer.registerTool(tool.name, config, async (args) => {
       const result = await tool.execute(normalizeToolArgs(args));
 
       const response = {
@@ -103,6 +112,14 @@ export class McpSdkServerAdapter {
     });
   }
 
+  #buildRequestServer() {
+    const server = new McpServer({ name: this.name, version: this.version });
+    for (const tool of this.tools) {
+      this.#registerToolOn(server, tool);
+    }
+    return server;
+  }
+
   async start(startOptions) {
     const transportType = startOptions?.transportType ?? 'stdio';
 
@@ -110,17 +127,6 @@ export class McpSdkServerAdapter {
       const host = startOptions.httpStream?.host ?? 'localhost';
       const port = startOptions.httpStream?.port ?? 8080;
       const endpoint = normalizePath(startOptions.httpStream?.endpoint ?? '/mcp');
-
-      // Stateful mode: the SDK requires a session generator for a single reusable
-      // transport (stateless mode forbids reuse across requests in @modelcontextprotocol/sdk >=1.29).
-      // enableJsonResponse=true returns plain JSON instead of SSE streams.
-      const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID(),
-        enableJsonResponse: true,
-      });
-
-      await this.server.connect(transport);
-
       const authToken = startOptions.httpStream?.authToken;
       const artifactsDir = startOptions.httpStream?.artifactsDir
         ? path.resolve(startOptions.httpStream.artifactsDir)
@@ -157,7 +163,31 @@ export class McpSdkServerAdapter {
           }
         }
 
-        await transport.handleRequest(req, res);
+        // Stateless pattern: the SDK forbids reusing a stateless transport
+        // across requests. Build a fresh McpServer + transport per request
+        // so concurrent clients never collide and reconnects always succeed.
+        // Tool registration is cheap — the registry/strategy/WASM engine are
+        // held as closures on the tool.execute functions and are not rebuilt.
+        const requestServer = this.#buildRequestServer();
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: undefined,
+          enableJsonResponse: true,
+        });
+
+        try {
+          await requestServer.connect(transport);
+          await transport.handleRequest(req, res);
+        } catch (err) {
+          if (!res.headersSent) {
+            res.statusCode = 500;
+            res.setHeader('content-type', 'application/json');
+            res.end('{"error":"internal_error"}');
+          }
+          // Surface to process stderr so container logs show the cause.
+          console.error('[mcp] request handler failed:', err);
+        } finally {
+          await requestServer.close().catch(() => {});
+        }
       });
 
       await new Promise((resolve, reject) => {

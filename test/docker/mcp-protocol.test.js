@@ -163,6 +163,63 @@ maybe('Layer 5b: low-level HTTP plumbing', () => {
   });
 });
 
+maybe('Layer 5b2: stateless HTTP supports client reconnects', () => {
+  // Regression guard: the server runs StreamableHTTPServerTransport in
+  // stateless mode (sessionIdGenerator: undefined). A single container must
+  // therefore accept multiple independent initialize handshakes — which is
+  // exactly what Claude Code does when it reconnects. Before the stateless
+  // flip, the second Client.connect() would fail with "Server already
+  // initialized".
+  let ctx;
+
+  before(async () => {
+    ctx = await startHttpContainer();
+  });
+
+  after(() => {
+    ctx?.stop();
+  });
+
+  it('two sequential MCP clients can both initialize and list tools', async () => {
+    for (const label of ['first', 'second']) {
+      const client = new Client({ name: `reconnect-${label}`, version: '0.0.1' });
+      const transport = new StreamableHTTPClientTransport(new URL(ctx.mcpUrl));
+      await client.connect(transport);
+      const { tools } = await client.listTools();
+      assert.deepEqual(
+        new Set(tools.map((t) => t.name)),
+        EXPECTED_TOOLS,
+        `${label} client saw unexpected tools`,
+      );
+      const result = await client.callTool({ name: 'list_quills', arguments: {} });
+      const arr = JSON.parse(result.content[0].text);
+      assert.ok(
+        arr.some((q) => q.name === 'usaf_memo'),
+        `${label} client could not list quills`,
+      );
+      await client.close();
+    }
+  });
+
+  it('two concurrent MCP clients share the same container without collision', async () => {
+    const makeClient = async (label) => {
+      const client = new Client({ name: `concurrent-${label}`, version: '0.0.1' });
+      const transport = new StreamableHTTPClientTransport(new URL(ctx.mcpUrl));
+      await client.connect(transport);
+      return client;
+    };
+
+    const [a, b] = await Promise.all([makeClient('a'), makeClient('b')]);
+    try {
+      const [listA, listB] = await Promise.all([a.listTools(), b.listTools()]);
+      assert.deepEqual(new Set(listA.tools.map((t) => t.name)), EXPECTED_TOOLS);
+      assert.deepEqual(new Set(listB.tools.map((t) => t.name)), EXPECTED_TOOLS);
+    } finally {
+      await Promise.all([a.close().catch(() => {}), b.close().catch(() => {})]);
+    }
+  });
+});
+
 maybe('Layer 5c: stdio transport variant', () => {
   let client;
 
@@ -197,5 +254,104 @@ maybe('Layer 5c: stdio transport variant', () => {
     const result = await client.callTool({ name: 'list_quills', arguments: {} });
     const arr = JSON.parse(result.content[0].text);
     assert.ok(arr.some((q) => q.name === 'usaf_memo'));
+  });
+});
+
+maybe('Layer 5d: local-model mode exposes compose_document ONLY when env var is set', () => {
+  // Gated-tool test. Starts a separate container with
+  // QUILLMARK_LOCAL_MODEL_MODE=1, asserts the 4th tool appears, and renders
+  // a real memo through it. Default-mode containers (used by every other
+  // Layer 5 test) must still see exactly 3 tools — that's the Claude Code
+  // compatibility guarantee.
+  let ctx;
+  let client;
+  let exampleMemo;
+
+  before(async () => {
+    ctx = await startHttpContainer({ env: { QUILLMARK_LOCAL_MODEL_MODE: '1' } });
+    exampleMemo = await readFile('quills/usaf_memo/0.2.0/example.md', 'utf8');
+
+    client = new Client({ name: 'layer5d-local', version: '0.0.1' });
+    await client.connect(new StreamableHTTPClientTransport(new URL(ctx.mcpUrl)));
+  });
+
+  after(async () => {
+    await client?.close().catch(() => {});
+    ctx?.stop();
+  });
+
+  it('tools/list includes compose_document plus the original three', async () => {
+    const { tools } = await client.listTools();
+    const names = new Set(tools.map((t) => t.name));
+    assert.ok(names.has('compose_document'), 'compose_document missing from local-model mode');
+    for (const base of EXPECTED_TOOLS) {
+      assert.ok(names.has(base), `${base} missing even in local-model mode`);
+    }
+    assert.equal(tools.length, 4, `expected 4 tools, got ${tools.length}: ${[...names].join(',')}`);
+
+    const compose = tools.find((t) => t.name === 'compose_document');
+    assert.match(compose.description, /Compose and render a document from structured fields/);
+    assert.equal(compose.inputSchema.type, 'object');
+    assert.ok(compose.inputSchema.properties?.quill);
+    assert.ok(compose.inputSchema.properties?.fields);
+    assert.ok(compose.inputSchema.properties?.body);
+  });
+
+  it('compose_document renders a real memo end-to-end from structured fields', async () => {
+    // Parse the bundled example so we test with real, schema-valid field values
+    // without hand-maintaining a second fixture.
+    const fmMatch = exampleMemo.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+    assert.ok(fmMatch, 'could not parse example memo frontmatter');
+    const [, fmBlock, bodyRaw] = fmMatch;
+
+    // Light-touch YAML → JS: handles the scalar / sequence subset the example uses.
+    const fields = {};
+    let currentKey = null;
+    for (const line of fmBlock.split(/\r?\n/)) {
+      if (!line.trim() || line.trim().startsWith('#')) continue;
+      const arrayItem = line.match(/^\s+-\s+(.+)$/);
+      const kv = line.match(/^([\w-]+):\s*(.*)$/);
+      if (arrayItem && currentKey) {
+        const v = arrayItem[1].replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+        if (!Array.isArray(fields[currentKey])) fields[currentKey] = [];
+        fields[currentKey].push(v);
+      } else if (kv) {
+        currentKey = kv[1];
+        const raw = kv[2];
+        if (raw === '' || raw === undefined) {
+          fields[currentKey] = [];
+        } else {
+          fields[currentKey] = raw.replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+        }
+      }
+    }
+    const quill = typeof fields.QUILL === 'string' ? fields.QUILL : 'usaf_memo';
+    delete fields.QUILL;
+
+    const result = await client.callTool({
+      name: 'compose_document',
+      arguments: { quill, fields, body: bodyRaw.trim() },
+    });
+    const body = result.structuredContent ?? JSON.parse(result.content[0].text);
+    assert.equal(body.status, 'success', `compose_document failed: ${JSON.stringify(body)}`);
+    assert.match(body.url, /\/artifacts\/[^/]+\.pdf$/, `bad URL ${body.url}`);
+  });
+
+  it('compose_document surfaces validation errors as structured error objects', async () => {
+    // Send deliberately-incomplete fields (missing memo_from/signature_block).
+    // The server should return { status: 'error', errors: [...] } instead of
+    // throwing — the model can self-repair from a structured error, not from
+    // a protocol exception.
+    const result = await client.callTool({
+      name: 'compose_document',
+      arguments: {
+        quill: 'usaf_memo',
+        fields: { subject: 'Missing fields test' },
+        body: 'Body.',
+      },
+    });
+    const body = result.structuredContent ?? JSON.parse(result.content[0].text);
+    assert.notEqual(body.status, 'success');
+    assert.ok(Array.isArray(body.errors) && body.errors.length > 0, 'expected errors array');
   });
 });
