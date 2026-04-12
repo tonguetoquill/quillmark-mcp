@@ -1,9 +1,27 @@
+/**
+ * @module test/bin
+ * Tests for the CLI entry point (`src/bin.js`).
+ *
+ * Coverage:
+ * - Argument parsing (`--quills-dir`, `--bind`, `--endpoint`, `--stdio`, `--output-dir`, `--base-url`)
+ * - Environment variable fallbacks (`QUILLMARK_*`) and CLI-over-env precedence
+ * - Transport selection (streamable HTTP vs stdio)
+ * - `config` subcommand (client snippet generation, unknown client rejection, usage)
+ * - Error paths (missing quills directory)
+ *
+ * All tests inject dependencies via a `deps` object passed as the second argument
+ * to `main()`, avoiding real filesystem access, process mutation, and network I/O.
+ */
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 
 import { main, resolveQuillsDir, parseBind } from '../src/bin.js';
 
+/**
+ * Tests for CLI argument parsing, env var fallbacks, transport selection,
+ * and the `config` subcommand.
+ */
 describe('bin', () => {
   it('resolves quillsDir relative to cwd', () => {
     assert.equal(resolveQuillsDir('quills', '/workspace'), '/workspace/quills');
@@ -43,12 +61,26 @@ describe('bin', () => {
     let createMCPOptions;
     const logs = [];
 
+    /**
+     * Test double for RenderAndHostStrategy.
+     * Captures constructor args into `strategyOptions` for later assertion.
+     * @param {{ outputDir: string, baseUrl: string }} options
+     */
     class FakeStrategy {
       constructor(options) {
         strategyOptions = options;
       }
     }
 
+    /*
+     * Dependency-injected `deps` object replaces real I/O surfaces:
+     *   cwd          - simulated working directory
+     *   env          - process.env stand-in (empty here; env-var tests below)
+     *   exists       - always true to skip directory validation
+     *   consoleError - captures stderr output
+     *   StrategyClass - swapped with FakeStrategy
+     *   createMCP    - returns a stub MCP server that records start() args
+     */
     await main(['--quills-dir', 'quills', '--output-dir', 'out', '--base-url', 'https://host/base'], {
       cwd: '/workspace',
       env: {},
@@ -154,6 +186,7 @@ describe('bin', () => {
     let createMCPOptions;
     let strategyOptions;
 
+    /** Test double — same as above; captures strategy constructor args. */
     class FakeStrategy {
       constructor(options) {
         strategyOptions = options;

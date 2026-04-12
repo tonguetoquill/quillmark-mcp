@@ -1,8 +1,24 @@
+/**
+ * @module test/primitives/createDocument
+ *
+ * Tests for the {@link createDocument} primitive.
+ *
+ * Covers:
+ * - YAML quote stripping on the QUILL scalar (both single and double quotes)
+ * - Happy path: resolve -> dryRun -> strategy.handle delegation
+ * - Structured error when QUILL field is missing from frontmatter
+ * - Structured error for unresolvable quill refs
+ * - Structured error from dryRun validation failures (Error and Map thrown)
+ * - Strategy delegation receives the correct (resolved quill, validated content) tuple
+ *
+ * Stubs: registry (resolve, engine.dryRun) and strategy ({ handle }).
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createDocument } from '../../src/primitives/createDocument.js';
 
+/** @constant {string} VALID_CONTENT - Minimal valid Quillmark document with frontmatter. */
 const VALID_CONTENT = `---
 QUILL: usaf_memo
 ---

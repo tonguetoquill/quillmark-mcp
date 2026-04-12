@@ -1,3 +1,22 @@
+/**
+ * @module test/primitives/composeYaml
+ *
+ * Tests for {@link toYamlBlock} and {@link composeContent} from the composeYaml primitive.
+ *
+ * toYamlBlock coverage:
+ * - String scalars JSON-double-quoted, numbers/booleans unquoted
+ * - String arrays emitted block-style; empty arrays as inline []
+ * - Nested objects serialized as flow-style JSON (valid YAML superset)
+ * - Special chars escaped via JSON encoding, null -> "null", undefined skipped
+ * - Non-object input rejected with TypeError
+ *
+ * composeContent coverage:
+ * - Full Quillmark document assembly (--- delimiters, QUILL line, fields, body)
+ * - QUILL param takes precedence over any QUILL key in fields
+ * - Missing fields treated as empty object
+ * - Empty body still produces valid structure
+ * - Field ordering: QUILL first, then user-supplied fields in insertion order
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 

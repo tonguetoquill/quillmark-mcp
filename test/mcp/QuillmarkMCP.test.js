@@ -1,8 +1,22 @@
+/**
+ * @module test/mcp/QuillmarkMCP
+ * Tests for {@link QuillmarkMCP} — tool registration (list_quills, get_specs,
+ * create_document, compose_document), parameter validation, execution delegation,
+ * and server lifecycle (start/preload).
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { QuillmarkMCP } from '../../src/mcp/QuillmarkMCP.js';
 
+/**
+ * In-memory test double for the MCP server.
+ * Records registered tools and start options without performing I/O.
+ *
+ * @class FakeServer
+ * @property {Array<Object>} tools - Registered tool descriptors (name, description, parameters, execute).
+ * @property {Object|undefined} startOptions - Options passed to {@link FakeServer#start}.
+ */
 class FakeServer {
   constructor() {
     this.tools = [];
@@ -20,6 +34,15 @@ class FakeServer {
   async stop() {}
 }
 
+/**
+ * In-memory test double for the Quill registry.
+ * Returns canned quill metadata and tracks resolved refs for assertion.
+ *
+ * @class FakeRegistry
+ * @property {Array<Object>} available - Quill metadata returned by {@link FakeRegistry#getAvailableQuills}.
+ * @property {Array<string>} resolvedRefs - Refs passed to {@link FakeRegistry#resolve}, in call order.
+ * @property {Object} engine - Stub engine exposing getStrippedSchema, getQuillInfo, and dryRun.
+ */
 class FakeRegistry {
   constructor() {
     this.available = [];
@@ -41,6 +64,13 @@ class FakeRegistry {
   }
 }
 
+/**
+ * Factory that wires up a {@link QuillmarkMCP} instance with test doubles.
+ * Returns all collaborators for direct inspection in assertions.
+ *
+ * @param {Object} [options={}] - Extra options forwarded to QuillmarkMCP (e.g. `localModelMode`).
+ * @returns {{ mcp: QuillmarkMCP, registry: FakeRegistry, strategy: Object, server: FakeServer }}
+ */
 function make(options = {}) {
   const registry = new FakeRegistry();
   const strategy = { async handle() { return { status: 'success', url: 'https://example.com/out.pdf' }; } };

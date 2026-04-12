@@ -1,3 +1,8 @@
+/**
+ * @module test/strategies/RenderAndHostStrategy
+ * Tests for {@link RenderAndHostStrategy} — validates constructor option handling,
+ * sensible defaults, render error propagation, and missing-artifact edge cases.
+ */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';

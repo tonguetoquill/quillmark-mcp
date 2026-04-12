@@ -1,5 +1,20 @@
+/**
+ * @module logger
+ * Stderr-only structured logging — stdout is reserved for the stdio JSON-RPC wire protocol.
+ *
+ * Wraps `loglevel` with a custom method factory that prepends ISO timestamps and
+ * uppercased severity to every message. Supports plain strings, Error objects,
+ * and structured metadata (object first, message rest).
+ *
+ * Set `LOG_LEVEL` env var to control verbosity (`trace` | `debug` | `info` | `warn` | `error` | `silent`).
+ * Defaults to `info`.
+ */
 import log from 'loglevel';
 
+/**
+ * Active log level, sourced from `LOG_LEVEL` env var or defaulting to `'info'`.
+ * @type {string}
+ */
 const level = process.env.LOG_LEVEL || 'info';
 
 // Format log messages with timestamp and level
@@ -41,4 +56,15 @@ log.methodFactory = (methodName, logLevel, loggerName) => {
 
 log.setLevel(level);
 
+/**
+ * Pre-configured loglevel instance with timestamped, level-prefixed formatting.
+ * All output goes to stderr so it never contaminates the stdio MCP transport.
+ *
+ * @type {object}
+ *
+ * @example
+ * logger.info('Server started');
+ * logger.debug({ reqId: 'abc' }, 'Handling request');
+ * logger.error(new Error('boom'));
+ */
 export const logger = log;
