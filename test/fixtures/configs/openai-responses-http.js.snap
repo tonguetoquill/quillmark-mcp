@@ -1,0 +1,24 @@
+// OpenAI Responses API — hosted MCP tool (Node/TypeScript)
+import OpenAI from 'openai';
+
+const client = new OpenAI();
+
+const response = await client.responses.create({
+  model: 'gpt-5',
+  input: 'List available quill formats, then render the usaf_memo example.',
+  tools: [
+    {
+      type: 'mcp',
+      server_label: 'quillmark',
+      server_url: 'http://127.0.0.1:8080/mcp',
+      allowed_tools: ['list_quills', 'get_specs', 'create_document'],
+      require_approval: 'never',
+    },
+  ],
+});
+
+console.log(response.output_text);
+
+// ⚠ OpenAI's hosted MCP tool runs in OpenAI's cloud — it cannot reach
+//   127.0.0.1. Expose the Quillmark HTTP endpoint via cloudflared /
+//   tailscale funnel / ngrok, or use the Agents SDK path (local MCP).

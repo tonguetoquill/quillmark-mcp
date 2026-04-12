@@ -70,7 +70,59 @@ describe('bin', () => {
     });
     assert.ok(logs.some((l) => l.includes('streamable HTTP')));
     assert.ok(logs.some((l) => l.includes('http://localhost:8080/mcp')));
-    assert.ok(logs.some((l) => l.includes('claude mcp add --transport http')));
+    assert.ok(logs.some((l) => l.includes('quillmark-mcp config <client>')));
+    assert.ok(logs.some((l) => l.includes('Supported clients')));
+  });
+
+  it('config subcommand prints a snippet for claude-code http and exits 0', async () => {
+    const stdout = [];
+    const stderr = [];
+    let exitCode = 0;
+
+    await main(['config', 'claude-code'], {
+      cwd: '/workspace',
+      env: {},
+      exists: () => true,
+      consoleLog: (msg) => stdout.push(msg),
+      consoleError: (msg) => stderr.push(msg),
+      setExitCode: (code) => { exitCode = code; },
+    });
+
+    assert.equal(exitCode, 0);
+    assert.equal(stdout.length, 1);
+    assert.match(stdout[0], /claude mcp add --transport http quillmark http:\/\/127\.0\.0\.1:8080\/mcp/);
+  });
+
+  it('config subcommand rejects unknown client with exit 2', async () => {
+    let exitCode = 0;
+    const stderr = [];
+
+    await main(['config', 'nonsense'], {
+      cwd: '/workspace',
+      env: {},
+      exists: () => true,
+      consoleError: (msg) => stderr.push(msg),
+      setExitCode: (code) => { exitCode = code; },
+    });
+
+    assert.equal(exitCode, 2);
+    assert.ok(stderr.some((l) => /Unknown client/.test(l)));
+  });
+
+  it('config subcommand without a client prints usage and exits 2', async () => {
+    let exitCode = 0;
+    const stderr = [];
+
+    await main(['config'], {
+      cwd: '/workspace',
+      env: {},
+      exists: () => true,
+      consoleError: (msg) => stderr.push(msg),
+      setExitCode: (code) => { exitCode = code; },
+    });
+
+    assert.equal(exitCode, 2);
+    assert.ok(stderr.some((l) => /Usage: quillmark-mcp config/.test(l)));
   });
 
   it('respects --bind and --endpoint args', async () => {

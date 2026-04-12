@@ -1,0 +1,41 @@
+Ollama via MCPHost (github.com/mark3labs/mcphost)
+
+FULLY AUTOMATED PATH:
+     ./scripts/install-ollama.sh
+  (installs mcphost if missing, picks or pulls a compatible model,
+   writes the config below, launches a chat session)
+
+--- or manual setup ---
+
+1. Install MCPHost:
+     brew install mcphost                                    # macOS
+     go install github.com/mark3labs/mcphost@latest          # from source
+     # or download a release binary from
+     # https://github.com/mark3labs/mcphost/releases/latest
+
+2. Pull a tool-calling-capable Ollama model (one of):
+     ollama pull qwen2.5:7b      # small + reliable
+     ollama pull qwen3:8b        # newer
+     ollama pull llama3.1:8b     # alternative
+     ollama pull mistral-nemo    # you already have this on many systems
+
+3. Write ~/.mcphost.json:
+     {
+       "mcpServers": {
+         "quillmark": {
+           "type": "remote",
+           "url": "http://127.0.0.1:8080/mcp"
+         }
+       }
+     }
+
+4. Run MCPHost:
+     mcphost -m ollama:qwen2.5:7b --config ~/.mcphost.json
+
+5. Ask: "list available quills and render the usaf_memo example"
+
+⚠ Model requirements:
+  • Must have Ollama tool-calling capability — Qwen 2.5+/3.x, Llama 3.1+,
+    Mistral-Nemo, Mistral-Small, Hermes 3, Granite 3.x, Command-R, Phi 4.
+  • Keep temperature ≤ 0.1 or the model may hallucinate tool names.
+  • 14B+ parameters give more reliable multi-tool chains.

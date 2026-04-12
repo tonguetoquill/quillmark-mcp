@@ -1,0 +1,16 @@
+Ollama via MCPO (Open WebUI OpenAPI bridge — github.com/open-webui/mcpo)
+
+MCPO exposes stdio MCP servers as OpenAPI REST endpoints, which Open WebUI
+then consumes as custom tools.
+
+1. Install mcpo:
+     pip install mcpo
+
+2. Launch mcpo wrapping a per-session Quillmark container:
+     mcpo -- docker run -i --rm --user 10001:10001 --read-only --tmpfs /tmp --cap-drop=ALL --security-opt=no-new-privileges:true -v $HOME/.quillmark/artifacts:$HOME/.quillmark/artifacts -e QUILLMARK_OUTPUT_DIR=$HOME/.quillmark/artifacts -e QUILLMARK_BASE_URL=file:// -e QUILLMARK_STDIO=1 quillmark-mcp:dev --stdio
+
+3. In Open WebUI: Settings → Tools → Add the mcpo OpenAPI URL
+   (default http://127.0.0.1:8000 — see `mcpo --help` for flags).
+
+4. Select a tool-calling-capable Ollama model in Open WebUI and ask:
+   "list available quills and render the usaf_memo example"
