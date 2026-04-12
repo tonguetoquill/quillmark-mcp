@@ -4,12 +4,13 @@ Surfaces primitives and MCP integration of Quillmark. Surface schematized docume
 
 ## Technical Stack
 
-- node25
-- fastmcp@3.35
-- built-in node:test runner for unit tests
-- @quillmark/wasm@0.51.1, the core document rendering library
-- @quillmark/registry, for packing, loading, and managing collections of quills
-- @toon-format/toon, for encoding JSON schemas into a token-efficient format for LLM consumers
+- Node.js ≥ 24 (`engines` field in package.json)
+- `@modelcontextprotocol/sdk` ^1.29 — Streamable HTTP + stdio server transports
+- Built-in `node:test` runner for unit tests
+- `@quillmark/wasm` ^0.51.1 — the core document rendering engine (compiled WASM, no native binary)
+- `@quillmark/registry` ^0.12 — packing, loading, and managing collections of quills
+- `@toon-format/toon` ^2.1 — JSON Schema → token-efficient TOON encoding for LLM consumers
+- `loglevel` ^1.9 — stderr-only logging wrapper (stdout is reserved for the JSON-RPC wire protocol in stdio mode)
 
 ## Philosophy
 

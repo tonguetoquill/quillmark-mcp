@@ -55,9 +55,25 @@ function getErrorMessage(error) {
   return String(error);
 }
 
+function stripYamlQuotes(value) {
+  if (typeof value !== 'string') return value;
+  // YAML permits flow-style double-quoted and single-quoted scalars. Our naive
+  // line-based parser extracts the raw token including quotes, so peel them off
+  // here so downstream consumers see the plain ref. The real YAML parser in the
+  // WASM engine handles this correctly on its own — this only affects the local
+  // pre-extraction path that decides which Quill to resolve.
+  if (value.length >= 2) {
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      return value.slice(1, -1);
+    }
+  }
+  return value;
+}
+
 function extractQuillRef(frontmatterFields) {
   const quillKey = Object.keys(frontmatterFields).find((key) => key.toUpperCase() === 'QUILL');
-  return quillKey ? frontmatterFields[quillKey] : undefined;
+  return quillKey ? stripYamlQuotes(frontmatterFields[quillKey]) : undefined;
 }
 
 function validateWithEngine(registry, content) {

@@ -9,6 +9,37 @@ QUILL: usaf_memo
 # Memo`;
 
 describe('createDocument', () => {
+  it('strips double-quoted QUILL scalars (YAML-encoded via compose_document path)', async () => {
+    const quotedContent = `---\nQUILL: "usaf_memo@0.2.0"\n---\n# Memo`;
+    let resolvedWith;
+    const registry = {
+      async resolve(ref) {
+        resolvedWith = ref;
+        return { name: 'usaf_memo', version: '0.2.0' };
+      },
+      engine: { dryRun() {} },
+    };
+    const strategy = { async handle() { return { status: 'success', url: 'x' }; } };
+    const result = await createDocument(registry, strategy, quotedContent);
+    assert.equal(result.status, 'success');
+    assert.equal(resolvedWith, 'usaf_memo@0.2.0', 'QUILL quotes not stripped');
+  });
+
+  it('strips single-quoted QUILL scalars as well', async () => {
+    const quotedContent = `---\nQUILL: 'usaf_memo'\n---\n# Memo`;
+    let resolvedWith;
+    const registry = {
+      async resolve(ref) {
+        resolvedWith = ref;
+        return { name: 'usaf_memo' };
+      },
+      engine: { dryRun() {} },
+    };
+    const strategy = { async handle() { return { status: 'success', url: 'x' }; } };
+    await createDocument(registry, strategy, quotedContent);
+    assert.equal(resolvedWith, 'usaf_memo');
+  });
+
   it('returns strategy result for valid content', async () => {
     const quill = { name: 'usaf_memo', version: '1.0.0' };
     const registry = {
