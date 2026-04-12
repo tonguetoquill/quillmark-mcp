@@ -1,11 +1,13 @@
 import { z } from 'zod';
 
 import { createDocument, getSpecs, listQuills } from '../primitives/index.js';
+import { composeContent } from '../primitives/composeYaml.js';
 import { logger } from '../logger.js';
 
 const LIST_QUILLS_DESCRIPTION = 'List available Quill formats with names and descriptions. A Quill format is a schematized document template for Quillmark. Call this when you need to discover which format to use. Returns an array of { name, description } objects. Returns an empty list if no Quill formats are available.';
 const GET_SPECS_DESCRIPTION = 'Get the schema and authoring instructions for a specific Quill format. Returns a TOON-encoded schema (token-efficient for LLM consumption) and authoring instructions bundled with that format. Use the returned schema to structure your content and follow the authoring instructions for content guidance.';
 const CREATE_DOCUMENT_DESCRIPTION = 'Create a document from Quillmark content. Input must be a string containing YAML frontmatter with a QUILL: field (selecting the Quill format) and a markdown body. If QUILL: is missing from frontmatter, returns an error with guidance — fix the content and retry. Returns { status, url?, errors? }.';
+const COMPOSE_DOCUMENT_DESCRIPTION = 'Compose and render a document from structured fields. Use this instead of create_document when you want the server to assemble the YAML frontmatter for you — pass the Quill name, a JSON object of frontmatter fields, and the markdown body. The server handles all YAML syntax, escaping, and delimiter placement. Returns { status, url?, errors? }. Call get_specs first to learn which fields the chosen Quill requires.';
 
 export class QuillmarkMCP {
   /**
@@ -13,9 +15,10 @@ export class QuillmarkMCP {
    *   registry: object,
    *   strategy: { handle: (quill: object, content: string) => Promise<{ status: string, url?: string, errors?: Array<{ message: string }> }> },
    *   server: { addTool: (tool: object) => void, start: (options?: object) => Promise<void>, stop: () => Promise<void> },
+   *   localModelMode?: boolean,
    * }} options
    */
-  constructor({ registry, strategy, server }) {
+  constructor({ registry, strategy, server, localModelMode = false }) {
     if (!registry || typeof registry.resolve !== 'function') {
       throw new TypeError('QuillmarkMCP requires a registry with a resolve() method.');
     }
@@ -31,6 +34,7 @@ export class QuillmarkMCP {
     this.registry = registry;
     this.strategy = strategy;
     this.server = server;
+    this.localModelMode = localModelMode === true;
 
     this.registerTools();
   }
@@ -97,6 +101,47 @@ export class QuillmarkMCP {
         }
       },
     });
+
+    // compose_document is opt-in. It's a convenience wrapper for clients whose
+    // models struggle to produce valid YAML frontmatter as a raw string (small
+    // local Ollama models, specifically). The server assembles the YAML from
+    // structured JSON params and delegates to the same createDocument primitive,
+    // so there is only one rendering path and no divergence in behavior.
+    //
+    // Gated by QUILLMARK_LOCAL_MODEL_MODE=1 so hosted-model clients (Claude Code,
+    // Claude Desktop, ChatGPT, etc.) continue to see exactly three tools with no
+    // change to their contract. Enable on a separate container — do not flip it
+    // on the default Claude Code endpoint.
+    if (this.localModelMode) {
+      this.server.addTool({
+        name: 'compose_document',
+        description: COMPOSE_DOCUMENT_DESCRIPTION,
+        parameters: z.object({
+          quill: z.string().describe('Quill format name, e.g. "usaf_memo". Call get_specs with this name first to learn which fields the Quill requires.'),
+          fields: z.record(z.string(), z.any()).describe('JSON object of frontmatter fields. Keys match the schema returned by get_specs. Values can be strings, numbers, booleans, arrays of primitives, or nested objects — the server will emit valid YAML for all of them. Do not include a QUILL key here; use the quill parameter.'),
+          body: z.string().describe('Markdown body of the document. Do not include YAML frontmatter delimiters or fields here — only the body content below the frontmatter.'),
+        }),
+        execute: async ({ quill, fields, body }) => {
+          logger.debug(`Tool called: compose_document (quill: ${quill}, field_count: ${Object.keys(fields ?? {}).length}, body_bytes: ${typeof body === 'string' ? body.length : 0})`);
+          try {
+            const content = composeContent({ quill, fields, body });
+            const result = await createDocument(this.registry, this.strategy, content);
+            if (result.status === 'success') {
+              logger.info(`compose_document completed successfully (url: ${result.url})`);
+            } else {
+              const errorCount = result.errors?.length ?? 0;
+              logger.warn(`compose_document completed with errors (count: ${errorCount})`);
+            }
+            return result;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            logger.error(`compose_document failed: ${message}`);
+            throw error;
+          }
+        },
+      });
+      logger.info('compose_document registered (QUILLMARK_LOCAL_MODEL_MODE=1)');
+    }
   }
 
   async start(startOptions = { transportType: 'stdio' }) {

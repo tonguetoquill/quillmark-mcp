@@ -15,10 +15,11 @@ import { QuillmarkMCP } from './QuillmarkMCP.js';
  * @param {{
  *   quillsDir: string,
  *   strategy: { handle: (quill: object, content: string) => Promise<{ status: string, url?: string, errors?: Array<{ message: string }> }> },
+ *   localModelMode?: boolean,
  * }} options
  * @returns {QuillmarkMCP}
  */
-export async function createDefaultMCP({ quillsDir, strategy }) {
+export async function createDefaultMCP({ quillsDir, strategy, localModelMode = false }) {
   init();
 
   const engine = new Quillmark();
@@ -36,5 +37,5 @@ export async function createDefaultMCP({ quillsDir, strategy }) {
 
   const server = new McpSdkServerAdapter({ name: 'Quillmark', version: '1.0.0' });
 
-  return new QuillmarkMCP({ registry, strategy, server });
+  return new QuillmarkMCP({ registry, strategy, server, localModelMode });
 }
