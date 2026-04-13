@@ -8,10 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Logger wrote `info`/`debug` to stdout, breaking stdio transport.** `loglevel`'s default method factory routes `info` and `debug` to `console.log` (stdout). In stdio mode this contaminates the JSON-RPC wire protocol — Claude Desktop sees `[2026-...` as the first byte and fails with a JSON parse error. All logger output now goes through `process.stderr.write` unconditionally.
+- **`$HOME` not expanded in Claude Desktop config output.** Claude Desktop spawns `docker run` without shell expansion, so the literal string `$HOME` in volume mounts and env vars broke the bind mount. The CLI (`node src/bin.js config claude-desktop`) now resolves `$HOME` to the actual home directory path before generating the config snippet. The pure config generator (`src/cli/config.js`) is unchanged — path resolution is the caller's responsibility per its design contract.
 - **Unguarded `strategy.handle()` in `createDocument`.** A throwing strategy bypassed the non-throwing contract, propagating an unstructured exception to the MCP tool handler. Now wrapped in try/catch matching the `registry.resolve()` pattern.
 - **`console.error` in `McpSdkServerAdapter`.** Replaced with structured `logger.error()` for consistent timestamped logging. Added `logger.debug()` for per-request server close errors previously swallowed silently.
 
 ### Added
+- **Claude Desktop validated end-to-end.** stdio via `docker run -i --rm` with matching-path bind mount for artifacts. Config generation, tool discovery, `create_document`, and `file://` PDF delivery all confirmed working.
 - **Codex CLI validated end-to-end.** Codex CLI v0.120.0 connects via Streamable HTTP, calls all three MCP tools natively, and produces a valid 113 KB PDF. Fixed `codex mcp add` syntax in docs (requires `--url` flag). Added gotcha about `--full-auto` sandbox auto-cancelling MCP tool calls.
 - **Comprehensive technical documentation.** 18 hand-written GitHub Wiki pages (architecture, CLI, tools, strategies, Docker, testing, security, etc.) + auto-generated TypeDoc API reference site at https://nibsbin.github.io/quillmark-mcp/ with per-module pages, cross-linked navigation, sidebar, full-text search, and dark/light toggle. Landing page shows module index directly. Auto-deploys on push to main.
 - **JSDoc annotations on all 32 JS files.** Every source, test, and infrastructure JS file has comprehensive JSDoc comments covering module purpose, exported functions, params, returns, throws, and design rationale.

@@ -1,7 +1,6 @@
 # Claude Desktop
 
-> **Status:** 🚧 **In Progress** — config fixture + doc ready, no live Claude Desktop session has been driven through the full chain yet.
-> Help validate this stack: see [`docs/STATUS.md`](../STATUS.md) for acceptance criteria and the tracking issue. <!-- ISSUE:claude-desktop -->
+> **Status:** ✅ **Tested** — stdio via `docker run -i --rm`, validated on macOS with Claude Desktop.
 
 Claude Desktop is the only modern MCP client that does **not** accept Streamable HTTP URLs in its JSON config. It supports two paths — neither of which will reach a local Docker container directly unless you use the stdio form below.
 
@@ -11,15 +10,26 @@ Claude Desktop is the only modern MCP client that does **not** accept Streamable
 
 - Docker Desktop (or Docker Engine) installed and running
 - `quillmark-mcp:dev` image built: `./scripts/install-mcp.sh --no-server` (builds the image, skips compose)
+- Artifacts directory created: `mkdir -p ~/.quillmark/artifacts`
 
-## Install
+## Install (recommended)
 
-Edit the config file for your OS:
+Generate a ready-to-paste config with all paths resolved for your machine:
+
+```sh
+node src/bin.js config claude-desktop
+```
+
+Copy the JSON output into the config file for your OS:
 
 - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
-Paste (replacing the whole file if it's empty, or merging into your existing `mcpServers` object):
+Replace the whole file if it's empty, or merge the `quillmark` entry into your existing `mcpServers` object.
+
+## Install (manual)
+
+If you prefer to paste the JSON manually, edit the config file and use this template — **replacing `/Users/you`** with your actual home path:
 
 ```json
 {
@@ -32,8 +42,8 @@ Paste (replacing the whole file if it's empty, or merging into your existing `mc
         "--read-only", "--tmpfs", "/tmp",
         "--cap-drop=ALL",
         "--security-opt=no-new-privileges:true",
-        "-v", "$HOME/.quillmark/artifacts:$HOME/.quillmark/artifacts",
-        "-e", "QUILLMARK_OUTPUT_DIR=$HOME/.quillmark/artifacts",
+        "-v", "/Users/you/.quillmark/artifacts:/Users/you/.quillmark/artifacts",
+        "-e", "QUILLMARK_OUTPUT_DIR=/Users/you/.quillmark/artifacts",
         "-e", "QUILLMARK_BASE_URL=file://",
         "-e", "QUILLMARK_STDIO=1",
         "quillmark-mcp:dev",
@@ -44,13 +54,7 @@ Paste (replacing the whole file if it's empty, or merging into your existing `mc
 }
 ```
 
-> **Replace `$HOME`** with your actual home path. Claude Desktop does not interpolate shell variables in args. On macOS that's `/Users/<you>`; on Windows it's `C:\\Users\\<you>`.
-
-Alternatively, generate the file with your shell's `$HOME` pre-expanded:
-
-```sh
-node src/bin.js config claude-desktop --artifacts-dir "$HOME/.quillmark/artifacts"
-```
+> **Claude Desktop does not expand shell variables.** Do not use `$HOME` or `~` in the args — use the full absolute path (e.g. `/Users/alice` on macOS, `C:\\Users\\alice` on Windows). The recommended install method above handles this automatically.
 
 ## Restart
 

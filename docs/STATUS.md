@@ -20,7 +20,7 @@ A stack is marked **Tested** only if *all* of the following are true:
 |---|---|---|---|---|
 | [Claude Code](./clients/claude-code.md) | Streamable HTTP | ✅ **Tested** | `test/docker/mcp-protocol.test.js` Layers 5, 5b, 5b2, 5c | — |
 | [Ollama via MCPHost (`qwen3:8b`)](./clients/ollama.md) | HTTP sidecar + compose_document | ✅ **Tested** | `test/docker/mcp-protocol.test.js` Layer 5d + live 135 KB memo render | — |
-| [Claude Desktop](./clients/claude-desktop.md) | stdio | 🚧 In Progress | Config fixture only | *(tracking issue TBD)* |
+| [Claude Desktop](./clients/claude-desktop.md) | stdio | ✅ **Tested** | stdio via `docker run -i --rm`; `$HOME` resolution fix in CLI | [#13](https://github.com/nibsbin/quillmark-mcp/issues/13) |
 | [Cursor](./clients/cursor.md) | Streamable HTTP | 🚧 In Progress | Config fixture only | *(tracking issue TBD)* |
 | [VS Code Copilot Chat](./clients/vscode.md) | Streamable HTTP | 🚧 In Progress | Config fixture only; `servers` key verified in snapshot test | *(tracking issue TBD)* |
 | [Cline](./clients/cline.md) | Streamable HTTP | 🚧 In Progress | Config fixture only | *(tracking issue TBD)* |
