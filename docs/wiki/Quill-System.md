@@ -266,3 +266,5 @@ node src/bin.js --stdio &   # start the server
 |---|---|---|
 | `usaf_memo` | `0.2.0` | USAF Official Memorandum with letterhead, signature blocks, classification banners, indorsement routing cards |
 | `static_analysis_report` | `0.1.0` | Cybersecurity assessment report for weapon system and mission software baselines -- cover page, scorecard, binary analysis, dependency audit, network reconnaissance |
+| `nyt_news_article` | `0.1.0` | NYT-style news article for wargaming exercise injects -- Blackletter masthead, serif typography, dateline, byline, section metadata, correction notices |
+| `cnn_news_article` | `0.1.0` | CNN-style web news article for wargaming exercise injects -- red CNN branding, breaking news banner, live update cards, related story cards, editor's notes, updated timestamps |

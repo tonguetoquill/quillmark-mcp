@@ -209,7 +209,9 @@ Pre-flight
   node present?
 
 Image
-  quillmark-mcp:dev built? (build if not)
+  Remove stale quillmark-mcp:dev (if exists)
+  docker build -t quillmark-mcp:dev .
+  (always rebuilds to pick up code changes)
 
 Artifacts
   mkdir -p ~/.quillmark/artifacts
@@ -220,6 +222,9 @@ Start server (HTTP mode only)
   docker compose up -d
   Poll container status for up to 30s (healthy or running)
 
+Auto-register
+  Write .mcp.json to project root (auto-discovered by Claude Code, Cursor, Cline)
+
 Client snippets
   For each client (or --target):
     node src/bin.js config <client> --mode <mode> [--name, --url, --artifacts-dir, --image]
@@ -227,6 +232,25 @@ Client snippets
 Done
   Print verify/stop commands
 ```
+
+> **Note:** The image is rebuilt on every install to ensure code changes (new quills, template fixes, etc.) are always picked up. The previous behavior of caching the image caused stale builds to serve outdated templates.
+
+### .mcp.json auto-discovery
+
+`install-mcp.sh` writes a `.mcp.json` file to the project root:
+
+```json
+{
+  "mcpServers": {
+    "quillmark": {
+      "type": "http",
+      "url": "http://127.0.0.1:8080/mcp"
+    }
+  }
+}
+```
+
+Claude Code, Cursor, and Cline auto-discover this file when opening the project directory. No manual `claude mcp add` or session restart is required. The file is gitignored (contains a local URL) and removed by `uninstall-mcp.sh`.
 
 In stdio mode, no long-lived server is started. Each client session spawns its own container via `docker run -i --rm`.
 

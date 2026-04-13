@@ -118,7 +118,7 @@ Uses the official MCP SDK `Client` as the test driver. Validates the full MCP li
 | Initialize handshake | Server advertises `tools` capability |
 | Server identity | Reports name + version |
 | tools/list | Returns exactly `list_quills`, `get_specs`, `create_document` (3 tools) |
-| list_quills | Returns the bundled `usaf_memo` quill |
+| list_quills | Returns all bundled quills (`usaf_memo`, `static_analysis_report`, `nyt_news_article`, `cnn_news_article`) |
 | get_specs | Returns TOON spec + instructions for `usaf_memo` |
 | create_document (valid) | Returns `{status: "success", url: ".../artifacts/<id>.pdf"}` |
 | create_document (no QUILL) | Returns `{status: "error", errors: [...]}` mentioning "quill" |

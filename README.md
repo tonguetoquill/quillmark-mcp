@@ -439,8 +439,11 @@ quillmark-mcp/
 │       └── ollama.md
 │
 ├── quills/                        # bundled template library
-│   └── usaf_memo/0.2.0/           # USAF AFH 33-337 memorandum template
-│       ├── Quill.yaml             # schema + metadata
+│   ├── usaf_memo/0.2.0/           # USAF AFH 33-337 memorandum template
+│   ├── static_analysis_report/0.1.0/  # cybersecurity assessment report
+│   ├── nyt_news_article/0.1.0/    # NYT-style news article (wargaming injects)
+│   └── cnn_news_article/0.1.0/    # CNN-style news article (wargaming injects)
+│       ├── Quill.yaml             # schema + metadata (each template)
 │       ├── example.md             # fixture used by tests
 │       └── packages/…/            # Typst sources + embedded fonts
 │
