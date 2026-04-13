@@ -104,12 +104,13 @@ After step 2 returns, output only the url from its result.
 open ~/.quillmark/artifacts/*.pdf
 ```
 
-### Prompt wording matters
+### System prompt and prompt wording matter
 
-Local models in MCPHost's `-p` (non-interactive) mode will exit as soon as they emit a text response. If the model calls `get_specs`, reads the schema, and then starts "explaining" the schema as chat — mcphost terminates before the second tool call. Two mitigations:
+Local models in MCPHost's `-p` (non-interactive) mode will exit as soon as they emit a text response. If the model calls `get_specs`, reads the schema, and then starts "explaining" the schema as chat — mcphost terminates before the second tool call. Three mitigations:
 
-1. **The built-in system prompt** (wired by `install-ollama.sh`) tells the model to prefer `compose_document` and forbids chat output between steps. It helps but can't override everything.
-2. **Be explicit in your user prompt**: literally say "Call compose_document with these arguments: {...}" and include a JSON blob of the fields you want. Small models follow literal instructions much better than open-ended "render a memo about X" prompts.
+1. **Always pass `--system-prompt`** when running `mcphost`. Without it, even interactive mode will frequently fail — the model reads the schema and explains it instead of calling `compose_document`. The `install-ollama.sh` script creates a tuned system prompt automatically; manual invocations must supply their own.
+2. **The built-in system prompt** (wired by `install-ollama.sh`) tells the model to prefer `compose_document` and forbids chat output between steps. It helps but can't override everything.
+3. **Be explicit in your user prompt**: literally say "Call compose_document with these arguments: {...}" and include a JSON blob of the fields you want. Small models follow literal instructions much better than open-ended "render a memo about X" prompts.
 
 In interactive mode (without `-p`), you can iterate — if the model explains instead of calling the tool, just say "now call compose_document with those fields" and it will.
 
@@ -136,9 +137,21 @@ cat > ~/.mcphost.json <<'EOF'
 }
 EOF
 
-# 4. Run MCPHost
-mcphost -m ollama:qwen2.5:7b --config ~/.mcphost.json
+# 4. Run MCPHost (--system-prompt is required — see note below)
+mcphost -m ollama:qwen2.5:7b --config ~/.mcphost.json --system-prompt <path-to-prompt-file>
 ```
+
+> **`--system-prompt` is required for reliable tool calling.** Without it, small models (8B–14B) will call `get_specs`, read the schema, and then dump the entire schema as chat text instead of calling `compose_document`. The system prompt tells the model to prefer `compose_document` and never emit document content as text. `install-ollama.sh` handles this automatically; manual invocations must include it.
+>
+> The script writes a temporary system prompt file at launch. To create your own persistent copy:
+>
+> ```sh
+> # Extract the system prompt from install-ollama.sh, or write your own.
+> # At minimum it should instruct the model to:
+> #   - ALWAYS prefer compose_document over create_document
+> #   - NEVER emit the document body as chat text
+> #   - Follow the chain: get_specs → compose_document → return URL
+> ```
 
 See the copy-paste walkthrough generated for your environment with:
 
@@ -210,6 +223,7 @@ Open WebUI → Settings → Tools → **Add** → paste the mcpo OpenAPI URL (`h
 
 ## Gotchas
 
+- **`--system-prompt` is mandatory.** Without it, small models will read the schema and explain it as text instead of calling `compose_document`. Always pass `--system-prompt <file>` when invoking `mcphost` manually. `install-ollama.sh` handles this automatically.
 - **MCPHost is third-party.** Release cadence and API stability aren't controlled by Quillmark or Ollama. Pin to a known-good version in team environments.
 - **Ollama doesn't have native MCP support** (GitHub issue [#7865](https://github.com/ollama/ollama/issues/7865) tracks this). Until/unless that lands, a bridge is mandatory.
 - **Cold start.** The first tool call after `mcphost`/`mcpo` starts takes ~1-2s longer than subsequent ones — Ollama is warming up the model.
