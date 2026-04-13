@@ -153,7 +153,7 @@ export class QuillmarkMCP {
         name: 'compose_document',
         description: COMPOSE_DOCUMENT_DESCRIPTION,
         parameters: z.object({
-          quill: z.string().describe('Quill format name, e.g. "usaf_memo". Call get_specs with this name first to learn which fields the Quill requires.'),
+          quill: z.string().describe('Quill format name, e.g. "usaf_memo", "nyt_news_article", "cnn_news_article". Call list_quills to discover available formats, then get_specs with the chosen name to learn which fields it requires.'),
           fields: z.record(z.string(), z.any()).describe('JSON object of frontmatter fields. Keys match the schema returned by get_specs. Values can be strings, numbers, booleans, arrays of primitives, or nested objects — the server will emit valid YAML for all of them. Do not include a QUILL key here; use the quill parameter.'),
           body: z.string().describe('Markdown body of the document. Do not include YAML frontmatter delimiters or fields here — only the body content below the frontmatter.'),
         }),

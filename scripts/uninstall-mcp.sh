@@ -61,18 +61,29 @@ else
 fi
 
 # =============================================================================
-# 2. Remove generated override file
+# 2. Remove generated files
 # =============================================================================
 if [ -f docker-compose.override.yml ]; then
   rm -f docker-compose.override.yml
   ok "removed docker-compose.override.yml"
 fi
+if [ -f .mcp.json ]; then
+  rm -f .mcp.json
+  ok "removed .mcp.json"
+fi
 
 # =============================================================================
-# 3. Optional purge: volume + image
+# 3. Always remove image so install-mcp.sh gets a clean rebuild
+# =============================================================================
+banner "Remove image"
+docker rmi quillmark-mcp:dev 2>/dev/null && ok "image removed" \
+  || warn "image not found"
+
+# =============================================================================
+# 4. Optional purge: volume + artifacts
 # =============================================================================
 if [ "$PURGE" -eq 1 ]; then
-  banner "Purge volume + image + artifacts"
+  banner "Purge volume + artifacts"
 
   if confirm "Remove quillmark-mcp named volume (compose/HTTP mode)?"; then
     docker volume ls --format '{{.Name}}' \
@@ -88,11 +99,6 @@ if [ "$PURGE" -eq 1 ]; then
       rm -rf "$ARTIFACTS_DIR"
       ok "artifacts dir removed"
     fi
-  fi
-
-  if confirm "Remove quillmark-mcp:dev image?"; then
-    docker rmi quillmark-mcp:dev 2>/dev/null && ok "image removed" \
-      || warn "image not found"
   fi
 fi
 

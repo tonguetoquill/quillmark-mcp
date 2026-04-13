@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`nyt_news_article` Quill template (0.1.0).** NYT-style news article for wargaming exercise injects. Blackletter masthead (UnifrakturCook), EB Garamond serif typography, dateline, byline, section metadata, correction notices, metadata footer with tags/persons/locations/organizations.
+- **`cnn_news_article` Quill template (0.1.0).** CNN-style web news article for wargaming exercise injects. Red CNN header bar, breaking news banner, live update cards with timeline markers, related story cards, editor's note, updated timestamps, tag pills. Uses cards for `live_update` and `related_story` repeatable sections.
+- **`.mcp.json` auto-discovery.** `install-mcp.sh` now writes a `.mcp.json` file to the project root, which Claude Code, Cursor, and Cline auto-discover at session startup. No manual `claude mcp add` or session restart required.
+
+### Changed
+- **`install-mcp.sh` always rebuilds the Docker image.** Previously skipped the build if the image existed, causing stale images to serve outdated quills after code changes. Now removes the old image and rebuilds every time.
+- **`uninstall-mcp.sh` always removes the Docker image.** Previously gated behind `--purge`. Volume and artifacts remain `--purge`-only.
+- **`compose_document` parameter description** now lists `nyt_news_article` and `cnn_news_article` as examples alongside `usaf_memo`.
+
 ### Fixed
+- **`usaf_memo` unresolved import in Docker.** `plate.typ` imported `parse-date` from `quillmark-helper`, which is not exported by the WASM runtime in the Docker container. Removed the import; the `frontmatter` function already handles raw date strings.
 - **Logger wrote `info`/`debug` to stdout, breaking stdio transport.** `loglevel`'s default method factory routes `info` and `debug` to `console.log` (stdout). In stdio mode this contaminates the JSON-RPC wire protocol — Claude Desktop sees `[2026-...` as the first byte and fails with a JSON parse error. All logger output now goes through `process.stderr.write` unconditionally.
 - **`$HOME` not expanded in Claude Desktop config output.** Claude Desktop spawns `docker run` without shell expansion, so the literal string `$HOME` in volume mounts and env vars broke the bind mount. The CLI (`node src/bin.js config claude-desktop`) now resolves `$HOME` to the actual home directory path before generating the config snippet. The pure config generator (`src/cli/config.js`) is unchanged — path resolution is the caller's responsibility per its design contract.
 - **Unguarded `strategy.handle()` in `createDocument`.** A throwing strategy bypassed the non-throwing contract, propagating an unstructured exception to the MCP tool handler. Now wrapped in try/catch matching the `registry.resolve()` pattern.

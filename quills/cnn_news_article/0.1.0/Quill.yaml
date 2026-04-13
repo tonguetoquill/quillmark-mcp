@@ -1,0 +1,178 @@
+Quill:
+  name: cnn_news_article
+  version: "0.1.0"
+  backend: typst
+  plate_file: plate.typ
+  example_file: example.md
+  description: CNN-style web news article for wargaming exercise injects
+
+main:
+  fields:
+    headline:
+      title: Article headline
+      type: string
+      required: true
+      examples:
+        - "NATO allies scramble as tensions escalate near Baltic corridor"
+      ui:
+        group: Article
+      description: Primary headline. Use sentence case. Keep under 140 characters.
+
+    subheadline:
+      title: Subheadline
+      type: string
+      default: ""
+      ui:
+        group: Article
+      description: Optional secondary headline or summary line.
+
+    author:
+      title: Author name
+      type: string
+      required: true
+      examples:
+        - "Marcus J. Reed"
+      ui:
+        group: Article
+      description: "Reporter or author name (without 'By' prefix -- the template adds it)."
+
+    author_title:
+      title: Author title or beat
+      type: string
+      default: ""
+      examples:
+        - "CNN Pentagon Correspondent"
+      ui:
+        group: Article
+      description: "Author's title or beat, displayed below the author name."
+
+    dateline:
+      title: Dateline
+      type: string
+      default: ""
+      examples:
+        - "Washington, DC"
+      ui:
+        group: Article
+      description: Location where the story was filed.
+
+    category:
+      title: Content category
+      type: string
+      required: true
+      enum:
+        - Politics
+        - World
+        - U.S.
+        - Business
+        - Health
+        - Entertainment
+        - Tech
+        - Science
+        - National Security
+        - Military
+      examples:
+        - National Security
+      ui:
+        group: Metadata
+      description: CNN section or category for this article.
+
+    publication_date:
+      title: Publication date (YYYY-MM-DD)
+      type: string
+      required: true
+      examples:
+        - "2026-04-13"
+      ui:
+        group: Metadata
+      description: Original publication date in YYYY-MM-DD format.
+
+    updated_date:
+      title: Last updated date (YYYY-MM-DD)
+      type: string
+      default: ""
+      ui:
+        group: Metadata
+      description: "Date of last update. Displayed as 'Updated' timestamp. Leave blank to omit."
+
+    breaking_news:
+      title: Breaking news flag
+      type: string
+      default: "false"
+      enum:
+        - "true"
+        - "false"
+      ui:
+        group: Article
+      description: "Set to 'true' to display a red BREAKING NEWS banner above the headline."
+
+    summary:
+      title: Article summary
+      type: string
+      default: ""
+      ui:
+        group: Metadata
+      description: Brief summary or key points. Displayed in a highlighted block under the headline.
+
+    editors_note:
+      title: "Editor's note"
+      type: string
+      default: ""
+      ui:
+        group: Additional
+      description: "Optional editor's note rendered in a highlighted box before the article body."
+
+    tags:
+      title: Topic tags
+      type: array
+      default: []
+      examples:
+        - - NATO
+          - Baltic
+          - Defense
+      ui:
+        group: Metadata
+      description: Array of topic keywords.
+
+cards:
+  live_update:
+    title: Live update entry
+    description: A timestamped live update entry. Multiple live_update cards create a chronological update feed.
+    fields:
+      timestamp:
+        title: Update timestamp
+        type: string
+        required: true
+        examples:
+          - "2026-04-13 14:30 ET"
+        ui:
+          group: Update
+        description: Timestamp for this live update entry.
+      update_headline:
+        title: Update headline
+        type: string
+        default: ""
+        ui:
+          group: Update
+        description: Optional short headline for this update.
+
+  related_story:
+    title: Related story link
+    description: A related story reference rendered in the footer area.
+    fields:
+      story_headline:
+        title: Related story headline
+        type: string
+        required: true
+        examples:
+          - "Pentagon moves additional assets to Eastern Europe"
+        ui:
+          group: Related
+        description: Headline of the related story.
+      story_source:
+        title: Source attribution
+        type: string
+        default: "CNN"
+        ui:
+          group: Related
+        description: Source of the related story.

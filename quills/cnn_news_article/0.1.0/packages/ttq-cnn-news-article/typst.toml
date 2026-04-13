@@ -1,0 +1,10 @@
+[package]
+name = "ttq-cnn-news-article"
+version = "0.1.0"
+compiler = "0.14.0"
+entrypoint = "src/lib.typ"
+authors = ["Nibs"]
+license = "MIT"
+description = "CNN-style web news article template for wargaming exercise injects."
+keywords = ["news", "article", "cnn", "wargaming", "exercise", "inject"]
+categories = ["report"]

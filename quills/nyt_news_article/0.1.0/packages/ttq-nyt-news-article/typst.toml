@@ -1,0 +1,10 @@
+[package]
+name = "ttq-nyt-news-article"
+version = "0.1.0"
+compiler = "0.14.0"
+entrypoint = "src/lib.typ"
+authors = ["Nibs"]
+license = "MIT"
+description = "NYT-style news article template for wargaming exercise injects."
+keywords = ["news", "article", "nyt", "wargaming", "exercise", "inject"]
+categories = ["report"]
