@@ -80,15 +80,15 @@ have node || fail "node not found (required for snippet generator)"
 ok "node ready"
 
 # =============================================================================
-# Build image if missing
+# Always rebuild image to pick up code changes
 # =============================================================================
 banner "Image"
 if docker image inspect "$IMAGE" >/dev/null 2>&1; then
-  ok "$IMAGE already built (delete it to force rebuild)"
-else
-  docker build -t "$IMAGE" . || fail "docker build failed"
-  ok "built $IMAGE"
+  docker rmi "$IMAGE" >/dev/null 2>&1 || true
+  ok "removed stale $IMAGE"
 fi
+docker build -t "$IMAGE" . || fail "docker build failed"
+ok "built $IMAGE"
 
 # =============================================================================
 # Artifacts dir — always created so file:// URLs work in stdio mode,
