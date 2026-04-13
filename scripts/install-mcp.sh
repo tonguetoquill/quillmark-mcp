@@ -144,6 +144,22 @@ elif [ "$SKIP_SERVER" -eq 0 ] && [ "$MODE" = "stdio" ]; then
 fi
 
 # =============================================================================
+# Write .mcp.json for auto-discovery by Claude Code, Cursor, Cline, etc.
+# =============================================================================
+MCP_JSON="$ROOT_DIR/.mcp.json"
+cat > "$MCP_JSON" <<EOF
+{
+  "mcpServers": {
+    "${NAME}": {
+      "type": "http",
+      "url": "${URL}"
+    }
+  }
+}
+EOF
+ok "wrote ${MCP_JSON} (auto-discovered by Claude Code, Cursor, Cline)"
+
+# =============================================================================
 # Print snippets
 # =============================================================================
 CONFIG_ARGS=(

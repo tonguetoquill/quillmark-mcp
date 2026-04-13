@@ -61,11 +61,15 @@ else
 fi
 
 # =============================================================================
-# 2. Remove generated override file
+# 2. Remove generated files
 # =============================================================================
 if [ -f docker-compose.override.yml ]; then
   rm -f docker-compose.override.yml
   ok "removed docker-compose.override.yml"
+fi
+if [ -f .mcp.json ]; then
+  rm -f .mcp.json
+  ok "removed .mcp.json"
 fi
 
 # =============================================================================
