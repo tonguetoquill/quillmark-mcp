@@ -1,0 +1,161 @@
+Quill:
+  name: nyt_news_article
+  version: "0.1.0"
+  backend: typst
+  plate_file: plate.typ
+  example_file: example.md
+  description: NYT-style news article for wargaming exercise injects
+
+main:
+  fields:
+    headline:
+      title: Article headline
+      type: string
+      required: true
+      examples:
+        - "U.S. and Allied Forces Begin Major Naval Exercise in Western Pacific"
+      ui:
+        group: Article
+      description: Primary headline. Use title case. Keep under 120 characters for best layout.
+
+    subheadline:
+      title: Subheadline or deck
+      type: string
+      default: ""
+      ui:
+        group: Article
+      description: Optional secondary headline displayed below the main headline in italic.
+
+    byline:
+      title: Reporter byline
+      type: string
+      required: true
+      examples:
+        - "By Jennifer A. Collins"
+      ui:
+        group: Article
+      description: "Author credit line. Begin with 'By'. For multiple authors use 'and' (e.g. 'By Jane Doe and John Smith')."
+
+    dateline:
+      title: Dateline
+      type: string
+      default: ""
+      examples:
+        - "WASHINGTON"
+        - "TOKYO, April 12"
+      ui:
+        group: Article
+      description: "Location where the story was filed, optionally followed by a date. Rendered in uppercase at the start of the body text."
+
+    section:
+      title: Newspaper section
+      type: string
+      default: "World"
+      enum:
+        - World
+        - U.S.
+        - Politics
+        - Business
+        - Opinion
+        - Science
+        - Technology
+        - Health
+        - National Security
+      ui:
+        group: Metadata
+      description: Section of the newspaper this article appears in.
+
+    publication_date:
+      title: Publication date (YYYY-MM-DD)
+      type: string
+      required: true
+      examples:
+        - "2026-04-13"
+      ui:
+        group: Metadata
+      description: Date the article was published, in YYYY-MM-DD format.
+
+    abstract:
+      title: Article abstract or summary
+      type: string
+      default: ""
+      ui:
+        group: Metadata
+      description: One or two sentence summary. Displayed as a standfirst below the subheadline.
+
+    tags:
+      title: Topic tags
+      type: array
+      default: []
+      examples:
+        - - Military
+          - Pacific
+          - Naval Exercise
+      ui:
+        group: Metadata
+      description: Array of topic keywords for categorization.
+
+    persons:
+      title: Persons mentioned
+      type: array
+      default: []
+      examples:
+        - - "Adm. James T. Hargrove"
+          - "Secretary of Defense Maria Chen"
+      ui:
+        group: Metadata
+      description: Key persons referenced in the article.
+
+    locations:
+      title: Locations referenced
+      type: array
+      default: []
+      examples:
+        - - "Western Pacific"
+          - "Okinawa, Japan"
+      ui:
+        group: Metadata
+      description: Geographic locations mentioned in the article.
+
+    organizations:
+      title: Organizations referenced
+      type: array
+      default: []
+      examples:
+        - - "U.S. Pacific Fleet"
+          - "Japan Maritime Self-Defense Force"
+      ui:
+        group: Metadata
+      description: Organizations, agencies, or military units mentioned.
+
+    correction:
+      title: Correction notice
+      type: string
+      default: ""
+      ui:
+        group: Additional
+      description: Optional correction text. Rendered in a boxed notice at the bottom of the article.
+
+    word_count:
+      title: Approximate word count
+      type: number
+      default: 0
+      ui:
+        group: Additional
+      description: Approximate word count for metadata display. Set to 0 to omit.
+
+    masthead_text:
+      title: Masthead text
+      type: string
+      default: "The New York Times"
+      ui:
+        group: Additional
+      description: Text displayed in the Blackletter masthead. Change only for exercise customization.
+
+    print_edition_date:
+      title: Print edition date text
+      type: string
+      default: ""
+      ui:
+        group: Additional
+      description: "Optional print edition date line (e.g. 'Late Edition - Final'). Displayed near masthead."
