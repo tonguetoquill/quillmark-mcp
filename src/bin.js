@@ -4,11 +4,12 @@
  * CLI entry point — parses args/env, dispatches to config generators or starts the MCP server.
  */
 import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { generateConfig, mcphostConfigJson, SUPPORTED_CLIENTS } from './cli/config.js';
+import { generateConfig, isSupported, mcphostConfigJson, SUPPORTED_CLIENTS } from './cli/config.js';
 import { createDefaultMCP } from './mcp/index.js';
 import { RenderAndHostStrategy } from './strategies/index.js';
 
@@ -171,12 +172,13 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
       return;
     }
     try {
+      const mode = values.mode ?? (isSupported(client, 'http') ? 'http' : 'stdio');
       const snippet = generateConfig({
         client,
-        mode: values.mode ?? 'http',
+        mode,
         name: values.name,
         url: values.url,
-        artifactsDir: values['artifacts-dir'],
+        artifactsDir: values['artifacts-dir'] ?? `${env.HOME || homedir()}/.quillmark/artifacts`,
         image: values.image,
         authToken: values['auth-token'],
       });

@@ -125,6 +125,27 @@ describe('bin', () => {
     assert.match(stdout[0], /claude mcp add --transport http quillmark http:\/\/127\.0\.0\.1:8080\/mcp/);
   });
 
+  it('config subcommand resolves $HOME in claude-desktop stdio args', async () => {
+    const stdout = [];
+    let exitCode = 0;
+
+    await main(['config', 'claude-desktop'], {
+      cwd: '/workspace',
+      env: { HOME: '/test/home' },
+      exists: () => true,
+      consoleLog: (msg) => stdout.push(msg),
+      consoleError: () => {},
+      setExitCode: (code) => { exitCode = code; },
+    });
+
+    assert.equal(exitCode, 0);
+    const output = stdout.join('\n');
+    assert.match(output, /\/test\/home\/.quillmark\/artifacts/,
+      'claude-desktop config must contain resolved home path');
+    assert.doesNotMatch(output, /\$HOME/,
+      'claude-desktop config must not contain literal $HOME');
+  });
+
   it('config subcommand rejects unknown client with exit 2', async () => {
     let exitCode = 0;
     const stderr = [];

@@ -50,7 +50,9 @@ log.methodFactory = (methodName, logLevel, loggerName) => {
     }
 
     const formatted = `[${timestamp}] ${levelStr} ${message}`;
-    rawMethod(formatted);
+    // Always stderr — loglevel's default routes info/debug to console.log
+    // (stdout), which contaminates the stdio JSON-RPC wire protocol.
+    process.stderr.write(formatted + '\n');
   };
 };
 
