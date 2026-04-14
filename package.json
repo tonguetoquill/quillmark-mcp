@@ -54,7 +54,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@quillmark/registry": "^0.13.0",
-    "@quillmark/wasm": "^0.54.0",
+    "@quillmark/wasm": "^0.54.1",
     "@toon-format/toon": "^2.1.0",
     "js-yaml": "^4.1.1",
     "loglevel": "^1.9.1"
