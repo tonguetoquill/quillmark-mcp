@@ -74,11 +74,14 @@ export async function getSpecs(registry, ref, deps = {}) {
     : quillInfo?.schema;
 
   let schemaObject;
+  // Backward-compatibility: older engines exposed already-materialized schema
+  // objects (pre-YAML transition). Keep accepting that shape so callers do not
+  // break if registry/engine versions are temporarily mixed.
   if (schemaSource && typeof schemaSource === 'object' && !Array.isArray(schemaSource)) {
     schemaObject = schemaSource;
   } else if (typeof schemaSource === 'string') {
     try {
-      const parsed = yaml.load(schemaSource);
+      const parsed = yaml.load(schemaSource, { schema: yaml.JSON_SCHEMA });
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
         throw new TypeError('Schema YAML must deserialize to an object.');
       }
@@ -88,7 +91,7 @@ export async function getSpecs(registry, ref, deps = {}) {
       throw new Error(`Unable to parse schema for "${bundle.name}": ${message}`, { cause: error });
     }
   } else {
-    throw new Error('WASM engine did not provide schema via getQuillSchema() or getQuillInfo().schema.');
+    throw new Error(`WASM engine did not provide schema for "${bundle.name}" via getQuillSchema() or getQuillInfo().schema.`);
   }
 
   return {
