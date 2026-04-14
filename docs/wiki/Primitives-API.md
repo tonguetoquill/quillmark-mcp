@@ -77,7 +77,7 @@ Promise<{ schema: string, instructions: string }>
 |-----------|---------------|
 | `ref` is not a string or is empty/whitespace | `'Quill format reference must be a non-empty string.'` |
 | `registry.resolve(ref)` rejects | `'Unable to resolve Quill format reference "<ref>": <cause>'` (wraps original as `cause`) |
-| Registry lacks a WASM engine with required methods | `'Registry does not have an attached wasm engine with getQuillInfo/getQuillSchema methods.'` |
+| Registry lacks a WASM engine with required methods | `'Registry does not have an attached wasm engine with a getQuillInfo method.'` |
 
 ### `extractInstructions` Fallback Chain (internal)
 

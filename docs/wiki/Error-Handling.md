@@ -50,7 +50,7 @@ For `getSpecs`, the failure modes are:
 |---|---|---|---|
 | **Input validation** | `getSpecs` guard | `"Quill format reference must be a non-empty string."` | Throws `Error` |
 | **QUILL resolution** | `registry.resolve(ref)` | `"Unable to resolve Quill format reference \"bad-ref\": ..."` | Throws `Error` (with `cause`) |
-| **Missing engine** | Engine check | `"Registry does not have an attached wasm engine with getQuillInfo/getQuillSchema methods."` | Throws `Error` |
+| **Missing engine** | Engine check | `"Registry does not have an attached wasm engine with a getQuillInfo method."` | Throws `Error` |
 
 ## getErrorMessage() Utility
 
