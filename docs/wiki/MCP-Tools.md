@@ -99,7 +99,7 @@ This tool **throws** on every failure path (callers see an MCP error response):
 |---|---|
 | Empty or non-string `ref` | `"Quill format reference must be a non-empty string."` |
 | Resolution failure | `"Unable to resolve Quill format reference \"<ref>\": <cause>"` |
-| No WASM engine | `"Registry does not have an attached wasm engine with getStrippedSchema/getQuillInfo methods."` |
+| No WASM engine | `"Registry does not have an attached wasm engine with a getQuillInfo method."` |
 
 ### Example
 

@@ -3,6 +3,7 @@
  */
 
 import { encode } from '@toon-format/toon';
+import yaml from 'js-yaml';
 
 /**
  * Extracts authoring instructions from a resolved Quill's metadata.
@@ -28,6 +29,27 @@ function extractInstructions(quillInfo) {
 }
 
 /**
+ * Coerces an arbitrary schema value into a JSON-compatible object.
+ *
+ * @param {unknown} value
+ * @param {string} quillName
+ * @param {string} stage
+ * @returns {object}
+ */
+function normalizeSchemaObject(value, quillName, stage) {
+  try {
+    const normalized = JSON.parse(JSON.stringify(value));
+    if (!normalized || typeof normalized !== 'object' || Array.isArray(normalized)) {
+      throw new TypeError('Schema must be a JSON object.');
+    }
+    return normalized;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Unable to ${stage} schema for "${quillName}": ${message}`, { cause: error });
+  }
+}
+
+/**
  * Resolves a Quill format reference and returns its schema (TOON-encoded)
  * plus authoring instructions for LLM consumption.
  *
@@ -41,7 +63,7 @@ function extractInstructions(quillInfo) {
  *
  * @param {object} registry
  *   The package registry with an attached WASM engine. Must expose `resolve(ref)` returning
- *   `Promise<{ name }>` and optionally `engine` with `getStrippedSchema(name)` and `getQuillInfo(name)`.
+ *   `Promise<{ name }>` and optionally `engine` with `getQuillInfo(name)` and `getQuillSchema(name)`.
  * @param {string} ref - Identifier for the Quill format (e.g. package name or name@version).
  * @param {object} [deps] - Injectable dependencies; defaults to TOON encoder. May include `encodeSchema(schema)`.
  * @returns {Promise<object>} TOON-encoded schema + authoring instructions (`{ schema, instructions }`).
@@ -63,12 +85,29 @@ export async function getSpecs(registry, ref, deps = {}) {
   }
 
   const engine = registry.engine;
-  if (!engine || typeof engine.getStrippedSchema !== 'function' || typeof engine.getQuillInfo !== 'function') {
-    throw new Error('Registry does not have an attached wasm engine with getStrippedSchema/getQuillInfo methods.');
+  if (!engine || typeof engine.getQuillInfo !== 'function') {
+    throw new Error('Registry does not have an attached wasm engine with a getQuillInfo method.');
   }
 
-  const schemaObject = engine.getStrippedSchema(bundle.name);
   const quillInfo = engine.getQuillInfo(bundle.name);
+  const schemaSource = typeof engine.getQuillSchema === 'function'
+    ? engine.getQuillSchema(bundle.name)
+    : quillInfo?.schema;
+
+  let schemaObject;
+  // Backward-compatibility: older engines exposed already-materialized schema
+  // objects (pre-YAML transition). Keep accepting that shape so callers do not
+  // break if registry/engine versions are temporarily mixed.
+  if (schemaSource && typeof schemaSource === 'object' && !Array.isArray(schemaSource)) {
+    schemaObject = normalizeSchemaObject(schemaSource, bundle.name, 'normalize');
+  } else if (typeof schemaSource === 'string') {
+    // JSON_SCHEMA rejects custom/non-JSON tags, and normalization below enforces
+    // a plain JSON-compatible object before passing data to the encoder.
+    const parsed = yaml.load(schemaSource, { schema: yaml.JSON_SCHEMA });
+    schemaObject = normalizeSchemaObject(parsed, bundle.name, 'parse');
+  } else {
+    throw new Error(`WASM engine did not provide schema for "${bundle.name}" via getQuillSchema() or getQuillInfo().schema.`);
+  }
 
   return {
     schema: encodeSchema(schemaObject),

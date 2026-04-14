@@ -58,7 +58,7 @@ The schema is encoded via **TOON** (a compact, token-efficient serialisation for
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `registry` | `object` | -- | Package registry with an attached WASM engine. Must expose `resolve(ref)` returning `Promise<{ name }>`, and `engine` with `getStrippedSchema(name)` and `getQuillInfo(name)`. |
+| `registry` | `object` | -- | Package registry with an attached WASM engine. Must expose `resolve(ref)` returning `Promise<{ name }>`, and `engine` with `getQuillInfo(name)` plus either `getQuillSchema(name)` or `getQuillInfo(name).schema`. |
 | `ref` | `string` | -- | Quill format identifier (e.g. `'memo'` or `'memo@1.2.0'`). |
 | `deps` | `object` | `{}` | Injectable dependencies. May include `encodeSchema(schema)` to override the default TOON encoder. |
 
@@ -68,7 +68,7 @@ The schema is encoded via **TOON** (a compact, token-efficient serialisation for
 Promise<{ schema: string, instructions: string }>
 ```
 
-- `schema` -- TOON-encoded schema object from `engine.getStrippedSchema(name)`.
+- `schema` -- TOON-encoded schema object parsed from YAML (`engine.getQuillSchema(name)` or `engine.getQuillInfo(name).schema`).
 - `instructions` -- Authoring instructions extracted via `extractInstructions` (see below).
 
 ### Throws
@@ -77,7 +77,7 @@ Promise<{ schema: string, instructions: string }>
 |-----------|---------------|
 | `ref` is not a string or is empty/whitespace | `'Quill format reference must be a non-empty string.'` |
 | `registry.resolve(ref)` rejects | `'Unable to resolve Quill format reference "<ref>": <cause>'` (wraps original as `cause`) |
-| Registry lacks a WASM engine with required methods | `'Registry does not have an attached wasm engine with getStrippedSchema/getQuillInfo methods.'` |
+| Registry lacks a WASM engine with required methods | `'Registry does not have an attached wasm engine with a getQuillInfo method.'` |
 
 ### `extractInstructions` Fallback Chain (internal)
 
