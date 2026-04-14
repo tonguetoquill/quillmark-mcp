@@ -50,7 +50,7 @@ For `getSpecs`, the failure modes are:
 |---|---|---|---|
 | **Input validation** | `getSpecs` guard | `"Quill format reference must be a non-empty string."` | Throws `Error` |
 | **QUILL resolution** | `registry.resolve(ref)` | `"Unable to resolve Quill format reference \"bad-ref\": ..."` | Throws `Error` (with `cause`) |
-| **Missing engine** | Engine check | `"Registry does not have an attached wasm engine with getStrippedSchema/getQuillInfo methods."` | Throws `Error` |
+| **Missing engine** | Engine check | `"Registry does not have an attached wasm engine with getQuillInfo/getQuillSchema methods."` | Throws `Error` |
 
 ## getErrorMessage() Utility
 
@@ -78,7 +78,7 @@ Map handling is critical because the WASM validation engine surfaces per-field e
 
 - Empty or non-string `ref` argument
 - Resolution failure (unknown quill name, network error, version mismatch)
-- Missing or incomplete WASM engine (no `getStrippedSchema` or `getQuillInfo` methods)
+- Missing or incomplete WASM engine (no `getQuillInfo` method)
 
 The MCP tool handler in `QuillmarkMCP` catches these throws and re-throws them, which the `McpSdkServerAdapter` serializes as MCP-level error responses.
 

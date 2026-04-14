@@ -41,14 +41,14 @@ class FakeServer {
  * @class FakeRegistry
  * @property {Array<Object>} available - Quill metadata returned by {@link FakeRegistry#getAvailableQuills}.
  * @property {Array<string>} resolvedRefs - Refs passed to {@link FakeRegistry#resolve}, in call order.
- * @property {Object} engine - Stub engine exposing getStrippedSchema, getQuillInfo, and dryRun.
+ * @property {Object} engine - Stub engine exposing getQuillSchema, getQuillInfo, and dryRun.
  */
 class FakeRegistry {
   constructor() {
     this.available = [];
     this.resolvedRefs = [];
     this.engine = {
-      getStrippedSchema: () => ({ type: 'object', properties: {} }),
+      getQuillSchema: () => 'name: stub\nfields: {}\n',
       getQuillInfo: () => ({ example: 'Write like this.' }),
       dryRun: () => {},
     };

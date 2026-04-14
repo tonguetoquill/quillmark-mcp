@@ -9,7 +9,7 @@
  * - Error propagation when the registry itself fails
  * - Instructions passthrough (returned verbatim, no trimming)
  *
- * Stubs: registry (resolve, engine.getStrippedSchema, engine.getQuillInfo) and
+ * Stubs: registry (resolve, engine.getQuillSchema, engine.getQuillInfo) and
  * an optional TOON encoder ({ encodeSchema }) passed as the third argument.
  */
 import { describe, it } from 'node:test';
@@ -19,16 +19,16 @@ import { getSpecs } from '../../src/primitives/getSpecs.js';
 
 describe('getSpecs', () => {
   it('returns TOON-encoded schema and instructions for a valid ref', async () => {
-    const schema = { type: 'object', properties: { title: { type: 'string' } } };
+    const schema = { name: 'usaf_memo', fields: { title: { type: 'string' } } };
     const registry = {
       async resolve(ref) {
         assert.strictEqual(ref, 'usaf_memo');
         return { name: 'usaf_memo' };
       },
       engine: {
-        getStrippedSchema(name) {
+        getQuillSchema(name) {
           assert.strictEqual(name, 'usaf_memo');
-          return schema;
+          return 'name: usaf_memo\nfields:\n  title:\n    type: string\n';
         },
         getQuillInfo(name) {
           assert.strictEqual(name, 'usaf_memo');
@@ -58,8 +58,8 @@ describe('getSpecs', () => {
         throw new Error('quill_not_found');
       },
       engine: {
-        getStrippedSchema() {
-          return {};
+        getQuillSchema() {
+          return 'name: x\nfields: {}\n';
         },
         getQuillInfo() {
           return { example: '' };
@@ -79,8 +79,8 @@ describe('getSpecs', () => {
         throw new Error('source unavailable');
       },
       engine: {
-        getStrippedSchema() {
-          return {};
+        getQuillSchema() {
+          return 'name: x\nfields: {}\n';
         },
         getQuillInfo() {
           return { example: '' };
@@ -101,8 +101,8 @@ describe('getSpecs', () => {
         return { name: 'sitrep' };
       },
       engine: {
-        getStrippedSchema() {
-          return { type: 'object' };
+        getQuillSchema() {
+          return 'name: sitrep\nfields: {}\n';
         },
         getQuillInfo() {
           return { example: rawInstructions };
@@ -117,5 +117,35 @@ describe('getSpecs', () => {
     });
 
     assert.strictEqual(result.instructions, rawInstructions);
+  });
+
+  it('falls back to getQuillInfo().schema when getQuillSchema() is unavailable', async () => {
+    const registry = {
+      async resolve() {
+        return { name: 'sitrep' };
+      },
+      engine: {
+        getQuillInfo() {
+          return {
+            schema: 'name: sitrep\nfields:\n  title:\n    type: string\n',
+            example: 'Follow the sample.',
+          };
+        },
+      },
+    };
+
+    let encodedInput;
+    const result = await getSpecs(registry, 'sitrep', {
+      encodeSchema(input) {
+        encodedInput = input;
+        return 'encoded';
+      },
+    });
+
+    assert.deepStrictEqual(encodedInput, {
+      name: 'sitrep',
+      fields: { title: { type: 'string' } },
+    });
+    assert.deepStrictEqual(result, { schema: 'encoded', instructions: 'Follow the sample.' });
   });
 });

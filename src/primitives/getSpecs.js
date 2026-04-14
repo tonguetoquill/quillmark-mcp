@@ -3,6 +3,7 @@
  */
 
 import { encode } from '@toon-format/toon';
+import yaml from 'js-yaml';
 
 /**
  * Extracts authoring instructions from a resolved Quill's metadata.
@@ -41,7 +42,7 @@ function extractInstructions(quillInfo) {
  *
  * @param {object} registry
  *   The package registry with an attached WASM engine. Must expose `resolve(ref)` returning
- *   `Promise<{ name }>` and optionally `engine` with `getStrippedSchema(name)` and `getQuillInfo(name)`.
+ *   `Promise<{ name }>` and optionally `engine` with `getQuillInfo(name)` and `getQuillSchema(name)`.
  * @param {string} ref - Identifier for the Quill format (e.g. package name or name@version).
  * @param {object} [deps] - Injectable dependencies; defaults to TOON encoder. May include `encodeSchema(schema)`.
  * @returns {Promise<object>} TOON-encoded schema + authoring instructions (`{ schema, instructions }`).
@@ -63,12 +64,32 @@ export async function getSpecs(registry, ref, deps = {}) {
   }
 
   const engine = registry.engine;
-  if (!engine || typeof engine.getStrippedSchema !== 'function' || typeof engine.getQuillInfo !== 'function') {
-    throw new Error('Registry does not have an attached wasm engine with getStrippedSchema/getQuillInfo methods.');
+  if (!engine || typeof engine.getQuillInfo !== 'function') {
+    throw new Error('Registry does not have an attached wasm engine with getQuillInfo/getQuillSchema methods.');
   }
 
-  const schemaObject = engine.getStrippedSchema(bundle.name);
   const quillInfo = engine.getQuillInfo(bundle.name);
+  const schemaSource = typeof engine.getQuillSchema === 'function'
+    ? engine.getQuillSchema(bundle.name)
+    : quillInfo?.schema;
+
+  let schemaObject;
+  if (schemaSource && typeof schemaSource === 'object' && !Array.isArray(schemaSource)) {
+    schemaObject = schemaSource;
+  } else if (typeof schemaSource === 'string') {
+    try {
+      const parsed = yaml.load(schemaSource);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new TypeError('Schema YAML must deserialize to an object.');
+      }
+      schemaObject = parsed;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Unable to parse schema for "${bundle.name}": ${message}`, { cause: error });
+    }
+  } else {
+    throw new Error('WASM engine did not provide schema via getQuillSchema() or getQuillInfo().schema.');
+  }
 
   return {
     schema: encodeSchema(schemaObject),
