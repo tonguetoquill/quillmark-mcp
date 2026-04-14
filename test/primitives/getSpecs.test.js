@@ -19,7 +19,7 @@ import { getSpecs } from '../../src/primitives/getSpecs.js';
 
 describe('getSpecs', () => {
   it('returns TOON-encoded schema and instructions for a valid ref', async () => {
-    const schema = { name: 'usaf_memo', fields: { title: { type: 'string' } } };
+    const expectedSchema = { name: 'usaf_memo', fields: { title: { type: 'string' } } };
     const registry = {
       async resolve(ref) {
         assert.strictEqual(ref, 'usaf_memo');
@@ -45,7 +45,7 @@ describe('getSpecs', () => {
       },
     });
 
-    assert.deepStrictEqual(encodedInput, schema);
+    assert.deepStrictEqual(encodedInput, expectedSchema);
     assert.deepStrictEqual(result, {
       schema: 'toon-schema',
       instructions: 'Use concise language.',

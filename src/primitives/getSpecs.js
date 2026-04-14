@@ -78,14 +78,19 @@ export async function getSpecs(registry, ref, deps = {}) {
   // objects (pre-YAML transition). Keep accepting that shape so callers do not
   // break if registry/engine versions are temporarily mixed.
   if (schemaSource && typeof schemaSource === 'object' && !Array.isArray(schemaSource)) {
-    schemaObject = schemaSource;
+    try {
+      schemaObject = JSON.parse(JSON.stringify(schemaSource));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Unable to normalize schema for "${bundle.name}": ${message}`, { cause: error });
+    }
   } else if (typeof schemaSource === 'string') {
     try {
       const parsed = yaml.load(schemaSource, { schema: yaml.JSON_SCHEMA });
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
         throw new TypeError('Schema YAML must deserialize to an object.');
       }
-      schemaObject = parsed;
+      schemaObject = JSON.parse(JSON.stringify(parsed));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Unable to parse schema for "${bundle.name}": ${message}`, { cause: error });
