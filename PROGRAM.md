@@ -2,6 +2,8 @@
 
 Three primitives. Three tools. 1:1. No gating.
 
+quillmark-mcp is the foundation. Separate repos extend it for specific domains — same primitives, purpose-fit defaults, no core modifications.
+
 ## Stack
 
 - Node.js ≥ 24
@@ -35,3 +37,5 @@ Validation is always in the core path. The strategy decides what happens next �
 ## Extensibility
 
 Drop a Quill directory into `quills/`. Restart. `FileSystemSource` auto-discovers it; `list_quills` surfaces it; `create_document` renders it. No code changes.
+
+**Planned: Quivers** — named, swappable collections of quills. Install a quiver for a domain; the server discovers and surfaces everything in it automatically.
