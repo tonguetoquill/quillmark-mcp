@@ -1,85 +1,93 @@
 #import "@local/quillmark-helper:0.1.0": data
-#import "@local/ttq-cnn-news-article:0.1.0": article, config, header-bar, breaking-banner, byline-block, timestamp-block, editors-note-box, live-updates, related-stories, article-footer, format-cnn-date
+#import "@local/ttq-cnn-news-article:0.1.0": article, config, header-bar, breaking-banner, section-kicker, byline-block, timestamp-block, dateline-lead, editors-note-box, summary-block, live-updates, related-stories, article-footer, format-cnn-date, format-cnn-short
 
-// Apply global article styling
 #show: article
 
-// 1. CNN HEADER BAR
+// 1. HEADER BAR
 #header-bar(category: data.category)
 
-// 2. BREAKING NEWS BANNER (conditional)
+// 2. BREAKING NEWS BANNER (optional)
 #if data.at("breaking_news", default: "false") == "true" {
   breaking-banner()
 }
 
-// 3. HEADLINE
-#v(10pt)
-#text(font: config.headline-font, size: 26pt, weight: "bold",
-  fill: config.colors.text-primary)[
+// 3. SECTION KICKER (red uppercase, above headline)
+#v(14pt)
+#section-kicker(category: data.category)
+
+// 4. HEADLINE — tight leading, near-black, left aligned
+#v(4pt)
+#par(leading: 4pt)[
+  #set text(
+    font: config.headline-font,
+    size: 28pt,
+    weight: "black",
+    fill: config.colors.text-primary,
+    tracking: -0.01em,
+  )
   #data.headline
 ]
 
-// 4. SUBHEADLINE (optional)
+// 5. SUBHEADLINE / DEK (optional)
 #if data.at("subheadline", default: "") != "" {
-  v(4pt)
-  text(font: config.body-font, size: 13pt,
-    fill: config.colors.text-secondary, data.subheadline)
-}
-
-// 5. BYLINE AND TIMESTAMPS
-#v(10pt)
-#byline-block(
-  author: data.author,
-  author-title: data.at("author_title", default: ""),
-  dateline: data.at("dateline", default: ""),
-)
-#timestamp-block(
-  pub-date: format-cnn-date(data.publication_date),
-  updated-date: {
-    let ud = data.at("updated_date", default: "")
-    if ud != "" { format-cnn-date(ud) } else { none }
-  },
-)
-
-// 6. EDITOR'S NOTE (optional)
-#if data.at("editors_note", default: "") != "" {
-  v(8pt)
-  editors-note-box(data.editors_note)
-}
-
-// 7. SUMMARY (optional)
-#if data.at("summary", default: "") != "" {
-  v(8pt)
-  block(
-    width: 100%,
-    inset: (left: 12pt, y: 4pt),
-    stroke: (left: 3pt + config.colors.cnn-red, rest: none),
-  )[
-    #set text(font: config.body-font, size: 10.5pt, weight: "bold",
-      fill: config.colors.text-secondary)
-    #data.summary
+  v(10pt)
+  par(leading: 4pt)[
+    #set text(
+      font: config.body-font,
+      size: 13pt,
+      weight: "medium",
+      fill: config.colors.text-secondary,
+    )
+    #data.subheadline
   ]
 }
 
-// 8. BODY
+// 6. BYLINE + TIMESTAMP
+#v(12pt)
+#byline-block(
+  author: data.author,
+  author-title: data.at("author_title", default: ""),
+)
+#timestamp-block(
+  pub-date: format-cnn-short(data.publication_date),
+  updated-date: {
+    let ud = data.at("updated_date", default: "")
+    if ud != "" { format-cnn-short(ud) } else { none }
+  },
+)
+
+// 7. SEPARATOR
 #v(10pt)
+#line(length: 100%, stroke: 0.5pt + config.colors.rule)
+#v(8pt)
+
+// 8. EDITOR'S NOTE (optional)
+#if data.at("editors_note", default: "") != "" {
+  editors-note-box(data.editors_note)
+  v(8pt)
+}
+
+// 9. SUMMARY / LEDE (optional)
+#if data.at("summary", default: "") != "" {
+  summary-block(data.summary)
+  v(12pt)
+}
+
+// 10. BODY — starts with "Location CNN —" dateline inline
+#dateline-lead(dateline: data.at("dateline", default: ""))
 #data.BODY
 
-// 9. LIVE UPDATES (from cards)
+// 11. LIVE UPDATES (from cards)
 #{
   let updates = data.CARDS.filter(c => c.CARD == "live_update")
-  if updates.len() > 0 {
-    live-updates(updates)
-  }
+  if updates.len() > 0 { live-updates(updates) }
 }
 
-// 10. RELATED STORIES (from cards)
+// 12. RELATED STORIES (from cards)
 #{
   let related = data.CARDS.filter(c => c.CARD == "related_story")
-  if related.len() > 0 {
-    related-stories(related)
-  }
+  if related.len() > 0 { related-stories(related) }
 }
 
-// 11. TAG FOOTER
+// 13. TAG FOOTER
 #article-footer(tags: data.at("tags", default: ()))
