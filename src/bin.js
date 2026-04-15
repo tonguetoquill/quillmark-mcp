@@ -93,7 +93,6 @@ function pick(cliValue, envValue, fallback) {
  * - `QUILLMARK_ENDPOINT` — MCP endpoint path (default `/mcp`)
  * - `QUILLMARK_BASE_URL` — public artifact base URL
  * - `QUILLMARK_STDIO` — set to `1` to force stdio transport
- * - `QUILLMARK_LOCAL_MODEL_MODE` — set to `1` for local model mode
  *
  * ### Dependency injection
  * All side-effectful dependencies are injectable via `deps` for testability:
@@ -202,7 +201,6 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   const endpoint = pick(values.endpoint, env.QUILLMARK_ENDPOINT, '/mcp');
   const baseUrlOverride = pick(values['base-url'], env.QUILLMARK_BASE_URL, '');
   const useStdio = values.stdio === true || env.QUILLMARK_STDIO === '1';
-  const localModelMode = env.QUILLMARK_LOCAL_MODEL_MODE === '1';
 
   const quillsDir = resolveQuillsDir(quillsDirRaw, cwd);
   if (!exists(quillsDir)) {
@@ -215,7 +213,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   const baseUrl = baseUrlOverride || `http://${host}:${port}/artifacts`;
 
   const strategy = new StrategyClass({ outputDir, baseUrl });
-  const mcp = await createMCP({ quillsDir, strategy, localModelMode });
+  const mcp = await createMCP({ quillsDir, strategy });
 
   if (useStdio) {
     await mcp.start({ transportType: 'stdio' });
