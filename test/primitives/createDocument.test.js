@@ -25,7 +25,7 @@ QUILL: usaf_memo
 # Memo`;
 
 describe('createDocument', () => {
-  it('strips double-quoted QUILL scalars (YAML-encoded via compose_document path)', async () => {
+  it('strips double-quoted QUILL scalars', async () => {
     const quotedContent = `---\nQUILL: "usaf_memo@0.2.0"\n---\n# Memo`;
     let resolvedWith;
     const registry = {
