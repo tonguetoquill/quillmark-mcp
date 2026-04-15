@@ -18,13 +18,10 @@
   ],
   "scripts": {
     "test": "node --test",
-    "docs:build": "typedoc",
-    "docs:watch": "typedoc --watch",
     "test:docker": "./scripts/docker-test.sh",
     "test:install": "./scripts/test-mcp-install.sh",
     "start": "node src/bin.js",
     "install:mcp": "./scripts/install-mcp.sh",
-    "install:ollama": "./scripts/install-ollama.sh",
     "uninstall:mcp": "./scripts/uninstall-mcp.sh",
     "claude:reset": "./scripts/claude-reset.sh",
     "docker:build": "docker build -t quillmark-mcp:dev .",
@@ -58,8 +55,5 @@
     "@toon-format/toon": "^2.1.0",
     "js-yaml": "^4.1.1",
     "loglevel": "^1.9.1"
-  },
-  "devDependencies": {
-    "typedoc": "^0.28.19"
   }
 }

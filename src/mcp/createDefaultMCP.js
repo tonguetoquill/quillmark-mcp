@@ -27,18 +27,16 @@ import { QuillmarkMCP } from './QuillmarkMCP.js';
  * @param {string} options.quillsDir - Absolute or relative path to the directory containing quill definitions.
  * @param {object} options.strategy - Delivery strategy instance (e.g. `RenderAndHostStrategy`).
  *   Must expose `handle(quill, content)` returning a Promise of `{ status, url?, errors? }`.
- * @param {boolean} [options.localModelMode=false] - Pass `true` to enable the `compose_document` tool for weak-YAML clients.
  * @returns {Promise<QuillmarkMCP>} Ready-to-start MCP instance (call `.start()` to begin serving).
  * @throws {Error} If the manifest cannot be loaded from `quillsDir`.
  */
-export async function createDefaultMCP({ quillsDir, strategy, localModelMode = false }) {
+export async function createDefaultMCP({ quillsDir, strategy }) {
   init();
 
   const engine = new Quillmark();
   const source = new FileSystemSource(quillsDir);
   const registry = new QuillRegistry({ source, engine });
 
-  // Force manifest loading to discover quills
   try {
     const manifest = await registry.getManifest();
     logger.debug(`FileSystemSource manifest loaded: ${JSON.stringify(manifest.quills.map(q => ({ name: q.name, version: q.version })))}`);
@@ -49,5 +47,5 @@ export async function createDefaultMCP({ quillsDir, strategy, localModelMode = f
 
   const server = new McpSdkServerAdapter({ name: 'Quillmark', version: '1.0.0' });
 
-  return new QuillmarkMCP({ registry, strategy, server, localModelMode });
+  return new QuillmarkMCP({ registry, strategy, server });
 }

@@ -1,19 +1,16 @@
 #!/usr/bin/env bash
-# One-command install for quillmark-mcp, client-agnostic.
+# One-command install for quillmark-mcp.
 #
 # Brings the server up (HTTP via docker compose, or per-session stdio via
-# docker run) and prints the exact config snippet you need to paste into
-# your MCP client of choice. No user config files are modified.
+# docker run) and prints the Claude Code / Codex snippet you need to paste.
+# No user config files are modified.
 #
-# Supported clients (via `node src/bin.js config <client>`):
-#   claude-code     claude-desktop     cursor          vscode
-#   cline           continue           codex           chatgpt
-#   openai-responses openai-agents     ollama-mcphost  ollama-mcpo
+# Supported clients: claude-code, codex.
 #
 # Usage:
-#   ./scripts/install-mcp.sh                                 # HTTP mode, print every client snippet
+#   ./scripts/install-mcp.sh                                 # HTTP mode, print both snippets
 #   ./scripts/install-mcp.sh --target claude-code            # HTTP mode, one client only
-#   ./scripts/install-mcp.sh --target claude-desktop --mode stdio
+#   ./scripts/install-mcp.sh --target codex --mode stdio
 #   ./scripts/install-mcp.sh --mode http --port 9090
 #   ./scripts/install-mcp.sh --no-server                     # skip bring-up, just print snippets
 set -euo pipefail
@@ -166,33 +163,14 @@ CONFIG_ARGS=(
   --name "$NAME"
   --url "$URL"
   --artifacts-dir "$ARTIFACTS_DIR"
-  --image "$IMAGE"
 )
 
-ALL_CLIENTS=(
-  claude-code
-  claude-desktop
-  cursor
-  vscode
-  cline
-  continue
-  codex
-  chatgpt
-  openai-responses
-  openai-agents
-  ollama-mcphost
-  ollama-mcpo
-)
+ALL_CLIENTS=(claude-code codex)
 
-# Pick the most-useful mode for each client when printing the "all" bundle.
-# Claude Desktop is stdio-only; ollama-mcpo is stdio-only via container.
-preferred_mode() {
-  local c="$1"
-  case "$c" in
-    claude-desktop|ollama-mcpo) echo "stdio" ;;
-    *)                          echo "$MODE" ;;
-  esac
-}
+case "$TARGET" in
+  all|claude-code|codex) ;;
+  *) fail "--target must be one of: all, claude-code, codex (got: $TARGET)" ;;
+esac
 
 print_snippet() {
   local client="$1"
@@ -208,14 +186,11 @@ banner "Client snippets"
 
 if [ "$TARGET" = "all" ]; then
   printf '\n  Copy the block below into the config file your client expects.\n'
-  printf '  Each client is independent — you only need the one(s) you use.\n'
   for client in "${ALL_CLIENTS[@]}"; do
-    mode="$(preferred_mode "$client")"
-    print_snippet "$client" "$mode"
+    print_snippet "$client" "$MODE"
   done
 else
-  mode="$(preferred_mode "$TARGET")"
-  print_snippet "$TARGET" "$mode"
+  print_snippet "$TARGET" "$MODE"
 fi
 
 # =============================================================================
@@ -239,8 +214,6 @@ EOF
 else
   cat <<EOF
   ${C_GREEN}✓${C_OFF} Image built. Snippets above are ready to paste.
-
-  See docs/clients/<client>.md for per-client verification steps.
 
 EOF
 fi

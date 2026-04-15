@@ -7,8 +7,7 @@
  * tool enumeration, and tool invocation via both HTTP and stdio transports.
  *
  * Uses the official MCP SDK {@link Client} as the primary test driver (Layers
- * 5, 5b2, 5c, 5d) and raw `fetch` for low-level HTTP plumbing assertions
- * (Layer 5b).
+ * 5, 5b2, 5c) and raw `fetch` for low-level HTTP plumbing assertions (Layer 5b).
  */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -31,13 +30,7 @@ import { SHOULD_RUN, IMAGE, startHttpContainer, jsonRpc, rpc } from './helpers.j
 const maybe = SHOULD_RUN ? describe : describe.skip;
 
 /**
- * The canonical tool surface exposed to Claude Code in default mode.
- *
- * Exactly 3 tools — `list_quills`, `get_specs`, `create_document` — form the
- * Claude Code integration contract. Any change to this set is a breaking
- * change for every Claude Code user whose system prompt references these
- * tools. The 4th tool (`compose_document`) is gated behind
- * `QUILLMARK_LOCAL_MODEL_MODE` and tested separately in Layer 5d.
+ * The canonical tool surface. Three tools, no gating.
  *
  * @type {Set<string>}
  * @constant
@@ -317,108 +310,3 @@ maybe('Layer 5c: stdio transport variant', () => {
   });
 });
 
-/**
- * @description Layer 5d: local-model mode `compose_document` gating.
- *
- * Starts a separate container with `QUILLMARK_LOCAL_MODEL_MODE=1` and asserts
- * the 4th tool (`compose_document`) appears alongside the base 3. This tool
- * accepts pre-structured fields + body (no frontmatter), letting local/open
- * models that struggle with Markdown frontmatter still produce valid documents.
- *
- * Default-mode containers (every other Layer 5 suite) must see exactly 3 tools
- * — that is the Claude Code compatibility guarantee. The gating env var is the
- * only mechanism that unlocks `compose_document`.
- */
-maybe('Layer 5d: local-model mode exposes compose_document ONLY when env var is set', () => {
-  let ctx;
-  let client;
-  let exampleMemo;
-
-  before(async () => {
-    ctx = await startHttpContainer({ env: { QUILLMARK_LOCAL_MODEL_MODE: '1' } });
-    exampleMemo = await readFile('quills/usaf_memo/0.2.0/example.md', 'utf8');
-
-    client = new Client({ name: 'layer5d-local', version: '0.0.1' });
-    await client.connect(new StreamableHTTPClientTransport(new URL(ctx.mcpUrl)));
-  });
-
-  after(async () => {
-    await client?.close().catch(() => {});
-    ctx?.stop();
-  });
-
-  it('tools/list includes compose_document plus the original three', async () => {
-    const { tools } = await client.listTools();
-    const names = new Set(tools.map((t) => t.name));
-    assert.ok(names.has('compose_document'), 'compose_document missing from local-model mode');
-    for (const base of EXPECTED_TOOLS) {
-      assert.ok(names.has(base), `${base} missing even in local-model mode`);
-    }
-    assert.equal(tools.length, 4, `expected 4 tools, got ${tools.length}: ${[...names].join(',')}`);
-
-    const compose = tools.find((t) => t.name === 'compose_document');
-    assert.match(compose.description, /Compose and render a document from structured fields/);
-    assert.equal(compose.inputSchema.type, 'object');
-    assert.ok(compose.inputSchema.properties?.quill);
-    assert.ok(compose.inputSchema.properties?.fields);
-    assert.ok(compose.inputSchema.properties?.body);
-  });
-
-  it('compose_document renders a real memo end-to-end from structured fields', async () => {
-    // Parse the bundled example so we test with real, schema-valid field values
-    // without hand-maintaining a second fixture.
-    const fmMatch = exampleMemo.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
-    assert.ok(fmMatch, 'could not parse example memo frontmatter');
-    const [, fmBlock, bodyRaw] = fmMatch;
-
-    // Light-touch YAML → JS: handles the scalar / sequence subset the example uses.
-    const fields = {};
-    let currentKey = null;
-    for (const line of fmBlock.split(/\r?\n/)) {
-      if (!line.trim() || line.trim().startsWith('#')) continue;
-      const arrayItem = line.match(/^\s+-\s+(.+)$/);
-      const kv = line.match(/^([\w-]+):\s*(.*)$/);
-      if (arrayItem && currentKey) {
-        const v = arrayItem[1].replace(/^"|"$/g, '').replace(/^'|'$/g, '');
-        if (!Array.isArray(fields[currentKey])) fields[currentKey] = [];
-        fields[currentKey].push(v);
-      } else if (kv) {
-        currentKey = kv[1];
-        const raw = kv[2];
-        if (raw === '' || raw === undefined) {
-          fields[currentKey] = [];
-        } else {
-          fields[currentKey] = raw.replace(/^"|"$/g, '').replace(/^'|'$/g, '');
-        }
-      }
-    }
-    const quill = typeof fields.QUILL === 'string' ? fields.QUILL : 'usaf_memo';
-    delete fields.QUILL;
-
-    const result = await client.callTool({
-      name: 'compose_document',
-      arguments: { quill, fields, body: bodyRaw.trim() },
-    });
-    const body = result.structuredContent ?? JSON.parse(result.content[0].text);
-    assert.equal(body.status, 'success', `compose_document failed: ${JSON.stringify(body)}`);
-    assert.match(body.url, /\/artifacts\/[^/]+\.pdf$/, `bad URL ${body.url}`);
-  });
-
-  it('compose_document surfaces validation errors as structured error objects', async () => {
-    // Send deliberately-incomplete fields (missing memo_from/signature_block).
-    // The server should return { status: 'error', errors: [...] } instead of
-    // throwing — the model can self-repair from a structured error, not from
-    // a protocol exception.
-    const result = await client.callTool({
-      name: 'compose_document',
-      arguments: {
-        quill: 'usaf_memo',
-        fields: { subject: 'Missing fields test' },
-        body: 'Body.',
-      },
-    });
-    const body = result.structuredContent ?? JSON.parse(result.content[0].text);
-    assert.notEqual(body.status, 'success');
-    assert.ok(Array.isArray(body.errors) && body.errors.length > 0, 'expected errors array');
-  });
-});

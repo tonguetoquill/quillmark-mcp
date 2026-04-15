@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { generateConfig, isSupported, mcphostConfigJson, SUPPORTED_CLIENTS } from './cli/config.js';
+import { generateConfig, isSupported, SUPPORTED_CLIENTS } from './cli/config.js';
 import { createDefaultMCP } from './mcp/index.js';
 import { RenderAndHostStrategy } from './strategies/index.js';
 
@@ -61,13 +61,11 @@ function pick(cliValue, envValue, fallback) {
 }
 
 /**
- * Main CLI entry point. Handles three execution paths:
+ * Main CLI entry point. Handles two execution paths:
  *
- * 1. **`mcphost-config`** subcommand — emits a pure JSON blob for `~/.mcphost.json`
- *    (consumed by `scripts/install-ollama.sh`).
- * 2. **`config <client>`** subcommand — generates a client-specific configuration
- *    snippet (e.g. for Claude Desktop, VS Code, etc.) with no side effects.
- * 3. **Server start** (default) — resolves the quills directory, builds a
+ * 1. **`config <client>`** subcommand — generates a client-specific configuration
+ *    snippet for Claude Code or Codex with no side effects.
+ * 2. **Server start** (default) — resolves the quills directory, builds a
  *    `RenderAndHostStrategy`, and starts the MCP server over stdio or streamable HTTP.
  *
  * ### CLI flags
@@ -83,8 +81,7 @@ function pick(cliValue, envValue, fallback) {
  * | `--name`           | string  | Server name for config output                     |
  * | `--url`            | string  | Server URL for config output                      |
  * | `--artifacts-dir`  | string  | Artifacts dir for config output                   |
- * | `--image`          | string  | Docker image for config output                    |
- * | `--auth-token`     | string  | Auth token for mcphost/config output              |
+ * | `--auth-token`     | string  | Auth token for config output                      |
  *
  * ### Environment variables (fallbacks when CLI flags are absent)
  * - `QUILLMARK_QUILLS_DIR` — quills directory (default `./quills`)
@@ -93,7 +90,6 @@ function pick(cliValue, envValue, fallback) {
  * - `QUILLMARK_ENDPOINT` — MCP endpoint path (default `/mcp`)
  * - `QUILLMARK_BASE_URL` — public artifact base URL
  * - `QUILLMARK_STDIO` — set to `1` to force stdio transport
- * - `QUILLMARK_LOCAL_MODEL_MODE` — set to `1` for local model mode
  *
  * ### Dependency injection
  * All side-effectful dependencies are injectable via `deps` for testability:
@@ -140,27 +136,9 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
       'name': { type: 'string' },
       'url': { type: 'string' },
       'artifacts-dir': { type: 'string' },
-      'image': { type: 'string' },
       'auth-token': { type: 'string' },
     },
   });
-
-  // `quillmark-mcp mcphost-config` — emit pure JSON for ~/.mcphost.json.
-  // Used by scripts/install-ollama.sh. No commentary, just the blob.
-  if (positionals[0] === 'mcphost-config') {
-    try {
-      const json = mcphostConfigJson({
-        name: values.name,
-        url: values.url,
-        authToken: values['auth-token'],
-      });
-      consoleLog(json.trimEnd());
-    } catch (err) {
-      consoleError(err instanceof Error ? err.message : String(err));
-      setExitCode(2);
-    }
-    return;
-  }
 
   // `quillmark-mcp config <client>` — pure snippet generator, no side effects.
   if (positionals[0] === 'config') {
@@ -179,7 +157,6 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
         name: values.name,
         url: values.url,
         artifactsDir: values['artifacts-dir'] ?? `${env.HOME || homedir()}/.quillmark/artifacts`,
-        image: values.image,
         authToken: values['auth-token'],
       });
       if (snippet.suggestedPath) {
@@ -202,7 +179,6 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   const endpoint = pick(values.endpoint, env.QUILLMARK_ENDPOINT, '/mcp');
   const baseUrlOverride = pick(values['base-url'], env.QUILLMARK_BASE_URL, '');
   const useStdio = values.stdio === true || env.QUILLMARK_STDIO === '1';
-  const localModelMode = env.QUILLMARK_LOCAL_MODEL_MODE === '1';
 
   const quillsDir = resolveQuillsDir(quillsDirRaw, cwd);
   if (!exists(quillsDir)) {
@@ -215,7 +191,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   const baseUrl = baseUrlOverride || `http://${host}:${port}/artifacts`;
 
   const strategy = new StrategyClass({ outputDir, baseUrl });
-  const mcp = await createMCP({ quillsDir, strategy, localModelMode });
+  const mcp = await createMCP({ quillsDir, strategy });
 
   if (useStdio) {
     await mcp.start({ transportType: 'stdio' });

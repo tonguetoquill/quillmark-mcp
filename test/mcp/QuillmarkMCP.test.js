@@ -1,8 +1,8 @@
 /**
  * @module test/mcp/QuillmarkMCP
  * Tests for {@link QuillmarkMCP} — tool registration (list_quills, get_specs,
- * create_document, compose_document), parameter validation, execution delegation,
- * and server lifecycle (start/preload).
+ * create_document), parameter validation, execution delegation, and server
+ * lifecycle (start/preload).
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -68,14 +68,13 @@ class FakeRegistry {
  * Factory that wires up a {@link QuillmarkMCP} instance with test doubles.
  * Returns all collaborators for direct inspection in assertions.
  *
- * @param {Object} [options={}] - Extra options forwarded to QuillmarkMCP (e.g. `localModelMode`).
  * @returns {{ mcp: QuillmarkMCP, registry: FakeRegistry, strategy: Object, server: FakeServer }}
  */
-function make(options = {}) {
+function make() {
   const registry = new FakeRegistry();
   const strategy = { async handle() { return { status: 'success', url: 'https://example.com/out.pdf' }; } };
   const server = new FakeServer();
-  const mcp = new QuillmarkMCP({ registry, strategy, server, ...options });
+  const mcp = new QuillmarkMCP({ registry, strategy, server });
   return { mcp, registry, strategy, server };
 }
 
@@ -153,99 +152,10 @@ describe('QuillmarkMCP', () => {
     assert.match(capturedArgs.content, /QUILL: usaf_memo/);
   });
 
-  it('does NOT register compose_document by default (Claude Code contract unchanged)', () => {
+  it('registers exactly three tools and nothing else', () => {
     const { server } = make();
-    assert.equal(server.tools.find((t) => t.name === 'compose_document'), undefined);
-    assert.equal(server.tools.length, 3, `expected exactly 3 tools, got ${server.tools.map(t => t.name).join(',')}`);
-  });
-
-  it('registers compose_document ONLY when localModelMode is true', () => {
-    const { server } = make({ localModelMode: true });
-    const tool = server.tools.find((t) => t.name === 'compose_document');
-    assert.ok(tool, 'compose_document not registered');
-    assert.match(tool.description, /Compose and render a document from structured fields/);
-    assert.equal(server.tools.length, 4);
-  });
-
-  it('compose_document parameter schema accepts structured fields', () => {
-    const { server } = make({ localModelMode: true });
-    const tool = server.tools.find((t) => t.name === 'compose_document');
-    const parsed = tool.parameters.parse({
-      quill: 'usaf_memo',
-      fields: { subject: 'Hi', memo_from: ['A', 'B'] },
-      body: 'Para 1.',
-    });
-    assert.equal(parsed.quill, 'usaf_memo');
-    assert.deepStrictEqual(parsed.fields, { subject: 'Hi', memo_from: ['A', 'B'] });
-    assert.equal(parsed.body, 'Para 1.');
-  });
-
-  it('compose_document assembles YAML and delegates to createDocument primitive', async () => {
-    const { server, strategy } = make({ localModelMode: true });
-    let capturedContent;
-    strategy.handle = async (quill, content) => {
-      capturedContent = content;
-      return { status: 'success', url: 'https://example.com/composed.pdf' };
-    };
-
-    const tool = server.tools.find((t) => t.name === 'compose_document');
-    const result = await tool.execute({
-      quill: 'usaf_memo',
-      fields: {
-        subject: 'Reflective Belts at Night',
-        memo_from: ['673 ABW/CC', 'JBER', 'Anchorage AK'],
-      },
-      body: 'First paragraph.\n\nSecond paragraph.',
-    });
-
-    assert.deepStrictEqual(result, { status: 'success', url: 'https://example.com/composed.pdf' });
-    // QUILL must land in the assembled content — it's how the primitive resolves the Quill.
-    assert.match(capturedContent, /^---\n/);
-    assert.match(capturedContent, /QUILL: "usaf_memo"/);
-    assert.match(capturedContent, /subject: "Reflective Belts at Night"/);
-    assert.match(capturedContent, /memo_from:\n  - "673 ABW\/CC"/);
-    assert.match(capturedContent, /\n---\n\nFirst paragraph\./);
-  });
-
-  it('compose_document param `quill` overrides any QUILL key that sneaks into fields', async () => {
-    const { server, strategy } = make({ localModelMode: true });
-    let capturedContent;
-    strategy.handle = async (_q, content) => {
-      capturedContent = content;
-      return { status: 'success', url: 'x' };
-    };
-
-    const tool = server.tools.find((t) => t.name === 'compose_document');
-    await tool.execute({
-      quill: 'usaf_memo',
-      fields: { QUILL: 'resume', subject: 'Test' },
-      body: 'body',
-    });
-
-    // Only the param-level quill should appear, exactly once.
-    const quillMatches = capturedContent.match(/^QUILL:/gm) ?? [];
-    assert.equal(quillMatches.length, 1);
-    assert.match(capturedContent, /QUILL: "usaf_memo"/);
-    assert.doesNotMatch(capturedContent, /QUILL: "resume"/);
-  });
-
-  it('compose_document surfaces validation errors from the primitive path', async () => {
-    const { server, strategy } = make({ localModelMode: true });
-    strategy.handle = async () => ({
-      status: 'error',
-      errors: [{ message: 'memo_from is a required property' }],
-    });
-
-    const tool = server.tools.find((t) => t.name === 'compose_document');
-    const result = await tool.execute({
-      quill: 'usaf_memo',
-      fields: { subject: 'Hi' },
-      body: 'body',
-    });
-
-    assert.equal(result.status, 'error');
-    assert.ok(Array.isArray(result.errors));
-    assert.match(result.errors[0].message, /memo_from/);
+    const names = server.tools.map((t) => t.name).sort();
+    assert.deepStrictEqual(names, ['create_document', 'get_specs', 'list_quills']);
   });
 
   it('start preloads all available quills then starts the server', async () => {

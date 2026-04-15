@@ -6,8 +6,11 @@
  */
 
 import assert from 'node:assert/strict';
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, it } from 'node:test';
+import { after, before, describe, it } from 'node:test';
 
 import { FileSystemSource, QuillRegistry } from '@quillmark/registry';
 import { Quillmark, init } from '@quillmark/wasm';
@@ -15,9 +18,21 @@ import { Quillmark, init } from '@quillmark/wasm';
 import { createDefaultMCP } from '../src/index.js';
 import { QuillmarkMCP } from '../src/mcp/index.js';
 import { listQuills, getSpecs, createDocument } from '../src/primitives/index.js';
+import { RenderAndHostStrategy } from '../src/strategies/index.js';
 
 /** @constant {string} FIXTURE_QUILLS_DIR - Absolute path to test fixture quill definitions (e.g. usaf_memo). */
 const FIXTURE_QUILLS_DIR = fileURLToPath(new URL('./fixtures/quills', import.meta.url));
+
+/** @constant {string} REAL_QUILLS_DIR - Path to the shipped quills/ directory. */
+const REAL_QUILLS_DIR = fileURLToPath(new URL('../quills', import.meta.url));
+
+/** @constant {string[]} The four quills shipped with the package. */
+const SHIPPED_QUILLS = [
+  { name: 'nyt_news_article', version: '0.1.0' },
+  { name: 'cnn_news_article', version: '0.1.0' },
+  { name: 'static_analysis_report', version: '0.1.0' },
+  { name: 'usaf_memo', version: '0.2.0' },
+];
 
 /**
  * Bootstraps a fresh QuillRegistry backed by the fixture quills directory.
@@ -113,6 +128,51 @@ describe('integration', () => {
     assert.ok(mcp instanceof QuillmarkMCP);
     assert.equal(mcp.strategy, strategy);
     assert.ok(typeof mcp.registry.resolve === 'function');
+  });
+
+  /** @description End-to-end render proof for every shipped quill. */
+  describe('shipped quills render end-to-end', () => {
+    let outputDir;
+    let registry;
+
+    before(async () => {
+      outputDir = await mkdtemp(path.join(tmpdir(), 'quillmark-integration-'));
+      init();
+      registry = new QuillRegistry({
+        source: new FileSystemSource(REAL_QUILLS_DIR),
+        engine: new Quillmark(),
+      });
+    });
+
+    after(async () => {
+      await rm(outputDir, { recursive: true, force: true });
+    });
+
+    for (const { name, version } of SHIPPED_QUILLS) {
+      it(`${name}@${version} renders its example.md to a valid PDF`, async () => {
+        const examplePath = path.join(REAL_QUILLS_DIR, name, version, 'example.md');
+        const content = await readFile(examplePath, 'utf8');
+
+        const strategy = new RenderAndHostStrategy({
+          outputDir,
+          baseUrl: 'http://localhost/artifacts',
+        });
+
+        const result = await createDocument(registry, strategy, content);
+
+        assert.equal(result.status, 'success', `render failed for ${name}: ${JSON.stringify(result.errors)}`);
+        assert.match(result.url, /\.pdf$/);
+
+        const filename = result.url.split('/').pop();
+        const pdfPath = path.join(outputDir, filename);
+        const pdfBytes = await readFile(pdfPath);
+        assert.ok(pdfBytes.length > 0, `empty PDF for ${name}`);
+        assert.equal(pdfBytes.subarray(0, 4).toString('ascii'), '%PDF', `bad PDF header for ${name}`);
+
+        const info = await stat(pdfPath);
+        assert.ok(info.size > 1000, `${name} PDF suspiciously small: ${info.size} bytes`);
+      });
+    }
   });
 
   /** @description Verifies package.json exports map: root, /primitives, /strategies, /mcp subpaths. */
