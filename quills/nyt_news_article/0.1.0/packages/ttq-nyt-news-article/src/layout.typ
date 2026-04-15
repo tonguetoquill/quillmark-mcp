@@ -23,8 +23,8 @@
   body-font: ("Source Serif 4",),
   sans-font: ("Libre Franklin",),
   base-size: 10pt,
-  leading: 12.5pt,
-  paragraph-spacing: 0.5em,
+  leading: 12pt,
+  paragraph-spacing: 12pt,
   margin: (top: 0.55in, right: 0.5in, bottom: 0.55in, left: 0.5in),
   colors: colors,
 )
@@ -86,8 +86,9 @@
   set par(
     leading: config.leading,
     justify: true,
-    first-line-indent: (amount: 1em, all: false),
-    spacing: config.paragraph-spacing,
+    spacing: 1.5em,
+    // first-line-indent: 1.2em,
+    linebreaks: auto,
   )
 
   show link: it => text(fill: config.colors.link, it)

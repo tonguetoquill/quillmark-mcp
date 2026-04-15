@@ -8,7 +8,7 @@
   mast-text: data.at("masthead_text", default: "The New York Times"),
   section: data.at("section", default: ""),
   date: data.publication_date,
-  edition: data.at("print_edition_date", default: ""),
+  edition: data.at("print_edition_date", default: datetime.today().display("[weekday repr:long], [month repr:long] [day], [year]")),
 )
 
 // 2. HEADLINE + SUBHEAD + ABSTRACT — full width
@@ -32,7 +32,7 @@
 
 // 4. BODY — flows into three columns like a print front page.
 //    Dateline leads the first paragraph in bold small-caps with em-dash.
-#columns(3, gutter: 14pt)[
+#columns(3, gutter: 12pt)[
   #dateline-lead(data.at("dateline", default: ""))
   #data.BODY
 
@@ -42,22 +42,23 @@
     v(10pt)
     correction-box(data.correction)
   }
+
+  // 6. METADATA FOOTER + WORD COUNT — floated to the bottom of the last page
+  //    so the footer always shares a page with body copy.
+  #place(bottom, scope: "parent", float: true)[
+    #article-meta(
+      tags: data.at("tags", default: ()),
+      persons: data.at("persons", default: ()),
+      locations: data.at("locations", default: ()),
+      organizations: data.at("organizations", default: ()),
+    )
+    #{
+      let wc = data.at("word_count", default: 0)
+      if type(wc) == int and wc > 0 {
+        article-footer(word-count: wc)
+      } else if type(wc) == float and wc > 0 {
+        article-footer(word-count: int(wc))
+      }
+    }
+  ]
 ]
-
-// 6. METADATA FOOTER — full width below the columns
-#article-meta(
-  tags: data.at("tags", default: ()),
-  persons: data.at("persons", default: ()),
-  locations: data.at("locations", default: ()),
-  organizations: data.at("organizations", default: ()),
-)
-
-// 7. WORD COUNT (optional)
-#{
-  let wc = data.at("word_count", default: 0)
-  if type(wc) == int and wc > 0 {
-    article-footer(word-count: wc)
-  } else if type(wc) == float and wc > 0 {
-    article-footer(word-count: int(wc))
-  }
-}
