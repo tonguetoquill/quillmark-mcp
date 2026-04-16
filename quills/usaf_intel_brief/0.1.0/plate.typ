@@ -1,5 +1,5 @@
 #import "@local/quillmark-helper:0.1.0": data
-#import "@local/ttq-usaf-intel-brief:0.1.0": intel-brief, title-slide, content-slide, image-slide, top-banners, bottom-banners, slide-footer, validate-banner, build-banner-string, is-true
+#import "@local/usaf-intel-brief:0.1.0": intel-brief, title-slide, content-slide, image-slide, top-banners, bottom-banners, slide-footer, validate-banner, build-banner-string, is-true
 
 // Validate banner early.
 #let _classification = upper(data.at("classification", default: "UNCLASSIFIED"))
@@ -89,13 +89,7 @@
       likelihood-text: slide.at("likelihood_text", default: ""),
       confidence-text: slide.at("confidence_text", default: ""),
       notes: slide.at("notes", default: ""),
-      aor: slide.at("aor", default: ""),
-      timeframe: slide.at("timeframe", default: ""),
       severity: slide.at("severity", default: ""),
-      int-sources: slide.at("int_sources", default: ""),
-      sidebar-title: slide.at("sidebar_title", default: ""),
-      sidebar-body: slide.at("sidebar_body", default: ""),
-      key-judgments-str: slide.at("key_judgments", default: ""),
       notional: _notional,
     )
   }

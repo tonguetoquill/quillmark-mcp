@@ -279,28 +279,6 @@ cards:
           group: Content
         description: Rendered as a small italicized block at the bottom of the slide.
 
-      aor:
-        title: Area of responsibility
-        type: string
-        default: ""
-        examples:
-          - "INDOPACOM AOR · Western Pacific"
-          - "EUCOM AOR · Baltic"
-        ui:
-          group: Context
-        description: "Geographic / command area shown in the AOR band under the title."
-
-      timeframe:
-        title: Timeframe
-        type: string
-        default: ""
-        examples:
-          - "Next 48 hours"
-          - "13–15 APR 26"
-        ui:
-          group: Context
-        description: Timeframe covered, shown in the AOR band.
-
       severity:
         title: Threat severity
         type: string
@@ -314,44 +292,6 @@ cards:
         ui:
           group: Context
         description: Optional threat-severity badge shown top-right on the title bar.
-
-      int_sources:
-        title: INT sources (comma-separated)
-        type: string
-        default: ""
-        examples:
-          - "SIGINT,IMINT,OSINT"
-          - "HUMINT,GEOINT"
-        ui:
-          group: Context
-        description: "Comma-separated INT disciplines. Rendered as colored pill tags in the sidebar (SIGINT, IMINT, HUMINT, OSINT, GEOINT, MASINT, etc.)."
-
-      sidebar_title:
-        title: Sidebar title
-        type: string
-        default: ""
-        examples:
-          - "Sources & Judgments"
-          - "Collection Context"
-        ui:
-          group: Sidebar
-        description: Header text for the right-hand sidebar panel.
-
-      sidebar_body:
-        title: Sidebar body text
-        type: string
-        default: ""
-        ui:
-          group: Sidebar
-        description: Free-form notes rendered in the sidebar below any key judgments.
-
-      key_judgments:
-        title: Key judgments (one per line)
-        type: string
-        default: ""
-        ui:
-          group: Sidebar
-        description: "Numbered key-judgment list for the sidebar. One judgment per line."
 
   image_slide:
     title: Image slide
