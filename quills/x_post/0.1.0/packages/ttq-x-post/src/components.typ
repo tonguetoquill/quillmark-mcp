@@ -316,7 +316,7 @@
           replying-to(handles: post.at("replying_to_handles", default: ""), theme: theme)
         }
         #v(config.body-margin-top)
-        #set par(leading: 6pt, spacing: 6pt, justify: false)
+        #set par(leading: config.body-leading, spacing: 8pt, justify: false)
         #set text(font: config.font, size: config.body-size, fill: t.text)
         #post.at("body_md", default: "")
 

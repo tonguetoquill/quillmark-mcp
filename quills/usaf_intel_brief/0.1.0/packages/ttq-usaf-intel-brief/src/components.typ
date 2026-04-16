@@ -368,25 +368,26 @@
     items.push((level: level, text: with-portion))
   }
 
-  set par(spacing: 6pt, leading: 6pt)
+  set par(spacing: 8pt, leading: 7pt)
   for item in items {
     let marker = if item.level == 1 { "▸" }
       else if item.level == 2 { "•" }
       else if item.level == 3 { "▪" }
       else { "◦" }
     let marker-color = if item.level == 1 { af-colors.af-blue }
+      else if item.level == 2 { af-colors.af-gold }
       else { af-colors.muted }
-    let indent = (item.level - 1) * 22pt
+    let indent = (item.level - 1) * 24pt
     let size = if item.level == 1 { config.bullet-size }
-      else if item.level == 2 { config.bullet-size - 1pt }
-      else { config.bullet-size - 2pt }
+      else if item.level == 2 { config.sub-bullet-size }
+      else { config.sub-bullet-size - 1pt }
     block(
-      inset: (left: indent, y: 1pt),
+      inset: (left: indent, y: 2pt),
       [
-        #text(font: config.fonts, size: size + 1pt, weight: "bold",
+        #text(font: config.fonts, size: size + 2pt, weight: "bold",
           fill: marker-color, marker)
-        #h(7pt)
-        #text(font: config.fonts, size: size, fill: af-colors.text, item.text)
+        #h(8pt)
+        #text(font: config.body-fonts, size: size, fill: af-colors.text, item.text)
       ],
     )
   }
@@ -488,18 +489,20 @@
 
 // ─── SLIDE TITLE BAR ───────────────────────────────────────────────────────
 
+// AF Blue filled title bar — white text, severity badge right-aligned.
 #let slide-title-bar(portion: "U", title-text: "", severity: "") = {
   block(
     width: 100%,
-    inset: (bottom: 6pt),
-    stroke: (bottom: 2pt + af-colors.af-blue),
+    fill: af-colors.af-blue,
+    inset: (x: 14pt, y: 8pt),
+    radius: (top: 3pt),
   )[
     #set par(spacing: 0pt)
     #grid(
       columns: (1fr, auto),
       align: (left + horizon, right + horizon),
       text(font: config.fonts, size: config.slide-title-size, weight: "bold",
-        fill: af-colors.af-blue, portion-prefix(portion) + title-text),
+        fill: white, portion-prefix(portion) + title-text),
       severity-badge(severity),
     )
   ]

@@ -63,17 +63,18 @@
 
 #let config = (
   font: ("Inter", "Noto Color Emoji"),
-  // Typography (px per react-tweet). Using pt = px at our 1:1 scale.
+  // Typography — react-tweet embed sizes (slightly larger than timeline for
+  // readability in a static PDF where text is the whole point).
   name-size: 15pt,
   name-weight: "bold",
-  handle-size: 15pt,
-  body-size: 15pt,
-  body-leading: 5pt,           // 20px line-height on 15px font = 5px extra
-  quoted-body-size: 14pt,
+  handle-size: 14pt,
+  body-size: 17pt,             // 20px embed spec → 17pt for PDF readability
+  body-leading: 7pt,           // 24px line-height on 20px body = generous lead
+  quoted-body-size: 15pt,
   action-count-size: 13pt,
   action-count-weight: "bold",
   replying-to-size: 14pt,
-  timestamp-size: 15pt,
+  timestamp-size: 14pt,
 
   // Layout (px as pt)
   card-width: 600pt,
@@ -83,8 +84,8 @@
   avatar-size: 48pt,
   avatar-quoted-size: 20pt,
   avatar-gutter: 12pt,          // gap between avatar and text column
-  body-margin-top: 4pt,
-  engagement-margin-top: 10pt,
+  body-margin-top: 8pt,
+  engagement-margin-top: 12pt,
   engagement-border-top: 1pt,
   engagement-icon-size: 17pt,
   engagement-wrapper-size: 32pt,

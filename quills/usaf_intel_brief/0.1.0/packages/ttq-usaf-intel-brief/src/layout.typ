@@ -38,21 +38,30 @@
 )
 
 #let config = (
-  fonts: ("Arial", "Liberation Sans", "Inter"),
+  // Typography — per DAF Brand Guide (Libre Franklin / Source Sans 3) with
+  // Arial fallback for NIPR/SIPR portability. Inter is the bundled OFL fallback.
+  fonts: ("Libre Franklin", "Arial", "Liberation Sans", "Inter"),
+  body-fonts: ("Source Sans 3", "Source Sans Pro", "Arial", "Liberation Sans", "Inter"),
+  // Sizes per observed AF/DoD briefing convention (ISOO booklet examples).
   title-size: 32pt,
-  subtitle-size: 18pt,
-  slide-title-size: 26pt,
-  bullet-size: 15pt,
-  footer-size: 8pt,
-  banner-size: 11pt,
-  authority-size: 7.5pt,
+  subtitle-size: 20pt,
+  slide-title-size: 28pt,          // 24–28pt per AF standard
+  bullet-size: 18pt,               // 18–22pt body text
+  sub-bullet-size: 16pt,
+  caption-size: 12pt,
+  footer-size: 9pt,
+  banner-size: 12pt,               // Arial Bold 11–12pt per ISOO convention
+  authority-size: 8pt,
+  // Page — 16:9 widescreen, the modern AF default.
   page-width: 13.333in,
   page-height: 7.5in,
   margin-x: 0.35in,
   margin-y: 0.1in,
   content-pad-x: 0.4in,
   content-pad-y: 0.15in,
-  banner-pad-y: 4pt,
+  banner-height: 0.30in,           // ~22px at 96 DPI per ISOO standard
+  banner-pad-y: 5pt,
+  title-bar-height: 0.55in,        // AF Blue fill title bar
   footer-pad-y: 4pt,
 )
 

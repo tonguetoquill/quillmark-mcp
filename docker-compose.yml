@@ -23,7 +23,7 @@ services:
     security_opt:
       - no-new-privileges:true
     pids_limit: 256
-    mem_limit: 512m
+    mem_limit: 1g
     cpus: 1.0
     ports:
       # Host-only bind: nothing is exposed beyond 127.0.0.1 per MCP spec guidance.
