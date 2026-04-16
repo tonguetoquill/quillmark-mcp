@@ -11,7 +11,19 @@ A universal MCP server that surfaces [Quillmark](https://github.com/nibsbin/quil
 - **`get_specs`** — get the schema + authoring instructions for one Quill. Returns TOON-encoded schema.
 - **`create_document`** — render a document from YAML frontmatter + markdown. Returns `{ status, url?, errors? }`.
 
-Quills shipped: `nyt_news_article`, `cnn_news_article`, `static_analysis_report`, `usaf_memo`. Add your own by dropping a directory under `quills/` — no code changes needed.
+### Shipped quills
+
+| Quill | Description |
+|---|---|
+| `nyt_news_article` | NYT-style broadsheet news article |
+| `cnn_news_article` | CNN-style web news article |
+| `static_analysis_report` | Cybersecurity assessment report |
+| `usaf_memo` | AFH 33-337 official USAF memorandum |
+| `x_post` | X (Twitter) feed mockup — multi-post, replies, quoted tweets, Community Notes. Three themes (dim/light/lights_out). SVG engagement icons. |
+| `discord_chat` | Discord channel transcript — messages, embeds, reactions, system events. Sentinel tokens for mentions/spoilers. Dark/legacy/light themes. |
+| `usaf_intel_brief` | USAF/DoD landscape 16:9 intel briefing — CAPCO classification banners, portion marks, ICD 203 confidence/likelihood visuals, AOR bands, severity badges, INT-source pills, doctrine slide types (BLUF, Threat, MLCOA/MDCOA, I&W, Confidence, Gaps). Real DoD/USAF/USSF seals. |
+
+Add your own by dropping a directory under `quills/` — no code changes needed.
 
 ## Quick start — Claude Code
 

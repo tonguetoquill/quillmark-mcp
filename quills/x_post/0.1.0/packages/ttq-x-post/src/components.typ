@@ -258,7 +258,7 @@
     #v(6pt)
     #set text(font: config.font, size: config.quoted-body-size, fill: t.text)
     #set par(leading: 4pt)
-    #quote.at("body_md", default: "")
+    #quote.at("BODY", default: "")
   ]
 }
 
@@ -312,13 +312,13 @@
           theme: theme,
         )
         #if is-reply {
-          v(2pt)
+          v(6pt)
           replying-to(handles: post.at("replying_to_handles", default: ""), theme: theme)
         }
         #v(config.body-margin-top)
         #set par(leading: config.body-leading, spacing: 8pt, justify: false)
         #set text(font: config.font, size: config.body-size, fill: t.text)
-        #post.at("body_md", default: "")
+        #post.at("BODY", default: "")
 
         #if quote != none { quoted-tweet(quote, theme: theme) }
 
