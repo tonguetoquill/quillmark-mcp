@@ -347,12 +347,18 @@
     let border = if is-self { t.reaction-self-border } else { t.reaction-border }
     let text-color = if is-self { t.mention-text } else { t.muted }
     box(
-      inset: (x: 5pt, y: 2pt),
+      inset: (x: 5pt, y: 4pt),
       radius: 4pt,
       fill: bg,
       stroke: 1pt + border,
       baseline: 1pt,
-      [#text(size: 10pt, emoji) #h(3pt) #text(size: 8.5pt, weight: "medium", fill: text-color, count)],
+      grid(
+        columns: 2,
+        gutter: 3pt,
+        align: horizon,
+        text(size: 9pt, emoji),
+        text(size: 8.5pt, weight: "medium", fill: text-color, count),
+      ),
     )
     h(3pt)
   }
