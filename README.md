@@ -49,7 +49,15 @@ The server implements the MCP standard over HTTP (Streamable) and stdio. Any con
 HTTP:  http://127.0.0.1:8080/mcp
 stdio: docker run -i --rm quillmark-mcp:dev --stdio
 ```
+## Uninstall
 
+Simply run:
+
+```sh
+./scripts/uninstall-mcp.sh --yes --purge
+```
+
+The environment will be cleaned and Docker will ```compose down```.
 ## Architecture
 
 ```
