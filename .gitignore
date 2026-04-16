@@ -1,3 +1,6 @@
+# Render harness output
+.render-out/
+
 # Logs
 logs
 *.log

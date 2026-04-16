@@ -1,0 +1,10 @@
+[package]
+name = "ttq-usaf-intel-brief"
+version = "0.1.0"
+compiler = "0.14.0"
+entrypoint = "src/lib.typ"
+authors = ["Nibs"]
+license = "MIT"
+description = "USAF/DoD intelligence briefing template (landscape 16:9) with CAPCO markings."
+keywords = ["usaf", "dod", "intel", "brief", "capco"]
+categories = ["report"]
