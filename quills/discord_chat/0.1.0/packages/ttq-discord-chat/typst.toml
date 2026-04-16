@@ -1,0 +1,10 @@
+[package]
+name = "ttq-discord-chat"
+version = "0.1.0"
+compiler = "0.14.0"
+entrypoint = "src/lib.typ"
+authors = ["Nibs"]
+license = "MIT"
+description = "Discord channel chat mockup template for wargaming exercise injects."
+keywords = ["discord", "chat", "mockup", "wargaming", "exercise", "inject"]
+categories = ["report"]

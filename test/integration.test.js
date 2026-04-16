@@ -32,6 +32,9 @@ const SHIPPED_QUILLS = [
   { name: 'cnn_news_article', version: '0.1.0' },
   { name: 'static_analysis_report', version: '0.1.0' },
   { name: 'usaf_memo', version: '0.2.0' },
+  { name: 'x_post', version: '0.1.0' },
+  { name: 'discord_chat', version: '0.1.0' },
+  { name: 'usaf_intel_brief', version: '0.1.0' },
 ];
 
 /**

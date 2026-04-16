@@ -1,0 +1,10 @@
+[package]
+name = "ttq-x-post"
+version = "0.1.0"
+compiler = "0.14.0"
+entrypoint = "src/lib.typ"
+authors = ["Nibs"]
+license = "MIT"
+description = "X (Twitter) feed mockup template for wargaming exercise injects."
+keywords = ["x", "twitter", "social", "mockup", "wargaming", "exercise", "inject"]
+categories = ["report"]
