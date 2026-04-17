@@ -229,6 +229,7 @@ cards:
         required: true
         ui:
           group: Content
+        description: "Supports inline `**bold**` emphasis. Title bars are already bold; markers are stripped so literal asterisks do not render."
 
       bullets:
         title: Bullets (markdown-ish)
@@ -236,7 +237,7 @@ cards:
         default: ""
         ui:
           group: Content
-        description: "One bullet per line. Prefix with `- ` (L1), `* ` (L2), `– ` (L3), `◦ ` (L4) to set level. Each bullet should lead with its own (PORTION) mark; if missing, template prepends the slide default. AF Style Briefing guidance: ≤7 bullets, ≤50 words per slide."
+        description: "One bullet per line. Prefix with `- ` (L1), `* ` (L2), `– ` (L3), `◦ ` (L4) to set level. Supports inline `**bold**` emphasis. Each bullet should lead with its own (PORTION) mark; if missing, template prepends the slide default. AF Style Briefing guidance: ≤7 bullets, ≤50 words per slide."
 
       bluf:
         title: BLUF (Bottom Line Up Front)
@@ -244,7 +245,7 @@ cards:
         default: ""
         ui:
           group: Content
-        description: "Shown as a red-rule call-out when slide_type=bluf."
+        description: "Shown as a red-rule call-out when slide_type=bluf. Supports inline `**bold**` emphasis."
 
       likelihood_text:
         title: Likelihood assessment
@@ -277,7 +278,7 @@ cards:
         default: ""
         ui:
           group: Content
-        description: Rendered as a small italicized block at the bottom of the slide.
+        description: "Rendered as a small italicized block at the bottom of the slide. Supports inline `**bold**` emphasis."
 
       severity:
         title: Threat severity
@@ -310,6 +311,7 @@ cards:
         required: true
         ui:
           group: Content
+        description: "Supports inline `**bold**` emphasis. Title bars are already bold; markers are stripped so literal asterisks do not render."
 
       image_path:
         title: Image filename (under assets/)
@@ -324,3 +326,4 @@ cards:
         default: ""
         ui:
           group: Content
+        description: "Supports inline `**bold**` emphasis."
