@@ -1,5 +1,5 @@
 [package]
-name = "ttq-usaf-intel-brief"
+name = "usaf-intel-brief"
 version = "0.1.0"
 compiler = "0.14.0"
 entrypoint = "src/lib.typ"

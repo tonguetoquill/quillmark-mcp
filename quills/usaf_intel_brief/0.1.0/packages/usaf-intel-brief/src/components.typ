@@ -202,38 +202,6 @@
   }
 }
 
-// ─── AOR / TIMEFRAME BAND ──────────────────────────────────────────────────
-
-#let aor-band(aor: "", timeframe: "", severity: "") = {
-  if aor == "" and timeframe == "" and severity == "" { return none }
-  block(
-    width: 100%,
-    fill: af-colors.af-blue-tint,
-    stroke: (left: 4pt + af-colors.af-blue, rest: 0pt),
-    inset: (x: 10pt, y: 5pt),
-  )[
-    #set par(spacing: 0pt)
-    #grid(
-      columns: (1fr, auto),
-      align: (left + horizon, right + horizon),
-      [
-        #if aor != "" [
-          #text(size: 9pt, weight: "bold", tracking: 0.1em,
-            fill: af-colors.af-blue, "AOR: ")
-          #text(size: 11pt, weight: "medium", fill: af-colors.text, aor)
-        ]
-        #if timeframe != "" [
-          #h(14pt)
-          #text(size: 9pt, weight: "bold", tracking: 0.1em,
-            fill: af-colors.af-blue, "TIMEFRAME: ")
-          #text(size: 11pt, weight: "medium", fill: af-colors.text, timeframe)
-        ]
-      ],
-      severity-badge(severity),
-    )
-  ]
-}
-
 // ─── LIKELIHOOD SCALE (ICD 203 VISUAL) ─────────────────────────────────────
 //
 // Seven-step scale per ICD 203:
@@ -349,6 +317,19 @@
 // Each bullet's text should start with a portion mark like "(U)" — if missing,
 // we prepend the slide's default portion.
 
+#let render-inline(s, size: 11pt, fill: black, font: (), weight: "regular") = {
+  let parts = s.split("**")
+  for (i, part) in parts.enumerate() {
+    if part == "" { continue }
+    let part-weight = if calc.odd(i) { "bold" } else { weight }
+    if font == () {
+      text(size: size, weight: part-weight, fill: fill, part)
+    } else {
+      text(font: font, size: size, weight: part-weight, fill: fill, part)
+    }
+  }
+}
+
 #let render-bullets(bullets-str, default-portion: "U") = {
   let lines = str(bullets-str).split("\n")
   let items = ()
@@ -387,7 +368,7 @@
         #text(font: config.fonts, size: size + 2pt, weight: "bold",
           fill: marker-color, marker)
         #h(8pt)
-        #text(font: config.body-fonts, size: size, fill: af-colors.text, item.text)
+        #render-inline(item.text, size: size, fill: af-colors.text, font: config.body-fonts)
       ],
     )
   }
@@ -409,9 +390,13 @@
     #text(font: config.fonts, size: 10pt, weight: "bold", tracking: 0.05em,
       fill: af-colors.muted, "BOTTOM LINE UP FRONT")
     #v(4pt)
-    #set text(font: config.fonts, size: if hero { 18pt } else { 15pt },
-      weight: if hero { "bold" } else { "regular" }, fill: af-colors.text)
-    #portion-prefix(portion) #bluf-text
+    #render-inline(
+      portion-prefix(portion) + str(bluf-text),
+      size: if hero { 18pt } else { 15pt },
+      fill: af-colors.text,
+      font: config.fonts,
+      weight: if hero { "bold" } else { "regular" },
+    )
   ]
 }
 
@@ -439,8 +424,14 @@
     #likelihood-scale(likelihood-text)
     #if str(likelihood-text).trim() != "" [
       #v(3pt)
-      #align(center, text(size: 14pt, weight: "bold", fill: af-colors.text,
-        portion-prefix(portion) + likelihood-text))
+      #align(center)[
+        #render-inline(
+          portion-prefix(portion) + str(likelihood-text),
+          size: 14pt,
+          fill: af-colors.text,
+          weight: "bold",
+        )
+      ]
     ]
 
     #v(10pt)
@@ -452,8 +443,14 @@
     #confidence-meter(confidence-text)
     #if str(confidence-text).trim() != "" [
       #v(3pt)
-      #align(center, text(size: 14pt, weight: "bold", fill: af-colors.text,
-        portion-prefix(portion) + confidence-text))
+      #align(center)[
+        #render-inline(
+          portion-prefix(portion) + str(confidence-text),
+          size: 14pt,
+          fill: af-colors.text,
+          weight: "bold",
+        )
+      ]
     ]
   ]
 }
@@ -477,7 +474,7 @@
           upper(label))
         #if coa-title != "" [
           #linebreak()
-          #text(size: 18pt, weight: "bold", fill: af-colors.text, coa-title)
+          #render-inline(str(coa-title), size: 18pt, fill: af-colors.text, weight: "bold")
         ]
       ],
       severity-badge(severity),
@@ -501,62 +498,15 @@
     #grid(
       columns: (1fr, auto),
       align: (left + horizon, right + horizon),
-      text(font: config.fonts, size: config.slide-title-size, weight: "bold",
-        fill: white, portion-prefix(portion) + title-text),
+      [#render-inline(
+        portion-prefix(portion) + str(title-text),
+        size: config.slide-title-size,
+        fill: white,
+        font: config.fonts,
+        weight: "bold",
+      )],
       severity-badge(severity),
     )
-  ]
-}
-
-// ─── SIDEBAR ───────────────────────────────────────────────────────────────
-
-#let sidebar-block(
-  title: "",
-  body: "",
-  int-sources: "",
-  key-judgments: (),
-  portion: "U",
-) = {
-  block(
-    width: 100%,
-    inset: 12pt,
-    fill: af-colors.sidebar-bg,
-    stroke: (left: 3pt + af-colors.af-gold, rest: 0pt),
-  )[
-    #set par(leading: 5pt, spacing: 6pt, justify: false)
-    #if title != "" [
-      #text(size: 10pt, weight: "bold", tracking: 0.12em, fill: af-colors.af-blue,
-        upper(title))
-      #v(4pt)
-    ]
-
-    #if int-sources != "" [
-      #text(size: 8pt, weight: "bold", tracking: 0.1em, fill: af-colors.muted,
-        "SOURCES")
-      #linebreak()
-      #int-pills(int-sources)
-      #v(6pt)
-    ]
-
-    #if key-judgments.len() > 0 [
-      #text(size: 8pt, weight: "bold", tracking: 0.1em, fill: af-colors.muted,
-        "KEY JUDGMENTS")
-      #v(2pt)
-      #for (i, kj) in key-judgments.enumerate() [
-        #block(inset: (y: 2pt))[
-          #text(size: 10pt, weight: "bold", fill: af-colors.af-blue,
-            str(i + 1) + ".")
-          #h(4pt)
-          #text(size: 10pt, fill: af-colors.text, kj)
-        ]
-      ]
-      #v(2pt)
-    ]
-
-    #if body != "" [
-      #set text(size: 10pt, fill: af-colors.text)
-      #portion-prefix(portion) #body
-    ]
   ]
 }
 
@@ -571,22 +521,9 @@
   likelihood-text: "",
   confidence-text: "",
   notes: "",
-  aor: "",
-  timeframe: "",
   severity: "",
-  int-sources: "",
-  sidebar-title: "",
-  sidebar-body: "",
-  key-judgments-str: "",
   notional: false,
 ) = {
-  // Parse key judgments (one per line).
-  let kjs = str(key-judgments-str).split("\n")
-    .map(l => l.trim())
-    .filter(l => l != "")
-
-  let has-sidebar = sidebar-title != "" or sidebar-body != "" or int-sources != "" or kjs.len() > 0
-
   block(
     width: 100%,
     height: 100%,
@@ -595,74 +532,30 @@
     #if notional { notional-watermark() }
 
     #slide-title-bar(portion: portion, title-text: title, severity: severity)
-    #v(4pt)
-    #aor-band(aor: aor, timeframe: timeframe, severity: "")
     #v(8pt)
 
-    // Main body: two-column if sidebar provided, else single-column.
-    #if has-sidebar {
-      grid(
-        columns: (1.9fr, 1fr),
-        gutter: 14pt,
-        // MAIN COLUMN
-        [
-          #if slide-type == "bluf" {
-            bluf-block(bluf, portion: portion, hero: true)
-            if bullets != "" {
-              v(10pt)
-              render-bullets(bullets, default-portion: portion)
-            }
-          } else if slide-type == "confidence" {
-            if bullets != "" {
-              render-bullets(bullets, default-portion: portion)
-              v(10pt)
-            }
-            confidence-block(likelihood-text, confidence-text, portion: portion)
-          } else if slide-type == "mlcoa" {
-            coa-layout("Most Likely COA", title, bullets, portion: portion, severity: severity)
-          } else if slide-type == "mdcoa" {
-            coa-layout("Most Dangerous COA", title, bullets, portion: portion, severity: severity)
-          } else {
-            if bluf != "" {
-              bluf-block(bluf, portion: portion)
-              v(10pt)
-            }
-            render-bullets(bullets, default-portion: portion)
-          }
-        ],
-        // SIDEBAR
-        sidebar-block(
-          title: sidebar-title,
-          body: sidebar-body,
-          int-sources: int-sources,
-          key-judgments: kjs,
-          portion: portion,
-        ),
-      )
-    } else {
-      if slide-type == "bluf" {
-        bluf-block(bluf, portion: portion, hero: true)
-        if bullets != "" {
-          v(10pt)
-          render-bullets(bullets, default-portion: portion)
-        }
-      } else if slide-type == "confidence" {
-        if bullets != "" {
-          render-bullets(bullets, default-portion: portion)
-          v(10pt)
-        }
-        confidence-block(likelihood-text, confidence-text, portion: portion)
-      } else if slide-type == "mlcoa" {
-        coa-layout("Most Likely COA", title, bullets, portion: portion, severity: severity)
-      } else if slide-type == "mdcoa" {
-        coa-layout("Most Dangerous COA", title, bullets, portion: portion, severity: severity)
-      } else {
-        if bluf != "" {
-          bluf-block(bluf, portion: portion)
-          v(10pt)
-        }
+    #if slide-type == "bluf" {
+      bluf-block(bluf, portion: portion, hero: true)
+      if bullets != "" {
+        v(10pt)
         render-bullets(bullets, default-portion: portion)
       }
+    } else if slide-type == "confidence" {
+      if bullets != "" {
+        render-bullets(bullets, default-portion: portion)
+        v(10pt)
+      }
+      confidence-block(likelihood-text, confidence-text, portion: portion)
+    } else if slide-type == "mlcoa" {
+      coa-layout("Most Likely COA", title, bullets, portion: portion, severity: severity)
+    } else if slide-type == "mdcoa" {
+      coa-layout("Most Dangerous COA", title, bullets, portion: portion, severity: severity)
+    } else {
+      if bluf != "" {
+        bluf-block(bluf, portion: portion)
+        v(10pt)
+      }
+      render-bullets(bullets, default-portion: portion)
     }
 
     #if str(notes).trim() != "" {
@@ -675,7 +568,7 @@
       )[
         #set text(size: 9pt, style: "italic", fill: af-colors.muted)
         #text(weight: "bold", tracking: 0.1em, fill: af-colors.muted, "ANALYST NOTE: ")
-        #notes
+        #render-inline(str(notes), size: 9pt, fill: af-colors.muted)
       ]
     }
   ]
@@ -703,8 +596,13 @@
       stroke: (bottom: 1.5pt + af-colors.af-blue),
     )[
       #set par(spacing: 0pt)
-      #text(font: config.fonts, size: config.slide-title-size, weight: "bold",
-        fill: af-colors.af-blue, portion-prefix(portion) + title)
+      #render-inline(
+        portion-prefix(portion) + str(title),
+        size: config.slide-title-size,
+        fill: af-colors.af-blue,
+        font: config.fonts,
+        weight: "bold",
+      )
     ]
 
     #v(8pt)
@@ -712,8 +610,12 @@
 
     #if caption != "" [
       #align(center)[
-        #text(size: 10pt, style: "italic", fill: af-colors.muted,
-          portion-prefix(portion) + caption)
+        #set text(style: "italic")
+        #render-inline(
+          portion-prefix(portion) + str(caption),
+          size: 10pt,
+          fill: af-colors.muted,
+        )
       ]
     ]
   ]
