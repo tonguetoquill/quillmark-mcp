@@ -1,4 +1,4 @@
-Quill:
+quill:
   name: discord_chat
   version: "0.1.0"
   backend: typst
@@ -51,7 +51,7 @@ main:
         group: Channel
       description: Optional channel topic shown next to channel name.
 
-cards:
+card_types:
   message:
     title: Chat message
     description: "A Discord message from a user. Use sentinel tokens in body_md: {@user}, {#channel}, {@everyone}, {spoiler:hidden text}. Inline markdown: **bold**, *italic*, __underline__, ~~strike~~, `code`, ```lang\\nblock```."

@@ -1,4 +1,4 @@
-Quill:
+quill:
   name: usaf_memo
   version: 0.2.0
   backend: typst
@@ -147,7 +147,7 @@ main:
         group: Additional
       description: Font size for the memo text (pt).
 
-cards:
+card_types:
   indorsement:
     title: Routing indorsement
     description: Chain of routing endorsements. Each endorsement block adds an official response or forwarding action to the original memo.

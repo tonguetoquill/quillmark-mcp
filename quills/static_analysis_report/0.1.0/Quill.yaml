@@ -1,4 +1,4 @@
-Quill:
+quill:
   name: static_analysis_report
   version: "0.1.0"
   backend: typst

@@ -1,4 +1,4 @@
-Quill:
+quill:
   name: x_post
   version: "0.1.0"
   backend: typst
@@ -40,7 +40,7 @@ main:
         group: Feed
       description: Handle of the notional viewer (unused in v0.1.0 but reserved for future highlight states).
 
-cards:
+card_types:
   post:
     title: Top-level feed post
     description: A top-level X post shown in the feed. Multiple posts render in order.

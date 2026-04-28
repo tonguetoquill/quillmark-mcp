@@ -1,4 +1,4 @@
-Quill:
+quill:
   name: cnn_news_article
   version: "0.1.0"
   backend: typst
@@ -134,7 +134,7 @@ main:
         group: Metadata
       description: Array of topic keywords.
 
-cards:
+card_types:
   live_update:
     title: Live update entry
     description: A timestamped live update entry. Multiple live_update cards create a chronological update feed.

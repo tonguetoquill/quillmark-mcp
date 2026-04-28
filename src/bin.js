@@ -14,15 +14,15 @@ import { createDefaultMCP } from './mcp/index.js';
 import { RenderAndHostStrategy } from './strategies/index.js';
 
 /**
- * Converts a quills directory path to an absolute path.
+ * Converts a Quiver directory path to an absolute path.
  * Relative paths are resolved against `cwd`; absolute paths pass through unchanged.
  *
- * @param {string} quillsDir - Raw quills directory path (relative or absolute).
+ * @param {string} quiverDir - Raw Quiver directory path (relative or absolute).
  * @param {string} [cwd=process.cwd()] - Working directory for resolving relative paths.
- * @returns {string} Absolute path to the quills directory.
+ * @returns {string} Absolute path to the Quiver root directory.
  */
-export function resolveQuillsDir(quillsDir, cwd = process.cwd()) {
-  return path.isAbsolute(quillsDir) ? quillsDir : path.resolve(cwd, quillsDir);
+export function resolveQuiverDir(quiverDir, cwd = process.cwd()) {
+  return path.isAbsolute(quiverDir) ? quiverDir : path.resolve(cwd, quiverDir);
 }
 
 /**
@@ -71,7 +71,7 @@ function pick(cliValue, envValue, fallback) {
  * ### CLI flags
  * | Flag               | Type    | Description                                      |
  * |--------------------|---------|--------------------------------------------------|
- * | `--quills-dir`     | string  | Path to quill template directory (rel or abs)     |
+ * | `--quiver-dir`     | string  | Path to Quiver root (contains Quiver.yaml + quills/) |
  * | `--output-dir`     | string  | Rendered artifact output directory                |
  * | `--base-url`       | string  | Public base URL for served artifacts              |
  * | `--bind`           | string  | `host:port` to listen on (HTTP mode)              |
@@ -84,7 +84,7 @@ function pick(cliValue, envValue, fallback) {
  * | `--auth-token`     | string  | Auth token for config output                      |
  *
  * ### Environment variables (fallbacks when CLI flags are absent)
- * - `QUILLMARK_QUILLS_DIR` — quills directory (default `./quills`)
+ * - `QUILLMARK_QUIVER_DIR` — Quiver root directory (default `.`)
  * - `QUILLMARK_OUTPUT_DIR` — output directory (default `.artifacts`)
  * - `QUILLMARK_BIND` — bind address (default `localhost:8080`)
  * - `QUILLMARK_ENDPOINT` — MCP endpoint path (default `/mcp`)
@@ -126,7 +126,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
     args: argv,
     allowPositionals: true,
     options: {
-      'quills-dir': { type: 'string' },
+      'quiver-dir': { type: 'string' },
       'output-dir': { type: 'string' },
       'base-url': { type: 'string' },
       'bind': { type: 'string' },
@@ -173,16 +173,16 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
     return;
   }
 
-  const quillsDirRaw = pick(values['quills-dir'], env.QUILLMARK_QUILLS_DIR, './quills');
+  const quiverDirRaw = pick(values['quiver-dir'], env.QUILLMARK_QUIVER_DIR, '.');
   const outputDir = pick(values['output-dir'], env.QUILLMARK_OUTPUT_DIR, '.artifacts');
   const bind = pick(values.bind, env.QUILLMARK_BIND, 'localhost:8080');
   const endpoint = pick(values.endpoint, env.QUILLMARK_ENDPOINT, '/mcp');
   const baseUrlOverride = pick(values['base-url'], env.QUILLMARK_BASE_URL, '');
   const useStdio = values.stdio === true || env.QUILLMARK_STDIO === '1';
 
-  const quillsDir = resolveQuillsDir(quillsDirRaw, cwd);
-  if (!exists(quillsDir)) {
-    consoleError(`Quills directory does not exist: ${quillsDir}`);
+  const quiverDir = resolveQuiverDir(quiverDirRaw, cwd);
+  if (!exists(quiverDir)) {
+    consoleError(`Quiver directory does not exist: ${quiverDir}`);
     setExitCode(1);
     return;
   }
@@ -191,7 +191,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   const baseUrl = baseUrlOverride || `http://${host}:${port}/artifacts`;
 
   const strategy = new StrategyClass({ outputDir, baseUrl });
-  const mcp = await createMCP({ quillsDir, strategy });
+  const mcp = await createMCP({ quiverDir, strategy });
 
   if (useStdio) {
     await mcp.start({ transportType: 'stdio' });

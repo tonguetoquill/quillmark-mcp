@@ -1,4 +1,4 @@
-Quill:
+quill:
   name: usaf_intel_brief
   version: "0.1.0"
   backend: typst
@@ -184,7 +184,7 @@ main:
       ui:
         group: Seals
 
-cards:
+card_types:
   slide:
     title: Content slide
     description: "A single content slide. Use `slide_type` to invoke a doctrine-specific layout (bluf, confidence, mlcoa, mdcoa, etc.)."

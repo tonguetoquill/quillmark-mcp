@@ -3,11 +3,11 @@
  * Tests for the CLI entry point (`src/bin.js`).
  *
  * Coverage:
- * - Argument parsing (`--quills-dir`, `--bind`, `--endpoint`, `--stdio`, `--output-dir`, `--base-url`)
+ * - Argument parsing (`--quiver-dir`, `--bind`, `--endpoint`, `--stdio`, `--output-dir`, `--base-url`)
  * - Environment variable fallbacks (`QUILLMARK_*`) and CLI-over-env precedence
  * - Transport selection (streamable HTTP vs stdio)
  * - `config` subcommand (client snippet generation, unknown client rejection, usage)
- * - Error paths (missing quills directory)
+ * - Error paths (missing Quiver directory)
  *
  * All tests inject dependencies via a `deps` object passed as the second argument
  * to `main()`, avoiding real filesystem access, process mutation, and network I/O.
@@ -16,16 +16,16 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 
-import { main, resolveQuillsDir, parseBind } from '../src/bin.js';
+import { main, resolveQuiverDir, parseBind } from '../src/bin.js';
 
 /**
  * Tests for CLI argument parsing, env var fallbacks, transport selection,
  * and the `config` subcommand.
  */
 describe('bin', () => {
-  it('resolves quillsDir relative to cwd', () => {
-    assert.equal(resolveQuillsDir('quills', '/workspace'), '/workspace/quills');
-    assert.equal(resolveQuillsDir('/already/absolute', '/workspace'), '/already/absolute');
+  it('resolves quiverDir relative to cwd', () => {
+    assert.equal(resolveQuiverDir('quills', '/workspace'), '/workspace/quills');
+    assert.equal(resolveQuiverDir('/already/absolute', '/workspace'), '/already/absolute');
   });
 
   it('parseBind splits host and port', () => {
@@ -35,11 +35,11 @@ describe('bin', () => {
     assert.throws(() => parseBind('nocolon'), /Invalid --bind/);
   });
 
-  it('returns non-zero exit code when quillsDir does not exist', async () => {
+  it('returns non-zero exit code when quiverDir does not exist', async () => {
     let stderr = '';
     let exitCode;
 
-    await main(['--quills-dir', './missing'], {
+    await main(['--quiver-dir', './missing'], {
       cwd: '/workspace',
       env: {},
       exists: () => false,
@@ -52,7 +52,7 @@ describe('bin', () => {
     });
 
     assert.equal(exitCode, 1);
-    assert.match(stderr, /Quills directory does not exist: \/workspace\/missing/);
+    assert.match(stderr, /Quiver directory does not exist: \/workspace\/missing/);
   });
 
   it('starts MCP with streamable HTTP transport using parsed options', async () => {
@@ -81,7 +81,7 @@ describe('bin', () => {
      *   StrategyClass - swapped with FakeStrategy
      *   createMCP    - returns a stub MCP server that records start() args
      */
-    await main(['--quills-dir', 'quills', '--output-dir', 'out', '--base-url', 'https://host/base'], {
+    await main(['--quiver-dir', 'quills', '--output-dir', 'out', '--base-url', 'https://host/base'], {
       cwd: '/workspace',
       env: {},
       exists: () => true,
@@ -94,7 +94,7 @@ describe('bin', () => {
     });
 
     assert.deepEqual(strategyOptions, { outputDir: 'out', baseUrl: 'https://host/base' });
-    assert.equal(createMCPOptions.quillsDir, path.resolve('/workspace', 'quills'));
+    assert.equal(createMCPOptions.quiverDir, path.resolve('/workspace', 'quills'));
     assert.ok(createMCPOptions.strategy instanceof FakeStrategy);
     assert.deepEqual(startOptions, {
       transportType: 'httpStream',
@@ -183,7 +183,7 @@ describe('bin', () => {
     const logs = [];
 
     await main([
-      '--quills-dir', 'quills',
+      '--quiver-dir', 'quills',
       '--bind', '0.0.0.0:3000',
       '--endpoint', '/api/mcp',
     ], {
@@ -217,7 +217,7 @@ describe('bin', () => {
     await main([], {
       cwd: '/workspace',
       env: {
-        QUILLMARK_QUILLS_DIR: '/env/quills',
+        QUILLMARK_QUIVER_DIR: '/env/quills',
         QUILLMARK_OUTPUT_DIR: '/env/out',
         QUILLMARK_BIND: '0.0.0.0:9000',
         QUILLMARK_ENDPOINT: '/env/mcp',
@@ -232,7 +232,7 @@ describe('bin', () => {
       },
     });
 
-    assert.equal(createMCPOptions.quillsDir, '/env/quills');
+    assert.equal(createMCPOptions.quiverDir, '/env/quills');
     assert.deepEqual(strategyOptions, { outputDir: '/env/out', baseUrl: 'https://env.example/artifacts' });
     assert.deepEqual(startOptions, {
       transportType: 'httpStream',
