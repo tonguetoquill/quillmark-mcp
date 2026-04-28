@@ -1,4 +1,4 @@
-Quill:
+quill:
   name: nyt_news_article
   version: "0.1.0"
   backend: typst

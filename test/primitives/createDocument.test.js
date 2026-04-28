@@ -4,19 +4,25 @@
  * Tests for the {@link createDocument} primitive.
  *
  * Covers:
- * - YAML quote stripping on the QUILL scalar (both single and double quotes)
- * - Happy path: resolve -> dryRun -> strategy.handle delegation
+ * - YAML quoting handled natively by Document.fromMarkdown (single + double quotes on QUILL)
+ * - Happy path: parse -> resolve -> strategy.handle delegation
  * - Structured error when QUILL field is missing from frontmatter
  * - Structured error for unresolvable quill refs
- * - Structured error from dryRun validation failures (Error and Map thrown)
- * - Strategy delegation receives the correct (resolved quill, validated content) tuple
- *
- * Stubs: registry (resolve, engine.dryRun) and strategy ({ handle }).
+ * - Strategy delegation receives (quill handle, parsed Document)
+ * - Strategy throws bubble out as structured errors
+ * - Empty / non-string content is rejected up-front
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { Quillmark, init } from '@quillmark/wasm';
+import { Quiver } from '@quillmark/quiver/node';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { createDocument } from '../../src/primitives/createDocument.js';
+
+const FIXTURE_QUIVER_DIR = fileURLToPath(new URL('../fixtures', import.meta.url));
 
 /** @constant {string} VALID_CONTENT - Minimal valid Quillmark document with frontmatter. */
 const VALID_CONTENT = `---
@@ -24,80 +30,76 @@ QUILL: usaf_memo
 ---
 # Memo`;
 
+async function loadCatalog() {
+  init();
+  const engine = new Quillmark();
+  const quiver = await Quiver.fromDir(FIXTURE_QUIVER_DIR);
+  return { quiver, engine };
+}
+
 describe('createDocument', () => {
-  it('strips double-quoted QUILL scalars', async () => {
-    const quotedContent = `---\nQUILL: "usaf_memo@0.2.0"\n---\n# Memo`;
-    let resolvedWith;
-    const registry = {
-      async resolve(ref) {
-        resolvedWith = ref;
-        return { name: 'usaf_memo', version: '0.2.0' };
+  it('accepts double-quoted QUILL scalars', async () => {
+    const { quiver, engine } = await loadCatalog();
+    const quotedContent = `---\nQUILL: "usaf_memo@1.0.0"\n---\n# Memo`;
+    let receivedRef;
+    const strategy = {
+      async handle(quill, doc) {
+        receivedRef = doc.quillRef;
+        return { status: 'success', url: 'x' };
       },
-      engine: { dryRun() {} },
     };
-    const strategy = { async handle() { return { status: 'success', url: 'x' }; } };
-    const result = await createDocument(registry, strategy, quotedContent);
-    assert.equal(result.status, 'success');
-    assert.equal(resolvedWith, 'usaf_memo@0.2.0', 'QUILL quotes not stripped');
+    const result = await createDocument(quiver, engine, strategy, quotedContent);
+    assert.equal(result.status, 'success', JSON.stringify(result));
+    assert.equal(receivedRef, 'usaf_memo@1.0.0');
   });
 
-  it('strips single-quoted QUILL scalars as well', async () => {
+  it('accepts single-quoted QUILL scalars', async () => {
+    const { quiver, engine } = await loadCatalog();
     const quotedContent = `---\nQUILL: 'usaf_memo'\n---\n# Memo`;
-    let resolvedWith;
-    const registry = {
-      async resolve(ref) {
-        resolvedWith = ref;
-        return { name: 'usaf_memo' };
+    let receivedRef;
+    const strategy = {
+      async handle(quill, doc) {
+        receivedRef = doc.quillRef;
+        return { status: 'success', url: 'x' };
       },
-      engine: { dryRun() {} },
     };
-    const strategy = { async handle() { return { status: 'success', url: 'x' }; } };
-    await createDocument(registry, strategy, quotedContent);
-    assert.equal(resolvedWith, 'usaf_memo');
+    await createDocument(quiver, engine, strategy, quotedContent);
+    assert.equal(receivedRef, 'usaf_memo');
   });
 
-  it('returns strategy result for valid content', async () => {
-    const quill = { name: 'usaf_memo', version: '1.0.0' };
-    const registry = {
-      async resolve(ref) {
-        assert.strictEqual(ref, 'usaf_memo');
-        return quill;
-      },
-      engine: {
-        dryRun(content) {
-          assert.strictEqual(content, VALID_CONTENT);
-        },
-      },
-    };
+  it('returns strategy result for valid content and passes (quill, doc) tuple', async () => {
+    const { quiver, engine } = await loadCatalog();
 
     const strategyResult = { status: 'success', url: 'https://example.com/doc.pdf' };
+    let captured;
     const strategy = {
-      async handle(resolvedQuill, validatedContent) {
-        assert.strictEqual(resolvedQuill, quill);
-        assert.strictEqual(validatedContent, VALID_CONTENT);
+      async handle(quill, doc) {
+        captured = { quill, doc };
         return strategyResult;
       },
     };
 
-    const result = await createDocument(registry, strategy, VALID_CONTENT);
+    const result = await createDocument(quiver, engine, strategy, VALID_CONTENT);
 
     assert.deepStrictEqual(result, strategyResult);
+    assert.equal(captured.quill.metadata.schema.name, 'usaf_memo');
+    assert.equal(captured.doc.quillRef, 'usaf_memo');
   });
 
   it('returns structured error when QUILL field is missing', async () => {
-    const registry = {
-      async resolve() {
-        throw new Error('should not be called');
-      },
-    };
-
+    const { quiver, engine } = await loadCatalog();
     const strategy = {
       async handle() {
         throw new Error('should not be called');
       },
     };
 
-    const result = await createDocument(registry, strategy, '---\ntitle: memo\n---\n# Memo');
+    const result = await createDocument(
+      quiver,
+      engine,
+      strategy,
+      '---\ntitle: memo\n---\n# Memo',
+    );
 
     assert.deepStrictEqual(result, {
       status: 'error',
@@ -106,102 +108,36 @@ describe('createDocument', () => {
   });
 
   it('returns structured error for invalid quill ref', async () => {
-    const registry = {
-      async resolve() {
-        throw new Error('quill_not_found');
-      },
-      engine: {
-        dryRun() {},
-      },
-    };
-
+    const { quiver, engine } = await loadCatalog();
     const strategy = {
       async handle() {
         throw new Error('should not be called');
       },
     };
 
-    const result = await createDocument(registry, strategy, VALID_CONTENT);
+    const result = await createDocument(
+      quiver,
+      engine,
+      strategy,
+      '---\nQUILL: not_a_real_quill\n---\n# Body',
+    );
 
-    assert.deepStrictEqual(result, {
-      status: 'error',
-      errors: [{ message: 'Unable to resolve Quill format reference "usaf_memo": quill_not_found' }],
-    });
-  });
-
-  it('returns validation errors when dryRun fails', async () => {
-    const registry = {
-      async resolve() {
-        return { name: 'usaf_memo' };
-      },
-      engine: {
-        dryRun() {
-          throw new Error('field "recipient" is required');
-        },
-      },
-    };
-
-    const strategy = {
-      async handle() {
-        throw new Error('should not be called');
-      },
-    };
-
-    const result = await createDocument(registry, strategy, VALID_CONTENT);
-
-    assert.deepStrictEqual(result, {
-      status: 'error',
-      errors: [{ message: 'field "recipient" is required' }],
-    });
-  });
-
-  it('delegates to strategy.handle with resolved quill and validated content', async () => {
-    const resolvedQuill = { name: 'usaf_memo' };
-    const calls = [];
-
-    const registry = {
-      async resolve() {
-        return resolvedQuill;
-      },
-      engine: {
-        dryRun() {},
-      },
-    };
-
-    const strategy = {
-      async handle(quill, validatedContent) {
-        calls.push({ quill, validatedContent });
-        return { status: 'success', url: 'https://example.com/out.pdf' };
-      },
-    };
-
-    await createDocument(registry, strategy, VALID_CONTENT);
-
-    assert.deepStrictEqual(calls, [
-      {
-        quill: resolvedQuill,
-        validatedContent: VALID_CONTENT,
-      },
-    ]);
+    assert.equal(result.status, 'error');
+    assert.match(
+      result.errors[0].message,
+      /Unable to resolve Quill format reference "not_a_real_quill"/,
+    );
   });
 
   it('returns structured error when strategy.handle() throws an Error', async () => {
-    const registry = {
-      async resolve() {
-        return { name: 'usaf_memo' };
-      },
-      engine: {
-        dryRun() {},
-      },
-    };
-
+    const { quiver, engine } = await loadCatalog();
     const strategy = {
       async handle() {
         throw new Error('disk full');
       },
     };
 
-    const result = await createDocument(registry, strategy, VALID_CONTENT);
+    const result = await createDocument(quiver, engine, strategy, VALID_CONTENT);
 
     assert.deepStrictEqual(result, {
       status: 'error',
@@ -210,22 +146,14 @@ describe('createDocument', () => {
   });
 
   it('returns structured error when strategy.handle() throws a non-Error value', async () => {
-    const registry = {
-      async resolve() {
-        return { name: 'usaf_memo' };
-      },
-      engine: {
-        dryRun() {},
-      },
-    };
-
+    const { quiver, engine } = await loadCatalog();
     const strategy = {
       async handle() {
         throw 'unexpected failure';
       },
     };
 
-    const result = await createDocument(registry, strategy, VALID_CONTENT);
+    const result = await createDocument(quiver, engine, strategy, VALID_CONTENT);
 
     assert.deepStrictEqual(result, {
       status: 'error',
@@ -233,34 +161,15 @@ describe('createDocument', () => {
     });
   });
 
-  it('formats Map validation errors from dryRun', async () => {
-    const errorMap = new Map([
-      ['recipient', 'is required'],
-      ['subject', 'must be a string'],
-    ]);
+  it('rejects empty content up-front without touching quiver or strategy', async () => {
+    const quiver = { getQuill: async () => { throw new Error('should not call'); } };
+    const strategy = { async handle() { throw new Error('should not call'); } };
 
-    const registry = {
-      async resolve() {
-        return { name: 'usaf_memo' };
-      },
-      engine: {
-        dryRun() {
-          throw errorMap;
-        },
-      },
-    };
+    const result = await createDocument(quiver, {}, strategy, '   ');
 
-    const strategy = {
-      async handle() {
-        throw new Error('should not be called');
-      },
-    };
-
-    const result = await createDocument(registry, strategy, VALID_CONTENT);
-
-    assert.equal(result.status, 'error');
-    assert.equal(result.errors.length, 1);
-    assert.match(result.errors[0].message, /recipient: is required/);
-    assert.match(result.errors[0].message, /subject: must be a string/);
+    assert.deepStrictEqual(result, {
+      status: 'error',
+      errors: [{ message: 'Content must be a non-empty string.' }],
+    });
   });
 });

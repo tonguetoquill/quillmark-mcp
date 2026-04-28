@@ -1,13 +1,14 @@
 /**
  * @module mcp/QuillmarkMCP
- * Orchestrator that wires a QuillRegistry, a DeliveryStrategy, and an MCP server
- * adapter together, exposing Quillmark capabilities as MCP tools.
+ * Orchestrator that wires a Quiver, a Quillmark engine, a DeliveryStrategy,
+ * and an MCP server adapter together, exposing Quillmark capabilities as MCP tools.
  */
 
 import { z } from 'zod';
 
 import { createDocument, getSpecs, listQuills } from '../primitives/index.js';
 import { logger } from '../logger.js';
+import { getErrorMessage } from '../errors.js';
 
 /** @private */
 const LIST_QUILLS_DESCRIPTION = 'List available Quill formats with names and descriptions. A Quill format is a schematized document template for Quillmark. Call this when you need to discover which format to use. Returns an array of { name, description } objects. Returns an empty list if no Quill formats are available.';
@@ -19,24 +20,25 @@ const CREATE_DOCUMENT_DESCRIPTION = 'Create a document from Quillmark content. I
 /**
  * Top-level orchestrator that registers Quillmark MCP tools and manages the
  * server lifecycle.
- *
- * Validates that injected dependencies satisfy their contracts at construction
- * time (fail-fast), registers the tool suite, and delegates transport concerns
- * to the provided server adapter.
  */
 export class QuillmarkMCP {
   /**
    * @param {object} options
-   * @param {object} options.registry - QuillRegistry instance. Must expose `resolve(ref)` and `getAvailableQuills()`.
-   * @param {object} options.strategy - Delivery strategy that renders content into a deliverable artifact.
-   *   Must expose `handle(quill, content)` returning a Promise of `{ status, url?, errors? }`.
-   * @param {object} options.server - MCP server adapter (e.g. McpSdkServerAdapter) that exposes tools over a transport.
-   *   Must expose `addTool(tool)`, `start(options?)`, and `stop()`.
+   * @param {object} options.quiver - `Quiver` instance from `@quillmark/quiver`.
+   *   Must expose `quillNames()`, `getQuill(ref, { engine })`, and `warm()`.
+   * @param {object} options.engine - `Quillmark` engine from `@quillmark/wasm`.
+   *   Must expose `quill(tree)`.
+   * @param {object} options.strategy - Delivery strategy. Must expose `handle(quill, doc)`.
+   * @param {object} options.server - MCP server adapter. Must expose `addTool`, `start`, `stop`.
    * @throws {TypeError} If any dependency is missing or doesn't satisfy its interface contract.
    */
-  constructor({ registry, strategy, server }) {
-    if (!registry || typeof registry.resolve !== 'function') {
-      throw new TypeError('QuillmarkMCP requires a registry with a resolve() method.');
+  constructor({ quiver, engine, strategy, server }) {
+    if (!quiver || typeof quiver.getQuill !== 'function' || typeof quiver.quillNames !== 'function') {
+      throw new TypeError('QuillmarkMCP requires a quiver with getQuill() and quillNames() methods.');
+    }
+
+    if (!engine || typeof engine.quill !== 'function') {
+      throw new TypeError('QuillmarkMCP requires an engine with a quill() method.');
     }
 
     if (!strategy || typeof strategy.handle !== 'function') {
@@ -47,7 +49,8 @@ export class QuillmarkMCP {
       throw new TypeError('QuillmarkMCP requires a server with an addTool() method.');
     }
 
-    this.registry = registry;
+    this.quiver = quiver;
+    this.engine = engine;
     this.strategy = strategy;
     this.server = server;
 
@@ -62,9 +65,6 @@ export class QuillmarkMCP {
    * 2. **get_specs** — Retrieve schema + authoring instructions for a quill (param: `ref`).
    * 3. **create_document** — Render a document from raw Quillmark content (param: `content`).
    *
-   * All tool execute handlers delegate to the primitives layer and wrap errors
-   * for structured MCP responses.
-   *
    * @private
    */
   registerTools() {
@@ -74,12 +74,11 @@ export class QuillmarkMCP {
       execute: async () => {
         logger.debug('Tool called: list_quills');
         try {
-          const result = await listQuills(this.registry);
+          const result = await listQuills(this.quiver, this.engine);
           logger.info(`list_quills completed (count: ${result.length})`);
           return result;
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          logger.error(`list_quills failed: ${message}`);
+          logger.error(`list_quills failed: ${getErrorMessage(error)}`);
           throw error;
         }
       },
@@ -94,12 +93,11 @@ export class QuillmarkMCP {
       execute: async ({ ref }) => {
         logger.debug(`Tool called: get_specs (ref: ${ref})`);
         try {
-          const result = await getSpecs(this.registry, ref);
+          const result = await getSpecs(this.quiver, this.engine, ref);
           logger.info(`get_specs completed (ref: ${ref})`);
           return result;
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          logger.error(`get_specs failed (ref: ${ref}): ${message}`);
+          logger.error(`get_specs failed (ref: ${ref}): ${getErrorMessage(error)}`);
           throw error;
         }
       },
@@ -114,7 +112,7 @@ export class QuillmarkMCP {
       execute: async ({ content }) => {
         logger.debug(`Tool called: create_document (bytes: ${content.length})`);
         try {
-          const result = await createDocument(this.registry, this.strategy, content);
+          const result = await createDocument(this.quiver, this.engine, this.strategy, content);
           if (result.status === 'success') {
             logger.info(`create_document completed successfully (url: ${result.url})`);
           } else {
@@ -123,8 +121,7 @@ export class QuillmarkMCP {
           }
           return result;
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          logger.error(`create_document failed: ${message}`);
+          logger.error(`create_document failed: ${getErrorMessage(error)}`);
           throw error;
         }
       },
@@ -132,36 +129,27 @@ export class QuillmarkMCP {
   }
 
   /**
-   * Preload all quill definitions and start the MCP server.
+   * Prefetch all quill trees and start the MCP server.
    *
-   * Quill preloading resolves every known quill before accepting requests.
-   * This pays the WASM init cost once at startup rather than on the first
-   * tool call, avoiding latency spikes for clients.
+   * Quiver's `warm()` is fail-fast: a missing/unreadable quill tree at
+   * startup is treated as a fatal configuration error, not a recoverable
+   * warning. A server that can't read its catalog can't serve tools.
    *
    * @param {object} [startOptions={ transportType: 'stdio' }] - Transport options passed through to the server adapter's `start()`.
    * @returns {Promise<void>}
    */
   async start(startOptions = { transportType: 'stdio' }) {
     logger.info('Initializing Quillmark MCP server');
-    const quills = await this.registry.getAvailableQuills();
-    logger.info(`Discovered Quill formats (count: ${quills.length})`);
 
-    if (quills.length > 0) {
-      const formats = quills.map((q) => q.name);
-      logger.debug(`Available Quill formats: ${formats.join(', ')}`);
+    const names = this.quiver.quillNames();
+    logger.info(`Discovered Quill formats (count: ${names.length})`);
+    if (names.length > 0) {
+      logger.debug(`Available Quill formats: ${names.join(', ')}`);
     }
 
-    await Promise.all(
-      quills.map((quill) => {
-        const ref = typeof quill.version === 'string' && quill.version !== ''
-          ? `${quill.name}@${quill.version}`
-          : quill.name;
+    await this.quiver.warm();
+    logger.debug('Prefetched all Quill trees');
 
-        return this.registry.resolve(ref);
-      }),
-    );
-
-    logger.debug('Preloaded all Quill formats');
     logger.info(`Starting MCP server (transport: ${startOptions.transportType})`);
     await this.server.start(startOptions);
     logger.info('MCP server started');
@@ -169,7 +157,6 @@ export class QuillmarkMCP {
 
   /**
    * Gracefully shut down the MCP server.
-   * Delegates to the server adapter's `stop()` method.
    *
    * @returns {Promise<void>}
    */

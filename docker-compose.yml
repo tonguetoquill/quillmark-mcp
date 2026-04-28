@@ -34,7 +34,7 @@ services:
       LOG_LEVEL: info
       QUILLMARK_BIND: 0.0.0.0:8080
       QUILLMARK_OUTPUT_DIR: /data/artifacts
-      QUILLMARK_QUILLS_DIR: /app/quills
+      QUILLMARK_QUIVER_DIR: /app/quiver
       QUILLMARK_ENDPOINT: /mcp
       # Artifact URLs returned to MCP clients use this base. Must point at a
       # host-reachable address (the container binds 0.0.0.0 but 0.0.0.0 is not

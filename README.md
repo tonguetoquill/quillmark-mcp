@@ -3,7 +3,7 @@
 [![CI](https://github.com/nibsbin/quillmark-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/nibsbin/quillmark-mcp/actions/workflows/ci.yml)
 [![Node 24+](https://img.shields.io/badge/node-%3E%3D24-brightgreen)](./.nvmrc)
 
-A universal MCP server that surfaces [Quillmark](https://github.com/nibsbin/quillmark) document rendering as three tools. Drop a Quill template into `quills/` and any MCP client can list it, inspect its schema, and render documents from it.
+A universal MCP server that surfaces [Quillmark](https://github.com/nibsbin/quillmark) document rendering as three tools. Drop a Quill template into `quiver/quills/` and any MCP client can list it, inspect its schema, and render documents from it.
 
 ## Tools
 
@@ -23,7 +23,7 @@ A universal MCP server that surfaces [Quillmark](https://github.com/nibsbin/quil
 | `discord_chat` | Discord channel transcript — messages, embeds, reactions, system events. Sentinel tokens for mentions/spoilers. Dark/legacy/light themes. |
 | `usaf_intel_brief` | USAF/DoD landscape 16:9 intel briefing — CAPCO classification banners, portion marks, ICD 203 confidence/likelihood visuals, AOR bands, severity badges, INT-source pills, doctrine slide types (BLUF, Threat, MLCOA/MDCOA, I&W, Confidence, Gaps). Real DoD/USAF/USSF seals. |
 
-Add your own by dropping a directory under `quills/` — no code changes needed.
+Add your own by dropping a directory under `quiver/quills/<name>/<x.y.z>/` — no code changes needed.
 
 ## Quick start — Claude Code
 
@@ -66,16 +66,18 @@ MCP client → @modelcontextprotocol/sdk → QuillmarkMCP
                                          primitives
                                    (listQuills, getSpecs, createDocument)
                                              ↓
-                                       DeliveryStrategy → artifact
+                                  Quiver  +  Quillmark  +  DeliveryStrategy
+                                  (catalog)  (wasm engine)   ↓
+                                                          artifact
 ```
 
-Three primitives, three tools, 1:1. The `DeliveryStrategy` is the extension point — the default `RenderAndHostStrategy` writes PDFs to disk and returns a URL.
+Three primitives, three tools, 1:1. `@quillmark/quiver` resolves quill refs and materialises render-ready `Quill` handles; `@quillmark/wasm` is the underlying engine. The `DeliveryStrategy` is the extension point — the default `RenderAndHostStrategy` calls `quill.render(doc)` and writes the result to disk.
 
 ## Env vars
 
 | Var | Default | Purpose |
 |---|---|---|
-| `QUILLMARK_QUILLS_DIR` | `./quills` | Quill templates directory |
+| `QUILLMARK_QUIVER_DIR` | `./quiver` | Quiver root directory (contains `Quiver.yaml` + `quills/`) |
 | `QUILLMARK_OUTPUT_DIR` | `.artifacts` | Rendered artifact output |
 | `QUILLMARK_BIND` | `localhost:8080` | HTTP bind address |
 | `QUILLMARK_ENDPOINT` | `/mcp` | MCP HTTP endpoint path |
@@ -89,7 +91,7 @@ import { createDefaultMCP } from 'quillmark-mcp';
 import { RenderAndHostStrategy } from 'quillmark-mcp/strategies';
 
 const mcp = await createDefaultMCP({
-  quillsDir: './quills',
+  quiverDir: './quiver',
   strategy: new RenderAndHostStrategy({ outputDir: '.artifacts' }),
 });
 await mcp.start({ transportType: 'stdio' });

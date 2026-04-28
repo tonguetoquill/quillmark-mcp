@@ -6,39 +6,40 @@
  * Covers:
  * - Happy path: resolves ref, encodes schema via TOON encoder, returns instructions
  * - Error propagation for unknown/invalid quill refs
- * - Error propagation when the registry itself fails
+ * - Error propagation when the quiver itself fails
  * - Instructions passthrough (returned verbatim, no trimming)
+ * - Schema fallback when only metadata.schema is present (no example)
  *
- * Stubs: registry (resolve, engine.getQuillSchema, engine.getQuillInfo) and
- * an optional TOON encoder ({ encodeSchema }) passed as the third argument.
+ * Stubs: a fake `quiver` with `getQuill()` returning a stub `quill` whose
+ * `metadata` mirrors the shape from `@quillmark/wasm` (`metadata.schema`,
+ * `metadata.instructions`, etc.).
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { getSpecs } from '../../src/primitives/getSpecs.js';
 
+const STUB_ENGINE = {};
+
+function makeQuiver(getQuillImpl) {
+  return { getQuill: getQuillImpl };
+}
+
 describe('getSpecs', () => {
   it('returns TOON-encoded schema and instructions for a valid ref', async () => {
-    const expectedSchema = { name: 'usaf_memo', fields: { title: { type: 'string' } } };
-    const registry = {
-      async resolve(ref) {
-        assert.strictEqual(ref, 'usaf_memo');
-        return { name: 'usaf_memo' };
-      },
-      engine: {
-        getQuillSchema(name) {
-          assert.strictEqual(name, 'usaf_memo');
-          return 'name: usaf_memo\nfields:\n  title:\n    type: string\n';
-        },
-        getQuillInfo(name) {
-          assert.strictEqual(name, 'usaf_memo');
-          return { example: 'Use concise language.' };
-        },
-      },
+    const expectedSchema = {
+      name: 'usaf_memo',
+      main: { fields: { title: { type: 'string' } } },
+      example: 'Use concise language.',
     };
+    const quiver = makeQuiver(async (ref, opts) => {
+      assert.strictEqual(ref, 'usaf_memo');
+      assert.strictEqual(opts.engine, STUB_ENGINE);
+      return { metadata: { schema: expectedSchema } };
+    });
 
     let encodedInput;
-    const result = await getSpecs(registry, 'usaf_memo', {
+    const result = await getSpecs(quiver, STUB_ENGINE, 'usaf_memo', {
       encodeSchema(input) {
         encodedInput = input;
         return 'toon-schema';
@@ -53,64 +54,37 @@ describe('getSpecs', () => {
   });
 
   it('throws for an invalid or unknown ref', async () => {
-    const registry = {
-      async resolve() {
-        throw new Error('quill_not_found');
-      },
-      engine: {
-        getQuillSchema() {
-          return 'name: x\nfields: {}\n';
-        },
-        getQuillInfo() {
-          return { example: '' };
-        },
-      },
-    };
+    const quiver = makeQuiver(async () => {
+      throw new Error('quill_not_found');
+    });
 
     await assert.rejects(
-      () => getSpecs(registry, 'unknown_quill'),
+      () => getSpecs(quiver, STUB_ENGINE, 'unknown_quill'),
       /Unable to resolve Quill format reference "unknown_quill": quill_not_found/,
     );
   });
 
-  it('throws when registry itself errors', async () => {
-    const registry = {
-      async resolve() {
-        throw new Error('source unavailable');
-      },
-      engine: {
-        getQuillSchema() {
-          return 'name: x\nfields: {}\n';
-        },
-        getQuillInfo() {
-          return { example: '' };
-        },
-      },
-    };
+  it('throws when the quiver itself errors', async () => {
+    const quiver = makeQuiver(async () => {
+      throw new Error('source unavailable');
+    });
 
     await assert.rejects(
-      () => getSpecs(registry, 'usaf_memo'),
+      () => getSpecs(quiver, STUB_ENGINE, 'usaf_memo'),
       /source unavailable/,
     );
   });
 
-  it('passes through instructions unmodified', async () => {
+  it('passes through metadata.instructions when no schema example is present', async () => {
     const rawInstructions = 'Keep headings short.\nDo not alter this wording.  ';
-    const registry = {
-      async resolve() {
-        return { name: 'sitrep' };
+    const quiver = makeQuiver(async () => ({
+      metadata: {
+        schema: { name: 'sitrep', main: { fields: {} } },
+        instructions: rawInstructions,
       },
-      engine: {
-        getQuillSchema() {
-          return 'name: sitrep\nfields: {}\n';
-        },
-        getQuillInfo() {
-          return { example: rawInstructions };
-        },
-      },
-    };
+    }));
 
-    const result = await getSpecs(registry, 'sitrep', {
+    const result = await getSpecs(quiver, STUB_ENGINE, 'sitrep', {
       encodeSchema() {
         return 'encoded';
       },
@@ -119,33 +93,29 @@ describe('getSpecs', () => {
     assert.strictEqual(result.instructions, rawInstructions);
   });
 
-  it('falls back to getQuillInfo().schema when getQuillSchema() is unavailable', async () => {
-    const registry = {
-      async resolve() {
-        return { name: 'sitrep' };
+  it('prefers metadata.schema.example over metadata.instructions', async () => {
+    const quiver = makeQuiver(async () => ({
+      metadata: {
+        schema: { name: 'sitrep', main: { fields: {} }, example: 'Follow the sample.' },
+        instructions: 'Should NOT be returned.',
       },
-      engine: {
-        getQuillInfo() {
-          return {
-            schema: 'name: sitrep\nfields:\n  title:\n    type: string\n',
-            example: 'Follow the sample.',
-          };
-        },
-      },
-    };
+    }));
 
-    let encodedInput;
-    const result = await getSpecs(registry, 'sitrep', {
-      encodeSchema(input) {
-        encodedInput = input;
+    const result = await getSpecs(quiver, STUB_ENGINE, 'sitrep', {
+      encodeSchema() {
         return 'encoded';
       },
     });
 
-    assert.deepStrictEqual(encodedInput, {
-      name: 'sitrep',
-      fields: { title: { type: 'string' } },
-    });
-    assert.deepStrictEqual(result, { schema: 'encoded', instructions: 'Follow the sample.' });
+    assert.strictEqual(result.instructions, 'Follow the sample.');
+  });
+
+  it('throws when no schema is exposed by the quill metadata', async () => {
+    const quiver = makeQuiver(async () => ({ metadata: {} }));
+
+    await assert.rejects(
+      () => getSpecs(quiver, STUB_ENGINE, 'broken'),
+      /did not expose a schema/,
+    );
   });
 });
