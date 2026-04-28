@@ -34,9 +34,10 @@ class FakeQuiver {
     this.quills = {
       default: {
         metadata: {
+          description: 'USAF memo format',
           schema: {
             name: 'usaf_memo',
-            main: { description: 'USAF memo format', fields: {} },
+            main: { fields: {} },
             example: 'Write like this.',
           },
         },
@@ -95,8 +96,8 @@ describe('QuillmarkMCP', () => {
     const { server, quiver } = make();
     quiver.names = ['usaf_memo', 'resume'];
     quiver.quills = {
-      usaf_memo: { metadata: { schema: { main: { description: 'USAF memo format' } } } },
-      resume: { metadata: { schema: { main: {} } } },
+      usaf_memo: { metadata: { description: 'USAF memo format' } },
+      resume: { metadata: {} },
     };
 
     const tool = server.tools.find((t) => t.name === 'list_quills');

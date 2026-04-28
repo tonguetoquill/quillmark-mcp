@@ -33,8 +33,9 @@ export async function listQuills(quiver, engine) {
     names.map(async (name) => {
       try {
         const quill = await quiver.getQuill(name, { engine });
-        const main = quill?.metadata?.schema?.main;
-        const description = typeof main?.description === 'string' ? main.description : '';
+        const description = typeof quill?.metadata?.description === 'string'
+          ? quill.metadata.description
+          : '';
         return { name, description };
       } catch {
         return { name, description: '' };

@@ -55,7 +55,13 @@ describe('integration', () => {
     const { quiver, engine } = await createFixtureCatalog();
     const available = await listQuills(quiver, engine);
 
-    assert.ok(available.some((quill) => quill.name === 'usaf_memo'));
+    const fixtureMemo = available.find((quill) => quill.name === 'usaf_memo');
+    assert.ok(fixtureMemo, 'usaf_memo should appear in the catalog');
+    assert.equal(
+      fixtureMemo.description,
+      'USAF memo fixture',
+      'description should flow from quill.metadata.description (regression guard for 0.66.x metadata shape)',
+    );
 
     const specs = await getSpecs(quiver, engine, 'usaf_memo');
     assert.equal(typeof specs.schema, 'string');

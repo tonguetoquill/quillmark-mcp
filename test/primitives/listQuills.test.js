@@ -19,7 +19,7 @@ import { listQuills } from '../../src/primitives/listQuills.js';
 
 const STUB_ENGINE = {};
 
-function makeQuiver({ names = () => [], getQuill = async () => ({ metadata: { schema: { main: {} } } }) } = {}) {
+function makeQuiver({ names = () => [], getQuill = async () => ({ metadata: {} }) } = {}) {
   return { quillNames: names, getQuill };
 }
 
@@ -29,13 +29,7 @@ describe('listQuills', () => {
       names: () => ['usaf_memo', 'sitrep'],
       getQuill: async (name) => ({
         metadata: {
-          schema: {
-            name,
-            main: {
-              description:
-                name === 'usaf_memo' ? 'USAF memo format' : 'Situation report',
-            },
-          },
+          description: name === 'usaf_memo' ? 'USAF memo format' : 'Situation report',
         },
       }),
     });
@@ -63,9 +57,7 @@ describe('listQuills', () => {
       names: () => ['ok', 'broken', 'also_ok'],
       getQuill: async (name) => {
         if (name === 'broken') throw new Error('load failed');
-        return {
-          metadata: { schema: { main: { description: `desc-${name}` } } },
-        };
+        return { metadata: { description: `desc-${name}` } };
       },
     });
 
@@ -80,11 +72,11 @@ describe('listQuills', () => {
 
   it('normalizes missing or non-string descriptions to empty strings', async () => {
     const quiver = makeQuiver({
-      names: () => ['no_main', 'no_description', 'numeric_description'],
+      names: () => ['no_metadata', 'no_description', 'numeric_description'],
       getQuill: async (name) => {
-        if (name === 'no_main') return { metadata: { schema: {} } };
-        if (name === 'no_description') return { metadata: { schema: { main: {} } } };
-        return { metadata: { schema: { main: { description: 42 } } } };
+        if (name === 'no_metadata') return {};
+        if (name === 'no_description') return { metadata: {} };
+        return { metadata: { description: 42 } };
       },
     });
 
@@ -92,7 +84,7 @@ describe('listQuills', () => {
 
     assert.ok(result.every((entry) => typeof entry.description === 'string'));
     assert.deepStrictEqual(result, [
-      { name: 'no_main', description: '' },
+      { name: 'no_metadata', description: '' },
       { name: 'no_description', description: '' },
       { name: 'numeric_description', description: '' },
     ]);

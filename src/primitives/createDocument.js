@@ -15,16 +15,14 @@ function formatError(message) {
 
 /**
  * Identifies a missing-QUILL parse failure on a thrown Document error.
- * The wasm engine emits a `parse::invalid_structure` diagnostic mentioning
- * QUILL; we surface our own friendly wording so MCP clients see a
+ * The wasm engine (>=0.66.1) emits a dedicated `parse::missing_quill_field`
+ * diagnostic; we surface our own friendly wording so MCP clients see a
  * consistent prompt.
  */
 function isMissingQuillError(error) {
   const diagnostics = /** @type {any} */ (error)?.diagnostics;
   if (!Array.isArray(diagnostics)) return false;
-  return diagnostics.some((d) =>
-    d?.code === 'parse::invalid_structure' && /QUILL/i.test(String(d?.message ?? '')),
-  );
+  return diagnostics.some((d) => d?.code === 'parse::missing_quill_field');
 }
 
 /**
