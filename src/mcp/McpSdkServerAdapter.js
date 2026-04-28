@@ -17,6 +17,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
 import { logger } from '../logger.js';
+import { getErrorMessage } from '../errors.js';
 
 /**
  * Serialize a tool's return value into a text string for the MCP `content` field.
@@ -301,10 +302,10 @@ export class McpSdkServerAdapter {
             res.setHeader('content-type', 'application/json');
             res.end('{"error":"internal_error"}');
           }
-          logger.error(`[mcp] request handler failed: ${err instanceof Error ? err.message : String(err)}`);
+          logger.error(`[mcp] request handler failed: ${getErrorMessage(err)}`);
         } finally {
           await requestServer.close().catch((closeErr) => {
-            logger.debug(`[mcp] request server close failed: ${closeErr instanceof Error ? closeErr.message : String(closeErr)}`);
+            logger.debug(`[mcp] request server close failed: ${getErrorMessage(closeErr)}`);
           });
         }
       });

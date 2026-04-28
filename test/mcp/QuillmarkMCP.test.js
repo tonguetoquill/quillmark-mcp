@@ -151,13 +151,12 @@ describe('QuillmarkMCP', () => {
     assert.deepStrictEqual(server.startOptions, { transportType: 'stdio' });
   });
 
-  it('start tolerates a quiver.warm() failure without crashing the server', async () => {
+  it('start propagates quiver.warm() failures without starting the server', async () => {
     const { mcp, quiver, server } = make();
     quiver.names = ['usaf_memo'];
     quiver.warm = async () => { throw new Error('disk gone'); };
 
-    await mcp.start({ transportType: 'stdio' });
-
-    assert.deepStrictEqual(server.startOptions, { transportType: 'stdio' });
+    await assert.rejects(() => mcp.start({ transportType: 'stdio' }), /disk gone/);
+    assert.strictEqual(server.startOptions, undefined, 'server.start() must not be reached when warm() fails');
   });
 });

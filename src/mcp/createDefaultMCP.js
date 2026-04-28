@@ -11,16 +11,9 @@ import { McpSdkServerAdapter } from './McpSdkServerAdapter.js';
 import { QuillmarkMCP } from './QuillmarkMCP.js';
 
 /**
- * Factory that assembles a fully-wired {@link QuillmarkMCP} with production defaults:
- * `@quillmark/wasm` engine, `@quillmark/quiver` Quiver, and `McpSdkServerAdapter`.
- *
- * Sequence:
- * 1. Initialize WASM runtime (synchronous, idempotent).
- * 2. Create a `Quillmark` engine.
- * 3. Load the source `Quiver` from `quiverDir` (must contain `Quiver.yaml` +
- *    `quills/<name>/<x.y.z>/...`).
- * 4. Create an `McpSdkServerAdapter` (name: 'Quillmark', version: '1.0.0').
- * 5. Wire everything into a `QuillmarkMCP` and return it.
+ * Factory that assembles a fully-wired {@link QuillmarkMCP} with production
+ * defaults: `@quillmark/wasm` engine, `@quillmark/quiver` Quiver, and
+ * `McpSdkServerAdapter`.
  *
  * @param {object} options
  * @param {string} options.quiverDir - Absolute or relative path to the Quiver
@@ -29,21 +22,16 @@ import { QuillmarkMCP } from './QuillmarkMCP.js';
  * @param {object} options.strategy - Delivery strategy instance (e.g. `RenderAndHostStrategy`).
  *   Must expose `handle(quill, doc)` returning a Promise of `{ status, url?, errors? }`.
  * @returns {Promise<QuillmarkMCP>} Ready-to-start MCP instance.
- * @throws {Error} If the Quiver cannot be loaded from `quiverDir`.
+ * @throws {QuiverError} `transport_error` or `quiver_invalid` if the source
+ *   layout at `quiverDir` is missing or malformed (propagated unchanged from
+ *   `Quiver.fromDir`).
  */
 export async function createDefaultMCP({ quiverDir, strategy }) {
   init();
 
   const engine = new Quillmark();
-
-  let quiver;
-  try {
-    quiver = await Quiver.fromDir(quiverDir);
-    logger.debug(`Quiver loaded (name: ${quiver.name}, quills: ${quiver.quillNames().join(', ')})`);
-  } catch (error) {
-    logger.error(`Failed to load Quiver from ${quiverDir}: ${error instanceof Error ? error.message : String(error)}`);
-    throw error;
-  }
+  const quiver = await Quiver.fromDir(quiverDir);
+  logger.debug(`Quiver loaded (name: ${quiver.name}, quills: ${quiver.quillNames().join(', ')})`);
 
   const server = new McpSdkServerAdapter({ name: 'Quillmark', version: '1.0.0' });
 

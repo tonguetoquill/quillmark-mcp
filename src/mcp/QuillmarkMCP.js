@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 import { createDocument, getSpecs, listQuills } from '../primitives/index.js';
 import { logger } from '../logger.js';
+import { getErrorMessage } from '../errors.js';
 
 /** @private */
 const LIST_QUILLS_DESCRIPTION = 'List available Quill formats with names and descriptions. A Quill format is a schematized document template for Quillmark. Call this when you need to discover which format to use. Returns an array of { name, description } objects. Returns an empty list if no Quill formats are available.';
@@ -24,8 +25,7 @@ export class QuillmarkMCP {
   /**
    * @param {object} options
    * @param {object} options.quiver - `Quiver` instance from `@quillmark/quiver`.
-   *   Must expose `quillNames()`, `versionsOf(name)`, `getQuill(ref, { engine })`,
-   *   and `warm()`.
+   *   Must expose `quillNames()`, `getQuill(ref, { engine })`, and `warm()`.
    * @param {object} options.engine - `Quillmark` engine from `@quillmark/wasm`.
    *   Must expose `quill(tree)`.
    * @param {object} options.strategy - Delivery strategy. Must expose `handle(quill, doc)`.
@@ -78,8 +78,7 @@ export class QuillmarkMCP {
           logger.info(`list_quills completed (count: ${result.length})`);
           return result;
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          logger.error(`list_quills failed: ${message}`);
+          logger.error(`list_quills failed: ${getErrorMessage(error)}`);
           throw error;
         }
       },
@@ -98,8 +97,7 @@ export class QuillmarkMCP {
           logger.info(`get_specs completed (ref: ${ref})`);
           return result;
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          logger.error(`get_specs failed (ref: ${ref}): ${message}`);
+          logger.error(`get_specs failed (ref: ${ref}): ${getErrorMessage(error)}`);
           throw error;
         }
       },
@@ -123,8 +121,7 @@ export class QuillmarkMCP {
           }
           return result;
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          logger.error(`create_document failed: ${message}`);
+          logger.error(`create_document failed: ${getErrorMessage(error)}`);
           throw error;
         }
       },
@@ -132,11 +129,11 @@ export class QuillmarkMCP {
   }
 
   /**
-   * Preload all quill definitions and start the MCP server.
+   * Prefetch all quill trees and start the MCP server.
    *
-   * Quiver's `warm()` prefetches every quill tree (filesystem read for
-   * `fromDir`/`fromPackage`); this pays the I/O cost once at startup so
-   * the first tool call doesn't see a latency spike.
+   * Quiver's `warm()` is fail-fast: a missing/unreadable quill tree at
+   * startup is treated as a fatal configuration error, not a recoverable
+   * warning. A server that can't read its catalog can't serve tools.
    *
    * @param {object} [startOptions={ transportType: 'stdio' }] - Transport options passed through to the server adapter's `start()`.
    * @returns {Promise<void>}
@@ -150,15 +147,8 @@ export class QuillmarkMCP {
       logger.debug(`Available Quill formats: ${names.join(', ')}`);
     }
 
-    if (typeof this.quiver.warm === 'function') {
-      try {
-        await this.quiver.warm();
-        logger.debug('Prefetched all Quill trees');
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        logger.warn(`Quiver warm() failed: ${message}`);
-      }
-    }
+    await this.quiver.warm();
+    logger.debug('Prefetched all Quill trees');
 
     logger.info(`Starting MCP server (transport: ${startOptions.transportType})`);
     await this.server.start(startOptions);
