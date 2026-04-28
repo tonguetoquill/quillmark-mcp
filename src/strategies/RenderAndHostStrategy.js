@@ -11,31 +11,7 @@ import path from 'node:path';
 
 import { DeliveryStrategy } from './DeliveryStrategy.js';
 import { logger } from '../logger.js';
-
-/**
- * Extract a human-readable error message from heterogeneous error types.
- *
- * Errors from `@quillmark/wasm` come through as `Error` instances with a
- * `.diagnostics` array attached. Plain Error.message is generally enough
- * for surface-level reporting; the diagnostics array is preserved on the
- * error for callers that need it.
- *
- * @param {unknown} error - The caught value.
- * @returns {string} A string suitable for user-facing error responses.
- */
-function getErrorMessage(error) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (error && typeof error === 'object') {
-    try {
-      return JSON.stringify(error);
-    } catch {
-      return String(error);
-    }
-  }
-  return String(error);
-}
+import { getErrorMessage } from '../errors.js';
 
 /**
  * Map a MIME type to a file extension for the rendered artifact.

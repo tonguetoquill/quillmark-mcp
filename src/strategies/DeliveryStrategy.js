@@ -16,23 +16,25 @@
  */
 export class DeliveryStrategy {
   /**
-   * Produce a deliverable document from a resolved quill and validated content.
+   * Produce a deliverable artifact from a materialised Quill handle and a
+   * parsed Document.
    *
-   * Subclasses must override this method. The base implementation always throws
-   * to enforce the contract at runtime.
+   * Subclasses must override this method. The base implementation always
+   * throws to enforce the contract at runtime.
    *
    * @abstract
-   * @param {object} quill - Resolved quill object containing name, version, data (TOML blob), and metadata.
-   * @param {string} validatedContent - Quillmark content string (YAML frontmatter + markdown body) that has already passed schema validation.
-   * @returns {Promise<object>} Result object with `status` (string), optional `url` (string),
-   *   and optional `errors` (array of `{ message }` objects).
-   *   On success: `{ status: 'success', url: '<artifact location>' }`.
-   *   On failure: `{ status: 'error', errors: [{ message: '...' }] }`.
+   * @param {object} quill - Materialised `Quill` handle from `@quillmark/quiver`'s `getQuill`.
+   *   Carries `metadata` and `render(doc, opts?)`.
+   * @param {object} doc - Parsed `Document` from `@quillmark/wasm`'s `Document.fromMarkdown`.
+   *   Carries `quillRef`, `frontmatter`, `body`, and the typed card model.
+   * @returns {Promise<object>} Result object:
+   *   - On success: `{ status: 'success', url: '<artifact location>' }`.
+   *   - On failure: `{ status: 'error', errors: [{ message: '...' }] }`.
    * @throws {Error} Always throws in the base class — signals a missing override.
    */
-  async handle(quill, validatedContent) {
+  async handle(quill, doc) {
     void quill;
-    void validatedContent;
+    void doc;
     throw new Error('DeliveryStrategy.handle() must be implemented by subclass');
   }
 }

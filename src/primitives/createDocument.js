@@ -4,56 +4,23 @@
 
 import { Document } from '@quillmark/wasm';
 
-/**
- * Builds a structured error result matching the createDocument return shape.
- *
- * @param {string} message - Human-readable error description.
- * @returns {object} `{ status: 'error', errors: [{ message }] }`
- */
+import { getErrorMessage } from '../errors.js';
+
+const MISSING_QUILL_MESSAGE = 'QUILL: is required in frontmatter to select the Quill format.';
+
+/** Wraps a message in the `{ status: 'error', errors: [...] }` shape. */
 function formatError(message) {
   return { status: 'error', errors: [{ message }] };
 }
 
 /**
- * Coerces an arbitrary error value into a human-readable string.
- *
- * Handles the full zoo of things the WASM engine and strategy layer can
- * surface: standard Error instances (with optional `.diagnostics`), Map objects,
- * plain objects, and primitives.
- *
- * @param {unknown} error - The thrown/returned error value.
- * @returns {string} A best-effort human-readable error message.
- */
-function getErrorMessage(error) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (error instanceof Map) {
-    if (error.has('message')) return String(error.get('message'));
-    const entries = Array.from(error.entries())
-      .map(([key, value]) => `${key}: ${value}`)
-      .join('; ');
-    return entries || 'Unknown validation error';
-  }
-  if (error && typeof error === 'object') {
-    try {
-      return JSON.stringify(error);
-    } catch {
-      return String(error);
-    }
-  }
-  return String(error);
-}
-
-/**
  * Identifies a missing-QUILL parse failure on a thrown Document error.
- * The wasm engine emits a `parse::invalid_structure` diagnostic with a
- * message that mentions "QUILL". We surface our own friendly wording
- * for that specific failure so MCP clients see a consistent prompt.
+ * The wasm engine emits a `parse::invalid_structure` diagnostic mentioning
+ * QUILL; we surface our own friendly wording so MCP clients see a
+ * consistent prompt.
  */
 function isMissingQuillError(error) {
-  if (!error || typeof error !== 'object') return false;
-  const diagnostics = /** @type {any} */ (error).diagnostics;
+  const diagnostics = /** @type {any} */ (error)?.diagnostics;
   if (!Array.isArray(diagnostics)) return false;
   return diagnostics.some((d) =>
     d?.code === 'parse::invalid_structure' && /QUILL/i.test(String(d?.message ?? '')),
@@ -88,15 +55,12 @@ export async function createDocument(quiver, engine, strategy, content) {
   try {
     doc = Document.fromMarkdown(content);
   } catch (error) {
-    if (isMissingQuillError(error)) {
-      return formatError('QUILL: is required in frontmatter to select the Quill format.');
-    }
-    return formatError(getErrorMessage(error));
+    return formatError(isMissingQuillError(error) ? MISSING_QUILL_MESSAGE : getErrorMessage(error));
   }
 
   const quillRef = doc.quillRef;
   if (typeof quillRef !== 'string' || quillRef.trim() === '') {
-    return formatError('QUILL: is required in frontmatter to select the Quill format.');
+    return formatError(MISSING_QUILL_MESSAGE);
   }
 
   let quill;
@@ -115,7 +79,7 @@ export async function createDocument(quiver, engine, strategy, content) {
 
   if (result.status === 'error' && Array.isArray(result.errors)) {
     result.errors = result.errors.map((error) => ({
-      message: getErrorMessage(error.message || error),
+      message: getErrorMessage(error.message ?? error),
     }));
   }
 
