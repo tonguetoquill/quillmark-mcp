@@ -3,8 +3,10 @@
 import { readFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { FileSystemSource, QuillRegistry } from '@quillmark/registry';
+
 import { Quillmark, init } from '@quillmark/wasm';
+import { Quiver } from '@quillmark/quiver/node';
+
 import { createDocument } from '../src/primitives/index.js';
 import { RenderAndHostStrategy } from '../src/strategies/index.js';
 
@@ -14,20 +16,18 @@ if (!quillName) {
   process.exit(1);
 }
 
-const quillsDir = fileURLToPath(new URL('../quills', import.meta.url));
+const quiverDir = fileURLToPath(new URL('../quiver', import.meta.url));
 const outDir = path.resolve('./.render-out');
 await mkdir(outDir, { recursive: true });
 
 init();
-const registry = new QuillRegistry({
-  source: new FileSystemSource(quillsDir),
-  engine: new Quillmark(),
-});
+const engine = new Quillmark();
+const quiver = await Quiver.fromDir(quiverDir);
 
-const versions = ['0.1.0', '0.2.0', '1.0.0'];
+const versions = quiver.versionsOf(quillName);
 let examplePath;
 for (const v of versions) {
-  const candidate = path.join(quillsDir, quillName, v, 'example.md');
+  const candidate = path.join(quiverDir, 'quills', quillName, v, 'example.md');
   try {
     await readFile(candidate);
     examplePath = candidate;
@@ -35,13 +35,13 @@ for (const v of versions) {
   } catch {}
 }
 if (!examplePath) {
-  console.error(`No example.md found for ${quillName} under quills/${quillName}/*/`);
+  console.error(`No example.md found for ${quillName} under quiver/quills/${quillName}/*/`);
   process.exit(1);
 }
 
 const content = await readFile(examplePath, 'utf8');
 const strategy = new RenderAndHostStrategy({ outputDir: outDir, baseUrl: 'file://' + outDir });
-const result = await createDocument(registry, strategy, content);
+const result = await createDocument(quiver, engine, strategy, content);
 
 if (result.status !== 'success') {
   console.error('RENDER FAILED');

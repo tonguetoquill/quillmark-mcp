@@ -14,7 +14,7 @@
   },
   "files": [
     "src/",
-    "quills/"
+    "quiver/"
   ],
   "scripts": {
     "test": "node --test",

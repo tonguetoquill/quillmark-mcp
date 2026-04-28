@@ -13,7 +13,7 @@ COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 COPY src/ ./src/
 COPY test/ ./test/
-COPY quills/ ./quills/
+COPY quiver/ ./quiver/
 RUN node --test test/
 
 FROM node:${NODE_VERSION}-slim AS runtime
@@ -29,7 +29,7 @@ WORKDIR /app
 COPY --from=deps --chown=quill:quill /app/node_modules ./node_modules
 COPY --chown=quill:quill package.json ./
 COPY --chown=quill:quill src/ ./src/
-COPY --chown=quill:quill quills/ ./quills/
+COPY --chown=quill:quill quiver/ ./quiver/
 COPY --chown=quill:quill docker/healthcheck.js ./docker/healthcheck.js
 
 USER quill:quill
@@ -38,7 +38,7 @@ ENV NODE_ENV=production \
     LOG_LEVEL=info \
     QUILLMARK_BIND=0.0.0.0:8080 \
     QUILLMARK_OUTPUT_DIR=/data/artifacts \
-    QUILLMARK_QUILLS_DIR=/app/quills \
+    QUILLMARK_QUIVER_DIR=/app/quiver \
     QUILLMARK_ENDPOINT=/mcp
 
 EXPOSE 8080

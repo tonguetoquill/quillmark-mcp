@@ -84,7 +84,7 @@ function pick(cliValue, envValue, fallback) {
  * | `--auth-token`     | string  | Auth token for config output                      |
  *
  * ### Environment variables (fallbacks when CLI flags are absent)
- * - `QUILLMARK_QUIVER_DIR` — Quiver root directory (default `.`)
+ * - `QUILLMARK_QUIVER_DIR` — Quiver root directory (default `./quiver`)
  * - `QUILLMARK_OUTPUT_DIR` — output directory (default `.artifacts`)
  * - `QUILLMARK_BIND` — bind address (default `localhost:8080`)
  * - `QUILLMARK_ENDPOINT` — MCP endpoint path (default `/mcp`)
@@ -173,7 +173,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
     return;
   }
 
-  const quiverDirRaw = pick(values['quiver-dir'], env.QUILLMARK_QUIVER_DIR, '.');
+  const quiverDirRaw = pick(values['quiver-dir'], env.QUILLMARK_QUIVER_DIR, './quiver');
   const outputDir = pick(values['output-dir'], env.QUILLMARK_OUTPUT_DIR, '.artifacts');
   const bind = pick(values.bind, env.QUILLMARK_BIND, 'localhost:8080');
   const endpoint = pick(values.endpoint, env.QUILLMARK_ENDPOINT, '/mcp');

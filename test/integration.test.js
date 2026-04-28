@@ -24,7 +24,7 @@ import { RenderAndHostStrategy } from '../src/strategies/index.js';
 const FIXTURE_QUIVER_DIR = fileURLToPath(new URL('./fixtures', import.meta.url));
 
 /** @constant {string} REAL_QUIVER_DIR - Path to the shipped Quiver root (contains Quiver.yaml + quills/). */
-const REAL_QUIVER_DIR = fileURLToPath(new URL('..', import.meta.url));
+const REAL_QUIVER_DIR = fileURLToPath(new URL('../quiver', import.meta.url));
 
 /** @constant {string[]} The seven quills shipped with the package. */
 const SHIPPED_QUILLS = [
