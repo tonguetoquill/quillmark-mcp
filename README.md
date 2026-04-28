@@ -66,10 +66,12 @@ MCP client → @modelcontextprotocol/sdk → QuillmarkMCP
                                          primitives
                                    (listQuills, getSpecs, createDocument)
                                              ↓
-                                       DeliveryStrategy → artifact
+                                  Quiver  +  Quillmark  +  DeliveryStrategy
+                                  (catalog)  (wasm engine)   ↓
+                                                          artifact
 ```
 
-Three primitives, three tools, 1:1. The `DeliveryStrategy` is the extension point — the default `RenderAndHostStrategy` writes PDFs to disk and returns a URL.
+Three primitives, three tools, 1:1. `@quillmark/quiver` resolves quill refs and materialises render-ready `Quill` handles; `@quillmark/wasm` is the underlying engine. The `DeliveryStrategy` is the extension point — the default `RenderAndHostStrategy` calls `quill.render(doc)` and writes the result to disk.
 
 ## Env vars
 

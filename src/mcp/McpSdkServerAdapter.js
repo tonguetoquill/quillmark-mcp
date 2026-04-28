@@ -141,8 +141,8 @@ function isPlainRecord(value) {
  * Design decisions:
  * - Tools are stored in an array and re-registered on each fresh `McpServer`
  *   instance because the SDK's stateless HTTP transport cannot be reused across
- *   requests. The registry, strategy, and WASM engine live as closures on the
- *   tool execute functions, so rebuilding the McpServer is cheap.
+ *   requests. The quiver, engine, strategy, and registered tools live as closures
+ *   on the tool execute functions, so rebuilding the McpServer is cheap.
  * - A single long-lived McpServer is kept for stdio mode (one process = one session).
  * - HTTP mode builds a fresh McpServer + transport per request, ensuring concurrent
  *   clients never collide and reconnects always succeed.
@@ -219,7 +219,7 @@ export class McpSdkServerAdapter {
    * gets a fresh `McpServer` + `StreamableHTTPServerTransport` (stateless pattern).
    * Why fresh per request: the SDK forbids reusing a stateless transport across requests,
    * and concurrent clients would collide on a shared instance. Tool registration is cheap
-   * because the heavyweight objects (registry, strategy, WASM engine) live as closures.
+   * because the heavyweight objects (quiver, engine, strategy) live as closures.
    *
    * HTTP mode also supports:
    * - Bearer token auth (checked before MCP dispatch)
@@ -284,7 +284,7 @@ export class McpSdkServerAdapter {
         // Stateless pattern: the SDK forbids reusing a stateless transport
         // across requests. Build a fresh McpServer + transport per request
         // so concurrent clients never collide and reconnects always succeed.
-        // Tool registration is cheap — the registry/strategy/WASM engine are
+        // Tool registration is cheap — the quiver/engine/strategy are
         // held as closures on the tool.execute functions and are not rebuilt.
         const requestServer = this.#buildRequestServer();
         const transport = new StreamableHTTPServerTransport({
