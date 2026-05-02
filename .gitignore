@@ -155,3 +155,6 @@ docker-compose.override.yml
 
 # TypeDoc generated documentation site
 docs-site/
+
+settings.local.json
+devcontainer-lock.json
