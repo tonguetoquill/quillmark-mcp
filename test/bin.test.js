@@ -56,46 +56,35 @@ describe('bin', () => {
   });
 
   it('starts MCP with streamable HTTP transport using parsed options', async () => {
-    let strategyOptions;
+    let delivererOptions;
     let startOptions;
     let createMCPOptions;
     const logs = [];
 
     /**
-     * Test double for RenderAndHostStrategy.
-     * Captures constructor args into `strategyOptions` for later assertion.
-     * @param {{ outputDir: string, baseUrl: string }} options
+     * Stub deliverer factory. Captures the options it was called with into
+     * `delivererOptions` and returns a no-op deliverer function.
      */
-    class FakeStrategy {
-      constructor(options) {
-        strategyOptions = options;
-      }
-    }
+    const fakeFactory = (options) => {
+      delivererOptions = options;
+      return async () => ({ status: 'success', url: 'stub' });
+    };
 
-    /*
-     * Dependency-injected `deps` object replaces real I/O surfaces:
-     *   cwd          - simulated working directory
-     *   env          - process.env stand-in (empty here; env-var tests below)
-     *   exists       - always true to skip directory validation
-     *   consoleError - captures stderr output
-     *   StrategyClass - swapped with FakeStrategy
-     *   createMCP    - returns a stub MCP server that records start() args
-     */
     await main(['--quiver-dir', 'quills', '--output-dir', 'out', '--base-url', 'https://host/base'], {
       cwd: '/workspace',
       env: {},
       exists: () => true,
       consoleError: (msg) => logs.push(msg),
-      StrategyClass: FakeStrategy,
+      delivererFactory: fakeFactory,
       createMCP: (options) => {
         createMCPOptions = options;
         return { async start(opts) { startOptions = opts; } };
       },
     });
 
-    assert.deepEqual(strategyOptions, { outputDir: 'out', baseUrl: 'https://host/base' });
+    assert.deepEqual(delivererOptions, { outputDir: 'out', baseUrl: 'https://host/base' });
     assert.equal(createMCPOptions.quiverDir, path.resolve('/workspace', 'quills'));
-    assert.ok(createMCPOptions.strategy instanceof FakeStrategy);
+    assert.equal(typeof createMCPOptions.deliver, 'function');
     assert.deepEqual(startOptions, {
       transportType: 'httpStream',
       httpStream: { host: 'localhost', port: 8080, endpoint: '/mcp', artifactsDir: 'out' },
@@ -191,7 +180,7 @@ describe('bin', () => {
       env: {},
       exists: () => true,
       consoleError: (msg) => logs.push(msg),
-      StrategyClass: class FakeStrategy {},
+      delivererFactory: () => async () => ({ status: 'success' }),
       createMCP: () => ({ async start(opts) { startOptions = opts; } }),
     });
 
@@ -205,14 +194,12 @@ describe('bin', () => {
   it('falls back to QUILLMARK_* env vars when CLI flags are absent', async () => {
     let startOptions;
     let createMCPOptions;
-    let strategyOptions;
+    let delivererOptions;
 
-    /** Test double — same as above; captures strategy constructor args. */
-    class FakeStrategy {
-      constructor(options) {
-        strategyOptions = options;
-      }
-    }
+    const fakeFactory = (options) => {
+      delivererOptions = options;
+      return async () => ({ status: 'success' });
+    };
 
     await main([], {
       cwd: '/workspace',
@@ -225,7 +212,7 @@ describe('bin', () => {
       },
       exists: () => true,
       consoleError: () => {},
-      StrategyClass: FakeStrategy,
+      delivererFactory: fakeFactory,
       createMCP: (options) => {
         createMCPOptions = options;
         return { async start(opts) { startOptions = opts; } };
@@ -233,7 +220,7 @@ describe('bin', () => {
     });
 
     assert.equal(createMCPOptions.quiverDir, '/env/quills');
-    assert.deepEqual(strategyOptions, { outputDir: '/env/out', baseUrl: 'https://env.example/artifacts' });
+    assert.deepEqual(delivererOptions, { outputDir: '/env/out', baseUrl: 'https://env.example/artifacts' });
     assert.deepEqual(startOptions, {
       transportType: 'httpStream',
       httpStream: { host: '0.0.0.0', port: 9000, endpoint: '/env/mcp', artifactsDir: '/env/out' },
@@ -248,7 +235,7 @@ describe('bin', () => {
       env: { QUILLMARK_BIND: '0.0.0.0:9000' },
       exists: () => true,
       consoleError: () => {},
-      StrategyClass: class {},
+      delivererFactory: () => async () => ({ status: 'success' }),
       createMCP: () => ({ async start(opts) { startOptions = opts; } }),
     });
 
@@ -265,7 +252,7 @@ describe('bin', () => {
       env: {},
       exists: () => true,
       consoleError: (msg) => logs.push(msg),
-      StrategyClass: class {},
+      delivererFactory: () => async () => ({ status: 'success' }),
       createMCP: () => ({ async start(opts) { startOptions = opts; } }),
     });
 
@@ -282,7 +269,7 @@ describe('bin', () => {
       env: { QUILLMARK_STDIO: '1' },
       exists: () => true,
       consoleError: () => {},
-      StrategyClass: class {},
+      delivererFactory: () => async () => ({ status: 'success' }),
       createMCP: () => ({ async start(opts) { startOptions = opts; } }),
     });
 

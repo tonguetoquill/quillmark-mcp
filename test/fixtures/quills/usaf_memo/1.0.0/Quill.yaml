@@ -4,4 +4,3 @@ quill:
   backend: typst
   plate_file: plate.typ
   description: USAF memo fixture
-  instructions: Keep tone formal.

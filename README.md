@@ -7,8 +7,10 @@ A universal MCP server that surfaces [Quillmark](https://github.com/nibsbin/quil
 
 ## Tools
 
-- **`list_quills`** — discover available Quill formats. Returns `[{ name, description }]`.
-- **`get_specs`** — get the schema + authoring instructions for one Quill. Returns TOON-encoded schema.
+The three MCP tools are registered by [`@quillmark/mcp`](https://github.com/nibsbin/quillmark-mcp/tree/main):
+
+- **`list_quills`** — discover available Quill formats. Returns `{ quills: [{ name, description }] }`.
+- **`get_specs`** — get the schema for one Quill. Returns `{ schema }` where `schema` is TOON-encoded and includes the bundled `example` document when the Quill provides one.
 - **`create_document`** — render a document from YAML frontmatter + markdown. Returns `{ status, url?, errors? }`.
 
 ### Shipped quills
@@ -61,17 +63,16 @@ The environment will be cleaned and Docker will ```compose down```.
 ## Architecture
 
 ```
-MCP client → @modelcontextprotocol/sdk → QuillmarkMCP
+MCP client → @modelcontextprotocol/sdk → McpSdkServerAdapter
                                              ↓
-                                         primitives
-                                   (listQuills, getSpecs, createDocument)
+                                  registerQuillmarkTools  ← @quillmark/mcp
                                              ↓
-                                  Quiver  +  Quillmark  +  DeliveryStrategy
-                                  (catalog)  (wasm engine)   ↓
+                                  Quiver  +  Quillmark  +  Deliverer
+                                  (catalog)  (wasm engine)    ↓
                                                           artifact
 ```
 
-Three primitives, three tools, 1:1. `@quillmark/quiver` resolves quill refs and materialises render-ready `Quill` handles; `@quillmark/wasm` is the underlying engine. The `DeliveryStrategy` is the extension point — the default `RenderAndHostStrategy` calls `quill.render(doc)` and writes the result to disk.
+Turnkey owns the transport layer (stdio + Streamable HTTP, bearer auth, artifact serving, CLI/config) and a default `Deliverer`. The parse → resolve → validate → MCP-envelope pipeline lives in [`@quillmark/mcp`](https://github.com/nibsbin/quillmark-mcp/tree/main). `@quillmark/quiver` resolves quill refs and materialises render-ready `Quill` handles; `@quillmark/wasm` is the underlying engine. The default `createRenderAndHostDeliverer` renders to bytes and writes them to disk.
 
 ## Env vars
 
@@ -87,17 +88,24 @@ Three primitives, three tools, 1:1. `@quillmark/quiver` resolves quill refs and 
 ## Library use
 
 ```js
-import { createDefaultMCP } from 'quillmark-mcp';
-import { RenderAndHostStrategy } from 'quillmark-mcp/strategies';
+import { createDefaultMCP, createRenderAndHostDeliverer } from 'quillmark-mcp';
 
 const mcp = await createDefaultMCP({
   quiverDir: './quiver',
-  strategy: new RenderAndHostStrategy({ outputDir: '.artifacts' }),
+  deliver: createRenderAndHostDeliverer({ outputDir: '.artifacts' }),
 });
 await mcp.start({ transportType: 'stdio' });
 ```
 
-Primitives are also exported from `quillmark-mcp/primitives` for non-MCP use.
+For non-MCP use, import the primitives directly from `@quillmark/mcp`:
+
+```js
+import { listQuills, getSpecs, createDocument } from '@quillmark/mcp';
+```
+
+To build your own MCP server with a custom transport or deliverer, drop the
+turnkey factory and call `registerQuillmarkTools` from `@quillmark/mcp`
+against your own `McpServer`.
 
 ## Development
 

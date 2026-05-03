@@ -96,18 +96,15 @@ maybe('Layer 5: MCP protocol compliance (HTTP transport)', () => {
     assert.ok(arr.some((q) => q.name === 'usaf_memo'), 'usaf_memo not in list');
   });
 
-  it('tools/call get_specs returns TOON spec + instructions for usaf_memo', async () => {
+  it('tools/call get_specs returns TOON-encoded schema for usaf_memo', async () => {
     const result = await client.callTool({
       name: 'get_specs',
       arguments: { ref: 'usaf_memo' },
     });
     const body = result.structuredContent ?? JSON.parse(result.content[0].text);
     assert.ok(body, 'get_specs returned nothing');
-    // The spec shape is schema + instructions per src/primitives/getSpecs.js.
-    assert.ok(
-      body.schema || body.spec || body.fields || body.instructions,
-      `unexpected get_specs shape: ${JSON.stringify(body).slice(0, 200)}`,
-    );
+    assert.equal(typeof body.schema, 'string', `unexpected get_specs shape: ${JSON.stringify(body).slice(0, 200)}`);
+    assert.ok(body.schema.length > 0, 'schema is empty');
   });
 
   it('tools/call create_document with valid memo returns an artifact URL', async () => {

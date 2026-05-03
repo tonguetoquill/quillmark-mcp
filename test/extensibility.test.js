@@ -4,9 +4,9 @@
  *
  * Builds a fresh Quiver source layout in a tempdir (Quiver.yaml +
  * quills/<name>/<version>/...), copies the fixture quill in under a fresh
- * name, boots createDefaultMCP against that tempdir, and confirms
- * listQuills surfaces the new quill and getSpecs returns its schema —
- * with zero code changes.
+ * name, boots createDefaultMCP against that tempdir, and confirms the
+ * library's listQuills/getSpecs primitives surface the new quill and its
+ * schema — with zero code changes.
  */
 
 import assert from 'node:assert/strict';
@@ -16,8 +16,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 
+import { listQuills, getSpecs } from '@quillmark/mcp';
+
 import { createDefaultMCP } from '../src/index.js';
-import { listQuills, getSpecs } from '../src/primitives/index.js';
 
 const FIXTURE_QUILLS_DIR = fileURLToPath(new URL('./fixtures/quills', import.meta.url));
 
@@ -28,7 +29,6 @@ describe('extensibility — new quills auto-discover without code changes', () =
   before(async () => {
     tempQuiverDir = await mkdtemp(path.join(tmpdir(), 'quillmark-ext-'));
 
-    // Quiver source layout: <root>/Quiver.yaml + <root>/quills/<name>/<version>/...
     await writeFile(
       path.join(tempQuiverDir, 'Quiver.yaml'),
       'name: extensibility_fixture\n',
@@ -39,9 +39,6 @@ describe('extensibility — new quills auto-discover without code changes', () =
     const targetDir = path.join(quillsRoot, 'my_custom_quill');
     await cp(path.join(FIXTURE_QUILLS_DIR, 'usaf_memo'), targetDir, { recursive: true });
 
-    // Quiver keys quills by directory name; the engine validates the `name:`
-    // inside Quill.yaml. Patch the embedded name so the engine accepts the
-    // renamed copy.
     const manifestPath = path.join(targetDir, '1.0.0', 'Quill.yaml');
     const manifest = await readFile(manifestPath, 'utf8');
     await writeFile(
@@ -49,8 +46,8 @@ describe('extensibility — new quills auto-discover without code changes', () =
       manifest.replace(/name:\s*usaf_memo/, 'name: my_custom_quill'),
     );
 
-    const strategy = { async handle() { return { status: 'success', url: 'stub' }; } };
-    mcp = await createDefaultMCP({ quiverDir: tempQuiverDir, strategy });
+    const deliver = async () => ({ status: 'success', url: 'stub' });
+    mcp = await createDefaultMCP({ quiverDir: tempQuiverDir, deliver });
   });
 
   after(async () => {
@@ -59,8 +56,8 @@ describe('extensibility — new quills auto-discover without code changes', () =
   });
 
   it('listQuills surfaces the newly-added quill', async () => {
-    const quills = await listQuills(mcp.quiver, mcp.engine);
-    const names = quills.map((q) => q.name);
+    const result = await listQuills(mcp.quiver, mcp.engine);
+    const names = result.quills.map((q) => q.name);
     assert.ok(names.includes('my_custom_quill'), `new quill not discovered: ${names.join(',')}`);
   });
 

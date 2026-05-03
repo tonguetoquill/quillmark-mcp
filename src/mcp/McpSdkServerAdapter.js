@@ -1,10 +1,8 @@
 /**
  * @module mcp/McpSdkServerAdapter
- * Adapts the MCP SDK's `McpServer` into a transport-agnostic server that
- * supports both long-lived stdio sessions and stateless HTTP request handling.
- *
- * This is the most architecturally important file in the MCP layer — it owns
- * transport selection, per-request server lifecycle, auth, and artifact serving.
+ * Owns transport selection (stdio vs HTTP), per-request McpServer rebuild for
+ * stateless HTTP, optional bearer auth, and artifact serving. Tool registration
+ * is delegated to `@quillmark/mcp`'s `registerQuillmarkTools`.
  */
 
 import { createReadStream } from 'node:fs';
@@ -15,30 +13,10 @@ import path from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { registerQuillmarkTools } from '@quillmark/mcp';
 
 import { logger } from '../logger.js';
 import { getErrorMessage } from '../errors.js';
-
-/**
- * Serialize a tool's return value into a text string for the MCP `content` field.
- *
- * Strings pass through unchanged; objects are JSON-stringified; anything else
- * is coerced via `String()`.
- *
- * @param {unknown} result - Raw return value from a tool's execute function.
- * @returns {string} Serialized text representation.
- */
-function stringifyToolResult(result) {
-  if (typeof result === 'string') {
-    return result;
-  }
-
-  try {
-    return JSON.stringify(result);
-  } catch {
-    return String(result);
-  }
-}
 
 const MIME_TYPES = {
   '.pdf': 'application/pdf',
@@ -46,36 +24,11 @@ const MIME_TYPES = {
   '.txt': 'text/plain',
 };
 
-/**
- * Strip a trailing slash from a URL path (unless it's the root `/`).
- * Ensures consistent route matching regardless of how clients format their requests.
- *
- * @param {string} urlPath - URL pathname to normalize.
- * @returns {string} Path without a trailing slash.
- */
 function normalizePath(urlPath) {
-  return urlPath.endsWith('/') && urlPath.length > 1
-    ? urlPath.slice(0, -1)
-    : urlPath;
+  return urlPath.endsWith('/') && urlPath.length > 1 ? urlPath.slice(0, -1) : urlPath;
 }
 
-/**
- * Stream a rendered artifact file to an HTTP response.
- *
- * Security: rejects any `fileName` containing path separators or `..` sequences
- * to prevent directory traversal. Additionally validates that the resolved path
- * stays within `artifactsDir` (belt-and-suspenders).
- *
- * Sets `Content-Type` from a known MIME map, `Content-Disposition: attachment`,
- * and `Content-Length` for deterministic downloads.
- *
- * @param {object} res - Node.js HTTP ServerResponse to write to.
- * @param {string} artifactsDir - Absolute path to the artifacts directory.
- * @param {string} fileName - Bare filename (no path components allowed).
- * @returns {Promise<void>}
- */
 async function serveFile(res, artifactsDir, fileName) {
-  // Reject any path with separators or traversal sequences — filenames only.
   if (!fileName || fileName.includes('/') || fileName.includes('\\') || fileName.includes('..')) {
     res.statusCode = 400;
     res.end('Bad Request');
@@ -109,136 +62,33 @@ async function serveFile(res, artifactsDir, fileName) {
   }
 }
 
-/**
- * Coerce tool arguments to a plain object. Guards against undefined/null/primitive
- * args that would break destructuring in tool execute handlers.
- *
- * @param {unknown} args - Raw arguments from the MCP transport.
- * @returns {Record<string, unknown>} Guaranteed plain object.
- */
-function normalizeToolArgs(args) {
-  return args && typeof args === 'object' ? args : {};
-}
-
-/**
- * Check whether a value is a plain object (record) suitable for the MCP
- * `structuredContent` field.
- *
- * The MCP spec requires `structuredContent` to be a record — arrays and
- * primitives are not allowed. Only attach it when the tool returns a
- * plain object.
- *
- * @param {unknown} value - Tool return value to test.
- * @returns {boolean} True if value is a non-null, non-array object.
- */
-function isPlainRecord(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-/**
- * Wraps the MCP SDK's `McpServer` to provide a unified interface for both
- * stdio (long-lived) and HTTP stream (stateless, per-request) transports.
- *
- * Design decisions:
- * - Tools are stored in an array and re-registered on each fresh `McpServer`
- *   instance because the SDK's stateless HTTP transport cannot be reused across
- *   requests. The quiver, engine, strategy, and registered tools live as closures
- *   on the tool execute functions, so rebuilding the McpServer is cheap.
- * - A single long-lived McpServer is kept for stdio mode (one process = one session).
- * - HTTP mode builds a fresh McpServer + transport per request, ensuring concurrent
- *   clients never collide and reconnects always succeed.
- */
 export class McpSdkServerAdapter {
-  /**
-   * @param {object} [options]
-   * @param {string} [options.name='Quillmark'] - Server name reported in MCP handshake.
-   * @param {string} [options.version='1.0.0'] - Server version reported in MCP handshake.
-   */
-  constructor({ name = 'Quillmark', version = '1.0.0' } = {}) {
+  constructor({ name = 'Quillmark', version = '1.0.0', quiver, engine, deliver } = {}) {
+    if (!quiver || !engine || typeof deliver !== 'function') {
+      throw new TypeError('McpSdkServerAdapter requires { quiver, engine, deliver }.');
+    }
     this.name = name;
     this.version = version;
-    this.tools = [];
-    // A long-lived server is only used for stdio mode (one process = one session).
-    // HTTP mode builds a fresh McpServer per request (stateless pattern below).
+    this.quiver = quiver;
+    this.engine = engine;
+    this.deliver = deliver;
+
+    // Long-lived server for stdio mode (one process = one session).
     this.server = new McpServer({ name, version });
+    registerQuillmarkTools(this.server, { quiver, engine, deliver });
     this.httpServer = null;
-  }
-
-  /**
-   * Register a tool for MCP exposure.
-   *
-   * The tool is pushed to the internal array (for per-request re-registration in HTTP mode)
-   * AND immediately registered on the long-lived stdio McpServer. Result wrapping
-   * applies automatically: the raw return value is serialized via {@link stringifyToolResult}
-   * into a text content block, and if the value is a plain record, it's also set as
-   * `structuredContent` for clients that support typed responses.
-   *
-   * @param {object} tool - Tool definition with `name` (string), `description` (string),
-   *   optional `parameters` (Zod schema), and `execute` (async function accepting args object).
-   */
-  addTool(tool) {
-    this.tools.push(tool);
-    this.#registerToolOn(this.server, tool);
-  }
-
-  #registerToolOn(mcpServer, tool) {
-    const config = {
-      description: tool.description,
-      inputSchema: tool.parameters,
-    };
-
-    mcpServer.registerTool(tool.name, config, async (args) => {
-      const result = await tool.execute(normalizeToolArgs(args));
-
-      const response = {
-        content: [{ type: 'text', text: stringifyToolResult(result) }],
-      };
-      if (isPlainRecord(result)) {
-        response.structuredContent = result;
-      }
-      return response;
-    });
   }
 
   #buildRequestServer() {
     const server = new McpServer({ name: this.name, version: this.version });
-    for (const tool of this.tools) {
-      this.#registerToolOn(server, tool);
-    }
+    registerQuillmarkTools(server, {
+      quiver: this.quiver,
+      engine: this.engine,
+      deliver: this.deliver,
+    });
     return server;
   }
 
-  /**
-   * Start the MCP server on the specified transport.
-   *
-   * Two code paths:
-   *
-   * **stdio** (default) — Connects the long-lived `McpServer` to a `StdioServerTransport`.
-   * One process = one session; the server lives until the process exits.
-   *
-   * **httpStream** — Spins up an HTTP server. Each inbound request to the MCP endpoint
-   * gets a fresh `McpServer` + `StreamableHTTPServerTransport` (stateless pattern).
-   * Why fresh per request: the SDK forbids reusing a stateless transport across requests,
-   * and concurrent clients would collide on a shared instance. Tool registration is cheap
-   * because the heavyweight objects (quiver, engine, strategy) live as closures.
-   *
-   * HTTP mode also supports:
-   * - Bearer token auth (checked before MCP dispatch)
-   * - Artifact file serving at a configurable path with directory traversal protection
-   * - JSON 404 responses for unmatched routes (helps OAuth-probing MCP clients)
-   *
-   * @param {object} [startOptions]
-   * @param {'stdio'|'httpStream'} [startOptions.transportType='stdio'] - Transport to use.
-   * @param {object} [startOptions.httpStream] - HTTP-specific options (ignored for stdio).
-   * @param {string} [startOptions.httpStream.host='localhost'] - Bind address.
-   * @param {number} [startOptions.httpStream.port=8080] - Listen port.
-   * @param {string} [startOptions.httpStream.endpoint='/mcp'] - MCP endpoint path.
-   * @param {string} [startOptions.httpStream.authToken] - Optional Bearer token for auth.
-   * @param {string} [startOptions.httpStream.artifactsDir] - Absolute path to serve artifacts from.
-   * @param {string} [startOptions.httpStream.artifactsPath='/artifacts'] - URL prefix for artifact serving.
-   * @returns {Promise<void>}
-   * @throws {Error} If transportType is not 'stdio' or 'httpStream'.
-   */
   async start(startOptions) {
     const transportType = startOptions?.transportType ?? 'stdio';
 
@@ -263,9 +113,6 @@ export class McpSdkServerAdapter {
         }
 
         if (pathname !== endpoint) {
-          // Return JSON 404 so MCP clients probing OAuth discovery
-          // (e.g. /.well-known/oauth-protected-resource) can parse the body
-          // and fall through to unauthenticated access instead of crashing.
           res.statusCode = 404;
           res.setHeader('content-type', 'application/json');
           res.end('{"error":"not_found"}');
@@ -282,11 +129,6 @@ export class McpSdkServerAdapter {
           }
         }
 
-        // Stateless pattern: the SDK forbids reusing a stateless transport
-        // across requests. Build a fresh McpServer + transport per request
-        // so concurrent clients never collide and reconnects always succeed.
-        // Tool registration is cheap — the quiver/engine/strategy are
-        // held as closures on the tool.execute functions and are not rebuilt.
         const requestServer = this.#buildRequestServer();
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: undefined,
@@ -331,28 +173,16 @@ export class McpSdkServerAdapter {
     throw new Error(`Unsupported transport type: ${transportType}`);
   }
 
-  /**
-   * Gracefully shut down the server.
-   *
-   * Closes the HTTP server (if running in httpStream mode) and then closes
-   * the long-lived McpServer. Safe to call multiple times.
-   *
-   * @returns {Promise<void>}
-   */
   async stop() {
     if (this.httpServer) {
       await new Promise((resolve, reject) => {
         this.httpServer.close((error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve();
+          if (error) reject(error);
+          else resolve();
         });
       });
       this.httpServer = null;
     }
-
     await this.server.close();
   }
 }

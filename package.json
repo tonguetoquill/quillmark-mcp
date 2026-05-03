@@ -7,10 +7,7 @@
     "quillmark-mcp": "./src/bin.js"
   },
   "exports": {
-    ".": "./src/index.js",
-    "./primitives": "./src/primitives/index.js",
-    "./strategies": "./src/strategies/index.js",
-    "./mcp": "./src/mcp/index.js"
+    ".": "./src/index.js"
   },
   "files": [
     "src/",
@@ -50,8 +47,9 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@quillmark/quiver": "^0.5.1",
-    "@quillmark/wasm": "^0.66.1",
+    "@quillmark/mcp": "file:../quillmark-mcp",
+    "@quillmark/quiver": "^0.7.0",
+    "@quillmark/wasm": "^0.69.0",
     "@toon-format/toon": "^2.1.0",
     "loglevel": "^1.9.1"
   }

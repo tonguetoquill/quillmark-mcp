@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { generateConfig, isSupported, SUPPORTED_CLIENTS } from './cli/config.js';
 import { createDefaultMCP } from './mcp/index.js';
 import { getErrorMessage } from './errors.js';
-import { RenderAndHostStrategy } from './strategies/index.js';
+import { createRenderAndHostDeliverer } from './strategies/index.js';
 
 /**
  * Converts a Quiver directory path to an absolute path.
@@ -118,7 +118,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
     setExitCode = (code) => {
       process.exitCode = code;
     },
-    StrategyClass = RenderAndHostStrategy,
+    delivererFactory = createRenderAndHostDeliverer,
     createMCP = createDefaultMCP,
     env = process.env,
   } = deps;
@@ -191,8 +191,8 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   const { host, port } = parseBind(bind);
   const baseUrl = baseUrlOverride || `http://${host}:${port}/artifacts`;
 
-  const strategy = new StrategyClass({ outputDir, baseUrl });
-  const mcp = await createMCP({ quiverDir, strategy });
+  const deliver = delivererFactory({ outputDir, baseUrl });
+  const mcp = await createMCP({ quiverDir, deliver });
 
   if (useStdio) {
     await mcp.start({ transportType: 'stdio' });
