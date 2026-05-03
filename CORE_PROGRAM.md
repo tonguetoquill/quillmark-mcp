@@ -12,7 +12,7 @@ Two profiles drive the API shape; both share every primitive:
 ## Stack
 
 - Node.js ≥ 24, ESM, top-level `await`.
-- `@modelcontextprotocol/sdk`, `zod` — peer deps (the SDK passes zod schemas through, so both must resolve the same instance).
+- `@modelcontextprotocol/sdk`, `zod` — peer deps. The SDK passes zod schemas through, so both must resolve the same instance; pin to the zod major the SDK is currently on (today: `zod ^3.23`).
 - Zero runtime deps beyond peers.
 - TypeScript source run directly via Node 24 strip-types. Type-check with `tsc --noEmit`; no build step.
 
@@ -45,12 +45,18 @@ server.addTool({
 });
 ```
 
+`createMcpServer({ name, version, instructions? })`:
+
+- `name`, `version`: required strings, advertised in the MCP `initialize` response. `version` is a protocol requirement, not optional.
+- `instructions`: optional free-form string surfaced to the client/LLM during `initialize` to guide when and how this server should be used.
+
 `addTool({ name, description, parameters, execute })`:
 
 - `name`: non-empty, unique per adapter. `description`: string.
 - `parameters`: zod object schema; passed straight through to the SDK as `inputSchema`.
-- `execute(args) → result | Promise<result>`. Return wrapped per *Behaviors*; thrown values become MCP tool-result errors.
+- `execute(args)` is typed as `(args: z.infer<typeof parameters>) => result | Promise<result>`. Return wrapped per *Behaviors*; thrown values become MCP tool-result errors.
 - Shape is validated synchronously in `addTool` (fail fast at construction). Predicate details are implementer discretion.
+- Registration closes at `start()`. Subsequent `addTool` calls throw — keeps the adapter's tool list immutable across the stdio lifetime and avoids `tools/list_changed` semantics.
 
 #### Standalone
 
@@ -106,6 +112,8 @@ Coerces any thrown value (Error, plain object, primitive) to a readable string. 
 
 ## Non-goals
 
+- MCP resources and prompts. V1 is tools-only; the SDK's `server.resource()` / `server.prompt()` cover those cleanly and have no quirks to gap-fill. `addResource` / `addPrompt` can land in a later minor version without breaking the existing API.
+- Non-text tool outputs (images, audio, resource references). Every return renders into `content[0].text`.
 - Tool registry, plugin system, DI container, `BaseServer` orchestrator. Tool registration is one method on the adapter; higher-level wrappers belong to the consumer.
 - Domain-specific delivery, artifact serving, schema encoding helpers (TOON, JSON-Schema-to-Markdown). Wire your own static handler for files.
 - CLI scaffolding (argv, env, bind-strings, install snippets, Docker, per-client config).
