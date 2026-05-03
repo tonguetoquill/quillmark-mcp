@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@quillmark/mcp": "file:../quillmark-mcp",
+    "@quillmark/mcp": "^0.1.0",
     "@quillmark/quiver": "^0.7.0",
     "@quillmark/wasm": "^0.69.0",
     "@toon-format/toon": "^2.1.0",
