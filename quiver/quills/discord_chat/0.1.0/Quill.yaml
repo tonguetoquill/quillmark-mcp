@@ -1,318 +1,236 @@
 quill:
   name: discord_chat
-  version: "0.1.0"
+  version: 0.1.0
   backend: typst
   plate_file: plate.typ
   example_file: example.md
   description: Discord channel chat mockup — messages, replies, embeds, reactions, system messages. For wargaming/exercise injects and training materials.
-
 main:
   fields:
     theme:
-      title: Theme
       type: string
-      default: "dark"
+      default: dark
       enum:
-        - "dark"
-        - "legacy"
-        - "light"
+      - dark
+      - legacy
+      - light
       ui:
         group: Appearance
-      description: "dark (default, 2022+ palette), legacy (pre-2022 #36393F), or light."
-
+      description: 'dark (default, 2022+ palette), legacy (pre-2022 #36393F), or light.'
     server_name:
-      title: Server name
       type: string
-      default: ""
-      examples:
-        - "Joint Task Force 26"
+      default: ''
+      example: Joint Task Force 26
       ui:
         group: Channel
       description: Optional server name label, shown below the channel name.
-
     channel_name:
-      title: Channel name (without #)
       type: string
       required: true
-      examples:
-        - "ops-coord"
-        - "int-watch"
+      example: ops-coord
       ui:
         group: Channel
-      description: Channel name without the # prefix; template adds it.
-
+      description: Channel name without the
     channel_topic:
-      title: Channel topic
       type: string
-      default: ""
-      examples:
-        - "Real-time operations coordination | no classified chatter"
+      default: ''
+      example: Real-time operations coordination | no classified chatter
       ui:
         group: Channel
       description: Optional channel topic shown next to channel name.
-
 card_types:
   message:
-    title: Chat message
-    description: "A Discord message from a user. Use sentinel tokens in body_md: {@user}, {#channel}, {@everyone}, {spoiler:hidden text}. Inline markdown: **bold**, *italic*, __underline__, ~~strike~~, `code`, ```lang\\nblock```."
+    description: 'A Discord message from a user. Use sentinel tokens in body_md: {@user}, {#channel}, {@everyone}, {spoiler:hidden text}. Inline markdown: **bold**, *italic*, __underline__, ~~strike~~, `code`, ```lang\nblock```.'
     fields:
       username:
-        title: Username
         type: string
         required: true
-        examples:
-          - "Capt.Reyes"
+        example: Capt.Reyes
         ui:
           group: Author
         description: Display name shown before the timestamp.
-
       user_color:
-        title: Username color
         type: string
-        default: "#F2F3F5"
-        examples:
-          - "#ED4245"
-          - "#FAA61A"
+        default: '#F2F3F5'
+        example: '#ED4245'
         ui:
           group: Author
         description: Hex color for username — typically the user's highest role color.
-
       avatar_initials:
-        title: Avatar initials
         type: string
         required: true
-        examples:
-          - "CR"
+        example: CR
         ui:
           group: Author
-
       avatar_color:
-        title: Avatar background
         type: string
-        default: "#5865F2"
+        default: '#5865F2'
         ui:
           group: Author
-
       is_bot:
-        title: Is bot/app
         type: string
-        default: "false"
+        default: 'false'
         enum:
-          - "true"
-          - "false"
+        - 'true'
+        - 'false'
         ui:
           group: Author
         description: Show the APP (or BOT in legacy theme) tag next to the username.
-
       is_verified_app:
-        title: Verified app
         type: string
-        default: "false"
+        default: 'false'
         enum:
-          - "true"
-          - "false"
+        - 'true'
+        - 'false'
         ui:
           group: Author
         description: Show a checkmark in the APP tag (verified application).
-
       timestamp:
-        title: Timestamp
         type: string
         required: true
-        examples:
-          - "Today at 3:45 PM"
-          - "Yesterday at 8:12 AM"
-          - "04/15/2026 15:45"
+        example: Today at 3:45 PM
         ui:
           group: Message
         description: Freeform timestamp (Discord uses contextual phrasing like "Today at X").
-
       body_md:
-        title: Message body (markdown + sentinels)
         type: string
         required: true
-        examples:
-          - "Hey {@Sergeant}, the {#intel-feed} just dropped **BREAKING** ||check it now||"
+        example: Hey {@Sergeant}, the {#intel-feed} just dropped **BREAKING** ||check it now||
         ui:
           group: Message
-        description: "Message content. Supports bold/italic/strike/underline/code/code-block and Discord sentinels {@user} {#channel} {@everyone} {spoiler:...}"
-
+        description: Message content. Supports bold/italic/strike/underline/code/code-block and Discord sentinels {@user} {#channel} {@everyone} {spoiler:...}
       replying_to_user:
-        title: Replying to (username)
         type: string
-        default: ""
+        default: ''
         ui:
           group: Threading
         description: If present, renders a reply reference above the message.
-
       replying_to_color:
-        title: Replying-to color
         type: string
-        default: ""
+        default: ''
         ui:
           group: Threading
-
       replying_to_preview:
-        title: Replying-to preview
         type: string
-        default: ""
+        default: ''
         ui:
           group: Threading
         description: Short preview of the message being replied to.
-
       replying_to_initials:
-        title: Replying-to avatar initials
         type: string
-        default: "?"
+        default: '?'
         ui:
           group: Threading
-
       replying_to_avatar_color:
-        title: Replying-to avatar color
         type: string
-        default: "#5865F2"
+        default: '#5865F2'
         ui:
           group: Threading
-
       reactions:
-        title: Reactions
         type: string
-        default: ""
-        examples:
-          - "👍:3,❤️:1,🔥:12*"
+        default: ''
+        example: 👍:3,❤️:1,🔥:12*
         ui:
           group: Engagement
-        description: "Comma-separated emoji:count pairs. Trailing * marks viewer's own reaction."
-
+        description: Comma-separated emoji:count pairs. Trailing * marks viewer's own reaction.
       edited:
-        title: Edited
         type: string
-        default: "false"
+        default: 'false'
         enum:
-          - "true"
-          - "false"
+        - 'true'
+        - 'false'
         ui:
           group: Message
         description: Show (edited) after the message body.
-
       pinned:
-        title: Pinned
         type: string
-        default: "false"
+        default: 'false'
         enum:
-          - "true"
-          - "false"
+        - 'true'
+        - 'false'
         ui:
           group: Message
-
       group_with_previous:
-        title: Group with previous
         type: string
-        default: "false"
+        default: 'false'
         enum:
-          - "true"
-          - "false"
+        - 'true'
+        - 'false'
         ui:
           group: Message
         description: Hide avatar and username (same author as previous message within ~7 min).
-
   embed:
-    title: Link embed (rich preview)
     description: Rich embed shown below a specific message.
     fields:
       belongs_to_message_index:
-        title: Message index (0-based)
         type: number
         required: true
         ui:
           group: Threading
         description: Zero-based index of the message this embed is attached to (counting only `message` cards).
-
       color:
-        title: Left-bar color
         type: string
-        default: "#5865F2"
+        default: '#5865F2'
         ui:
           group: Appearance
-
       author_name:
-        title: Author / source name
         type: string
-        default: ""
+        default: ''
         ui:
           group: Content
-
       title:
-        title: Embed title
         type: string
-        default: ""
+        default: ''
         ui:
           group: Content
-
       description:
-        title: Embed description
         type: string
-        default: ""
+        default: ''
         ui:
           group: Content
-
       url:
-        title: Embed URL
         type: string
-        default: ""
+        default: ''
         ui:
           group: Content
-
       image_caption:
-        title: Image placeholder caption
         type: string
-        default: ""
+        default: ''
         ui:
           group: Content
         description: Renders a gray placeholder box with this caption (no actual image upload in v0.1.0).
-
       footer_text:
-        title: Footer text
         type: string
-        default: ""
+        default: ''
         ui:
           group: Content
-
   system_message:
-    title: System/channel event
     description: Non-user events like joins, pins, boosts.
     fields:
       type:
-        title: Event type
         type: string
-        default: "join"
+        default: join
         enum:
-          - "join"
-          - "leave"
-          - "pin"
-          - "boost"
-          - "call_start"
-          - "call_end"
+        - join
+        - leave
+        - pin
+        - boost
+        - call_start
+        - call_end
         ui:
           group: Event
-
       username:
-        title: Acting user
         type: string
         required: true
         ui:
           group: Event
-
       timestamp:
-        title: Timestamp
         type: string
         required: true
         ui:
           group: Event
-
       target_message_preview:
-        title: Target preview (for pin)
         type: string
-        default: ""
+        default: ''
         ui:
           group: Event

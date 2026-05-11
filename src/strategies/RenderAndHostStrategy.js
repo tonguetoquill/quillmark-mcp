@@ -67,7 +67,7 @@ export class RenderAndHostStrategy extends DeliveryStrategy {
    * @returns {Promise<object>} `{ status, url?, errors? }`.
    */
   async handle(quill, doc) {
-    const quillName = quill?.metadata?.schema?.name ?? doc?.quillRef ?? 'document';
+    const quillName = quill?.metadata?.name ?? doc?.quillRef ?? 'document';
     try {
       logger.debug(`Rendering document (quill: ${quillName})`);
 

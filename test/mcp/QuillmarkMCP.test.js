@@ -33,13 +33,13 @@ class FakeQuiver {
     this.getQuillCalls = [];
     this.quills = {
       default: {
+        schema: {
+          main: { fields: {} },
+        },
+        blueprint: 'Write like this.',
         metadata: {
+          name: 'usaf_memo',
           description: 'USAF memo format',
-          schema: {
-            name: 'usaf_memo',
-            main: { fields: {} },
-            example: 'Write like this.',
-          },
         },
       },
     };
@@ -131,7 +131,7 @@ describe('QuillmarkMCP', () => {
     const result = await tool.execute({ content: '---\nQUILL: usaf_memo\n---\nBody' });
 
     assert.deepStrictEqual(result, { status: 'success', url: 'https://example.com/doc.pdf' });
-    assert.equal(captured.quill.metadata.schema.name, 'usaf_memo');
+    assert.equal(captured.quill.metadata.name, 'usaf_memo');
     assert.equal(captured.doc.quillRef, 'usaf_memo');
   });
 

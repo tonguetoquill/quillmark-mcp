@@ -1,7 +1,6 @@
 quill:
   name: usaf_memo
-  version: "1.0.0"
+  version: 1.0.0
   backend: typst
   plate_file: plate.typ
   description: USAF memo fixture
-  instructions: Keep tone formal.

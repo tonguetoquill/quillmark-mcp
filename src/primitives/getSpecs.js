@@ -5,15 +5,13 @@
 import { encode } from '@toon-format/toon';
 
 /**
- * Picks authoring instructions out of a quill's metadata.
+ * Returns the quill's LLM authoring guidance.
  *
- * Fallback chain: `metadata.schema.example` (the rendered contents of
- * `example_file`, when set) → `metadata.instructions` (free-form prose under
- * the `quill:` section) → empty string.
+ * Uses `quill.blueprint` — the auto-generated annotated Markdown blueprint
+ * produced by the engine from the quill's schema, designed for LLM consumers.
  */
-function extractInstructions(metadata) {
-  if (typeof metadata?.schema?.example === 'string') return metadata.schema.example;
-  if (typeof metadata?.instructions === 'string') return metadata.instructions;
+function extractInstructions(quill) {
+  if (typeof quill?.blueprint === 'string') return quill.blueprint;
   return '';
 }
 
@@ -51,13 +49,13 @@ export async function getSpecs(quiver, engine, ref, deps = {}) {
     throw new Error(`Unable to resolve Quill format reference "${ref}": ${message}`, { cause: error });
   }
 
-  const schema = quill?.metadata?.schema;
+  const schema = quill?.schema;
   if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
-    throw new Error(`Quill "${ref}" did not expose a schema via metadata.`);
+    throw new Error(`Quill "${ref}" did not expose a schema.`);
   }
 
   return {
     schema: encodeSchema(schema),
-    instructions: extractInstructions(quill.metadata),
+    instructions: extractInstructions(quill),
   };
 }
