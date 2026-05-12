@@ -82,7 +82,7 @@ describe('createDocument', () => {
     const result = await createDocument(quiver, engine, strategy, VALID_CONTENT);
 
     assert.deepStrictEqual(result, strategyResult);
-    assert.equal(captured.quill.metadata.schema.name, 'usaf_memo');
+    assert.equal(captured.quill.metadata.name, 'usaf_memo');
     assert.equal(captured.doc.quillRef, 'usaf_memo');
   });
 

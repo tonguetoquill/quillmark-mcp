@@ -1,404 +1,298 @@
 quill:
   name: x_post
-  version: "0.1.0"
+  version: 0.1.0
   backend: typst
   plate_file: plate.typ
   example_file: example.md
   description: X (Twitter) feed mockup — multiple posts, replies, quoted tweets, Community Notes. For wargaming/exercise injects and training materials.
-
 main:
   fields:
     theme:
-      title: Feed theme
       type: string
-      default: "dim"
+      default: dim
       enum:
-        - "light"
-        - "dim"
-        - "lights_out"
+      - light
+      - dim
+      - lights_out
       ui:
         group: Appearance
       description: Visual theme. "dim" (default) is the blue-black X dark mode; "light" is white; "lights_out" is pure black.
-
     feed_header:
-      title: Feed label
       type: string
-      default: ""
-      examples:
-        - "For you"
-        - "Following"
-        - "@user"
+      default: ''
+      example: For you
       ui:
         group: Feed
       description: Optional header bar label. Leave empty to omit.
-
     viewer_handle:
-      title: Viewer handle
       type: string
-      default: ""
+      default: ''
       ui:
         group: Feed
       description: Handle of the notional viewer (unused in v0.1.0 but reserved for future highlight states).
-
 card_types:
   post:
-    title: Top-level feed post
     description: A top-level X post shown in the feed. Multiple posts render in order.
     fields:
       display_name:
-        title: Display name
         type: string
         required: true
-        examples:
-          - "Pentagon Press Secretary"
+        example: Pentagon Press Secretary
         ui:
           group: Author
         description: Author's display name (shown in bold).
-
       handle:
-        title: Handle (without @)
         type: string
         required: true
-        examples:
-          - "PentagonPresSec"
+        example: PentagonPresSec
         ui:
           group: Author
         description: X handle without the @ prefix.
-
       verified:
-        title: Verified
         type: string
-        default: "false"
+        default: 'false'
         enum:
-          - "true"
-          - "false"
+        - 'true'
+        - 'false'
         ui:
           group: Author
         description: Set to "true" to show a verified checkmark.
-
       verified_type:
-        title: Verification type
         type: string
-        default: "blue"
+        default: blue
         enum:
-          - "blue"
-          - "gold"
-          - "gray"
+        - blue
+        - gold
+        - gray
         ui:
           group: Author
         description: Checkmark color. blue = individual, gold = business/organization, gray = government/multilateral.
-
       avatar_initials:
-        title: Avatar initials
         type: string
         required: true
-        examples:
-          - "PP"
-          - "JD"
+        example: PP
         ui:
           group: Author
         description: 1–2 character initials rendered inside a colored avatar circle.
-
       avatar_color:
-        title: Avatar background color
         type: string
-        default: "#1D9BF0"
-        examples:
-          - "#1D9BF0"
-          - "#FF4500"
+        default: '#1D9BF0'
+        example: '#1D9BF0'
         ui:
           group: Author
         description: Hex color for the avatar circle background.
-
       timestamp:
-        title: Timestamp
         type: string
         required: true
-        examples:
-          - "4:12 PM · Apr 15, 2026"
-          - "2h"
+        example: 4:12 PM · Apr 15, 2026
         ui:
           group: Post
         description: Freeform timestamp string. Relative ("2h") for feed context, absolute for permalink-style posts.
-
       reply_count:
-        title: Reply count
         type: string
-        default: ""
-        examples:
-          - "1234"
+        default: ''
+        example: '1234'
         ui:
           group: Engagement
         description: Integer count. Template formats compactly (1.2K). Leave empty or "0" to hide.
-
       repost_count:
-        title: Repost count
         type: string
-        default: ""
+        default: ''
         ui:
           group: Engagement
         description: Integer count of reposts (retweets). Leave empty to hide.
-
       quote_count:
-        title: Quote-tweet count
         type: string
-        default: ""
+        default: ''
         ui:
           group: Engagement
         description: Integer count of quote tweets. Reserved for future use.
-
       like_count:
-        title: Like count
         type: string
-        default: ""
+        default: ''
         ui:
           group: Engagement
         description: Integer count of likes.
-
       bookmark_count:
-        title: Bookmark count
         type: string
-        default: ""
+        default: ''
         ui:
           group: Engagement
         description: Integer count of bookmarks.
-
       view_count:
-        title: View count
         type: string
-        default: ""
+        default: ''
         ui:
           group: Engagement
-        description: "Integer count of views. Realism guide: views ≈ 20–100× likes for organic posts."
-
+        description: 'Integer count of views. Realism guide: views ≈ 20–100× likes for organic posts.'
       client:
-        title: Client
         type: string
-        default: ""
-        examples:
-          - "X for iPhone"
-          - "Web"
+        default: ''
+        example: X for iPhone
         ui:
           group: Post
         description: Source client label (shown below engagement bar if set).
-
       community_note:
-        title: Community Note
         type: string
-        default: ""
+        default: ''
         ui:
           group: Post
         description: Text of a Community Note rendered as a rounded card above the engagement bar. Leave empty to omit.
-
       pinned:
-        title: Pinned
         type: string
-        default: "false"
+        default: 'false'
         enum:
-          - "true"
-          - "false"
+        - 'true'
+        - 'false'
         ui:
           group: Post
         description: Show a "📌 Pinned" indicator above the post.
-
   reply:
-    title: Reply to a post
     description: A reply card attached to a post by its 0-based index. One level of replies only.
     fields:
       belongs_to_post_index:
-        title: Parent post index (0-based)
         type: number
         required: true
-        examples:
-          - 0
+        example: 0
         ui:
           group: Threading
         description: Zero-based index of the `post` card this reply is attached to.
-
       replying_to_handles:
-        title: Replying-to handles
         type: string
-        default: ""
-        examples:
-          - "PentagonPresSec"
-          - "alice,bob"
+        default: ''
+        example: PentagonPresSec
         ui:
           group: Threading
         description: Comma-separated handles (no @). Renders as "Replying to @a, @b and @c".
-
       display_name:
-        title: Display name
         type: string
         required: true
         ui:
           group: Author
         description: Reply author display name.
-
       handle:
-        title: Handle
         type: string
         required: true
         ui:
           group: Author
-
       verified:
-        title: Verified
         type: string
-        default: "false"
+        default: 'false'
         enum:
-          - "true"
-          - "false"
+        - 'true'
+        - 'false'
         ui:
           group: Author
-
       verified_type:
-        title: Verification type
         type: string
-        default: "blue"
+        default: blue
         enum:
-          - "blue"
-          - "gold"
-          - "gray"
+        - blue
+        - gold
+        - gray
         ui:
           group: Author
-
       avatar_initials:
-        title: Avatar initials
         type: string
         required: true
         ui:
           group: Author
-
       avatar_color:
-        title: Avatar background
         type: string
-        default: "#1D9BF0"
+        default: '#1D9BF0'
         ui:
           group: Author
-
       timestamp:
-        title: Timestamp
         type: string
         required: true
         ui:
           group: Post
-
       reply_count:
-        title: Reply count
         type: string
-        default: ""
+        default: ''
         ui:
           group: Engagement
-
       repost_count:
-        title: Repost count
         type: string
-        default: ""
+        default: ''
         ui:
           group: Engagement
-
       like_count:
-        title: Like count
         type: string
-        default: ""
+        default: ''
         ui:
           group: Engagement
-
       view_count:
-        title: View count
         type: string
-        default: ""
+        default: ''
         ui:
           group: Engagement
-
       bookmark_count:
-        title: Bookmark count
         type: string
-        default: ""
+        default: ''
         ui:
           group: Engagement
-
       community_note:
-        title: Community Note
         type: string
-        default: ""
+        default: ''
         ui:
           group: Post
-
   quoted_tweet:
-    title: Nested quoted tweet
     description: A quoted tweet rendered as a nested card inside a post or reply. Attach by `attached_to` + `belongs_to_post_index`.
     fields:
       attached_to:
-        title: Attached to
         type: string
-        default: "post"
+        default: post
         enum:
-          - "post"
-          - "reply"
+        - post
+        - reply
         ui:
           group: Threading
         description: Whether this quote appears inside a top-level post or a reply.
-
       belongs_to_post_index:
-        title: Parent index (0-based)
         type: number
         required: true
         ui:
           group: Threading
         description: Zero-based index of the parent post (if attached_to=post) or reply (if attached_to=reply).
-
       display_name:
-        title: Display name
         type: string
         required: true
         ui:
           group: Author
-
       handle:
-        title: Handle
         type: string
         required: true
         ui:
           group: Author
-
       verified:
-        title: Verified
         type: string
-        default: "false"
+        default: 'false'
         enum:
-          - "true"
-          - "false"
+        - 'true'
+        - 'false'
         ui:
           group: Author
-
       verified_type:
-        title: Verification type
         type: string
-        default: "blue"
+        default: blue
         enum:
-          - "blue"
-          - "gold"
-          - "gray"
+        - blue
+        - gold
+        - gray
         ui:
           group: Author
-
       avatar_initials:
-        title: Avatar initials
         type: string
         required: true
         ui:
           group: Author
-
       avatar_color:
-        title: Avatar background
         type: string
-        default: "#1D9BF0"
+        default: '#1D9BF0'
         ui:
           group: Author
-
       timestamp:
-        title: Timestamp
         type: string
         required: true
         ui:

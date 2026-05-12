@@ -64,13 +64,13 @@ describe('integration', () => {
     );
 
     const specs = await getSpecs(quiver, engine, 'usaf_memo');
-    assert.equal(typeof specs.schema, 'string');
-    assert.ok(specs.schema.length > 0);
-    assert.equal(specs.instructions, 'Keep tone formal.');
+    assert.equal(typeof specs.instruction, 'string');
+    assert.ok(specs.instruction.length > 0);
+    assert.equal(typeof specs.blueprint, 'string');
 
     const strategy = {
       async handle(quill, doc) {
-        assert.equal(quill.metadata.schema.name, 'usaf_memo');
+        assert.equal(quill.metadata.name, 'usaf_memo');
         assert.equal(doc.quillRef, 'usaf_memo');
         return { status: 'success', url: 'https://example.com/out.pdf' };
       },

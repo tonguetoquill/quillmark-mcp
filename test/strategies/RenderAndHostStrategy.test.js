@@ -10,11 +10,11 @@ import { RenderAndHostStrategy } from '../../src/strategies/RenderAndHostStrateg
 
 /**
  * Minimal `Quill` test double exposing only what RenderAndHostStrategy uses:
- * `metadata.schema.name` for filename derivation and `render(doc, opts)`.
+ * `metadata.name` for filename derivation and `render(doc, opts)`.
  */
 function makeQuill({ name = 'test_quill', render }) {
   return {
-    metadata: { schema: { name } },
+    metadata: { name },
     render,
   };
 }

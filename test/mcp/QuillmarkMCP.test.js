@@ -33,13 +33,13 @@ class FakeQuiver {
     this.getQuillCalls = [];
     this.quills = {
       default: {
+        schema: {
+          main: { fields: {} },
+        },
+        blueprint: 'Write like this.',
         metadata: {
+          name: 'usaf_memo',
           description: 'USAF memo format',
-          schema: {
-            name: 'usaf_memo',
-            main: { fields: {} },
-            example: 'Write like this.',
-          },
         },
       },
     };
@@ -76,7 +76,7 @@ describe('QuillmarkMCP', () => {
     const { server } = make();
     const tool = server.tools.find((t) => t.name === 'get_specs');
     assert.ok(tool);
-    assert.match(tool.description, /Get the schema and authoring instructions for a specific Quill format/);
+    assert.match(tool.description, /Get the composing instruction and blueprint for a specific Quill format/);
     assert.deepStrictEqual(tool.parameters.parse({ ref: 'usaf_memo' }), { ref: 'usaf_memo' });
     assert.throws(() => tool.parameters.parse({}), /Invalid input/);
   });
@@ -109,14 +109,15 @@ describe('QuillmarkMCP', () => {
     ]);
   });
 
-  it('get_specs tool returns schema and instructions for a valid ref', async () => {
+  it('get_specs tool returns instruction and blueprint for a valid ref', async () => {
     const { server } = make();
 
     const tool = server.tools.find((t) => t.name === 'get_specs');
     const result = await tool.execute({ ref: 'usaf_memo' });
 
-    assert.equal(typeof result.schema, 'string');
-    assert.equal(result.instructions, 'Write like this.');
+    assert.equal(typeof result.instruction, 'string');
+    assert.ok(result.instruction.includes('usaf_memo'));
+    assert.equal(result.blueprint, 'Write like this.');
   });
 
   it('create_document tool delegates to strategy with (quill, doc) and returns result', async () => {
@@ -131,7 +132,7 @@ describe('QuillmarkMCP', () => {
     const result = await tool.execute({ content: '---\nQUILL: usaf_memo\n---\nBody' });
 
     assert.deepStrictEqual(result, { status: 'success', url: 'https://example.com/doc.pdf' });
-    assert.equal(captured.quill.metadata.schema.name, 'usaf_memo');
+    assert.equal(captured.quill.metadata.name, 'usaf_memo');
     assert.equal(captured.doc.quillRef, 'usaf_memo');
   });
 

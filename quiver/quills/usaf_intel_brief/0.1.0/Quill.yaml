@@ -1,329 +1,242 @@
 quill:
   name: usaf_intel_brief
-  version: "0.1.0"
+  version: 0.1.0
   backend: typst
   plate_file: plate.typ
   example_file: example.md
-  description: "USAF/DoD intelligence briefing (landscape 16:9) with CAPCO classification markings, ICD 203 confidence doctrine, AF Style Briefing layout. Author-controlled classification; opt-in notional/EXERCISE mode."
-
+  description: USAF/DoD intelligence briefing (landscape 16:9) with CAPCO classification markings, ICD 203 confidence doctrine, AF Style Briefing layout. Author-controlled classification; opt-in notional/EXERCISE mode.
 main:
   fields:
     classification:
-      title: Overall classification
       type: string
       required: true
       enum:
-        - "UNCLASSIFIED"
-        - "CUI"
-        - "CONFIDENTIAL"
-        - "SECRET"
-        - "TOP SECRET"
-      examples:
-        - "SECRET"
+      - UNCLASSIFIED
+      - CUI
+      - CONFIDENTIAL
+      - SECRET
+      - TOP SECRET
+      example: SECRET
       ui:
         group: Classification
-      description: "Primary classification level. SCI/SAP compartments go in classification_caveats (template detects SCI keywords)."
-
+      description: Primary classification level. SCI/SAP compartments go in classification_caveats (template detects SCI keywords).
     classification_caveats:
-      title: Caveats / dissemination controls
       type: string
-      default: ""
-      examples:
-        - "NOFORN"
-        - "REL TO USA, FVEY"
-        - "SI//NOFORN"
-        - "NOFORN//ORCON"
+      default: ''
+      example: NOFORN
       ui:
         group: Classification
-      description: "CAPCO caveats, separated by //. Template enforces canonical ordering (NOFORN > REL TO > RELIDO > ORCON > PROPIN > FISA). Unknown caveats kept in author order."
-
+      description: CAPCO caveats, separated by //. Template enforces canonical ordering (NOFORN > REL TO > RELIDO > ORCON > PROPIN > FISA). Unknown caveats kept in author order.
     notional:
-      title: Notional / exercise overlay
       type: string
-      default: "false"
+      default: 'false'
       enum:
-        - "true"
-        - "false"
+      - 'true'
+      - 'false'
       ui:
         group: Classification
-      description: 'Opt-in. "true" adds EXERCISE — EXERCISE — EXERCISE strap above and below banners and a diagonal NOTIONAL watermark on every slide. Leave "false" for real products.'
-
+      description: Opt-in. "true" adds EXERCISE — EXERCISE — EXERCISE strap above and below banners and a diagonal NOTIONAL watermark on every slide. Leave "false" for real products.
     exercise_name:
-      title: Exercise codename
       type: string
-      default: ""
-      examples:
-        - "EXERCISE TANAGER FORGE 26-01"
+      default: ''
+      example: EXERCISE TANAGER FORGE 26-01
       ui:
         group: Classification
       description: Codename shown in the EXERCISE strap (only when notional=true).
-
     brief_title:
-      title: Brief title
       type: string
       required: true
-      examples:
-        - "Adversary Air Order of Battle — 24-Hour Update"
+      example: Adversary Air Order of Battle — 24-Hour Update
       ui:
         group: Title
       description: Main title of the brief.
-
     subtitle:
-      title: Subtitle
       type: string
-      default: ""
+      default: ''
       ui:
         group: Title
-
     briefer:
-      title: Briefer (rank, name, unit)
       type: string
       required: true
-      examples:
-        - "Capt J. Doe, 673 ABW/A2"
+      example: Capt J. Doe, 673 ABW/A2
       ui:
         group: Title
-
     prepared_for:
-      title: Audience
       type: string
       required: true
-      examples:
-        - "COMUSPACAF"
+      example: COMUSPACAF
       ui:
         group: Title
-
     dtg:
-      title: Date-time group (DDHHMMZMMMYY)
       type: string
       required: true
-      examples:
-        - "151400ZAPR26"
+      example: 151400ZAPR26
       ui:
         group: Title
-      description: "Joint DTG format: DD HHMM Z MMM YY. Always Zulu for intel products."
-
+      description: 'Joint DTG format: DD HHMM Z MMM YY. Always Zulu for intel products.'
     unit:
-      title: Preparing unit (footer)
       type: string
       required: true
-      examples:
-        - "673 ABW/A2"
+      example: 673 ABW/A2
       ui:
         group: Title
-
     classified_by:
-      title: "Classified By"
       type: string
-      default: ""
+      default: ''
       ui:
         group: Authority
-
     derived_from:
-      title: "Derived From"
       type: string
-      default: ""
+      default: ''
       ui:
         group: Authority
-
     declassify_on:
-      title: "Declassify On"
       type: string
-      default: ""
-      examples:
-        - "20510415"
-        - "50X1-HUM"
+      default: ''
+      example: '20510415'
       ui:
         group: Authority
-
     reason:
-      title: "Reason (original classification)"
       type: string
-      default: ""
+      default: ''
       ui:
         group: Authority
-      description: "For original classification decisions only (cites EO 13526 §1.4 categories). Leave empty for derivative."
-
+      description: For original classification decisions only (cites EO 13526 §1.4 categories). Leave empty for derivative.
     left_seal:
-      title: Left seal filename
       type: string
-      default: "usaf_seal.svg"
+      default: usaf_seal.svg
       ui:
         group: Seals
       description: Filename under assets/. Defaults to bundled USAF seal. Author may drop unit/MAJCOM seal into assets/ and reference by filename.
-
     center_seal:
-      title: Center seal filename
       type: string
-      default: "dod_seal.svg"
+      default: dod_seal.svg
       ui:
         group: Seals
-
     right_seal:
-      title: Right seal filename
       type: string
-      default: ""
+      default: ''
       ui:
         group: Seals
-      description: "Optional. Use ussf_seal.svg for Space Force briefs, or a command emblem."
-
+      description: Optional. Use ussf_seal.svg for Space Force briefs, or a command emblem.
     wordmark:
-      title: Wordmark filename
       type: string
-      default: "usaf_wordmark.svg"
+      default: usaf_wordmark.svg
       ui:
         group: Seals
-
     show_wordmark:
-      title: Show wordmark on title slide
       type: string
-      default: "true"
+      default: 'true'
       enum:
-        - "true"
-        - "false"
+      - 'true'
+      - 'false'
       ui:
         group: Seals
-
 card_types:
   slide:
-    title: Content slide
-    description: "A single content slide. Use `slide_type` to invoke a doctrine-specific layout (bluf, confidence, mlcoa, mdcoa, etc.)."
+    description: A single content slide. Use `slide_type` to invoke a doctrine-specific layout (bluf, confidence, mlcoa, mdcoa, etc.).
     fields:
       slide_type:
-        title: Slide type
         type: string
-        default: "generic"
+        default: generic
         enum:
-          - "generic"
-          - "bluf"
-          - "situation"
-          - "threat_assessment"
-          - "ob"
-          - "mlcoa"
-          - "mdcoa"
-          - "iw"
-          - "impact"
-          - "gaps"
-          - "confidence"
+        - generic
+        - bluf
+        - situation
+        - threat_assessment
+        - ob
+        - mlcoa
+        - mdcoa
+        - iw
+        - impact
+        - gaps
+        - confidence
         ui:
           group: Layout
-        description: "Layout hint. bluf → BLUF box; confidence → ICD 203 likelihood+confidence block; mlcoa/mdcoa → COA layout."
-
+        description: Layout hint. bluf → BLUF box; confidence → ICD 203 likelihood+confidence block; mlcoa/mdcoa → COA layout.
       portion:
-        title: Default portion mark
         type: string
-        default: "U"
-        examples:
-          - "U"
-          - "CUI"
-          - "S"
-          - "S//NF"
-          - "TS//SI//NF"
+        default: U
+        example: U
         ui:
           group: Classification
-        description: "Portion mark applied to bullets/captions that don't specify their own. Bare letters; template wraps in parens."
-
+        description: Portion mark applied to bullets/captions that don't specify their own. Bare letters; template wraps in parens.
       title:
-        title: Slide title
         type: string
         required: true
         ui:
           group: Content
-        description: "Supports inline `**bold**` emphasis. Title bars are already bold; markers are stripped so literal asterisks do not render."
-
+        description: Supports inline `**bold**` emphasis. Title bars are already bold; markers are stripped so literal asterisks do not render.
       bullets:
-        title: Bullets (markdown-ish)
         type: string
-        default: ""
+        default: ''
         ui:
           group: Content
-        description: "One bullet per line. Prefix with `- ` (L1), `* ` (L2), `– ` (L3), `◦ ` (L4) to set level. Supports inline `**bold**` emphasis. Each bullet should lead with its own (PORTION) mark; if missing, template prepends the slide default. AF Style Briefing guidance: ≤7 bullets, ≤50 words per slide."
-
+        description: 'One bullet per line. Prefix with `- ` (L1), `* ` (L2), `– ` (L3), `◦ ` (L4) to set level. Supports inline `**bold**` emphasis. Each bullet should lead with its own (PORTION) mark; if missing, template prepends the slide default. AF Style Briefing guidance: ≤7 bullets, ≤50 words per slide.'
       bluf:
-        title: BLUF (Bottom Line Up Front)
         type: string
-        default: ""
+        default: ''
         ui:
           group: Content
-        description: "Shown as a red-rule call-out when slide_type=bluf. Supports inline `**bold**` emphasis."
-
+        description: Shown as a red-rule call-out when slide_type=bluf. Supports inline `**bold**` emphasis.
       likelihood_text:
-        title: Likelihood assessment
         type: string
-        default: ""
-        examples:
-          - "Likely"
-          - "Very likely"
-          - "Almost certainly"
+        default: ''
+        example: Likely
         ui:
           group: Content
-        description: "Per ICD 203 — e.g., Almost certainly / Very likely / Likely / Roughly even chance / Unlikely / Very unlikely / Almost no chance."
-
+        description: Per ICD 203 — e.g., Almost certainly / Very likely / Likely / Roughly even chance / Unlikely / Very unlikely / Almost no chance.
       confidence_text:
-        title: Confidence level
         type: string
-        default: ""
+        default: ''
         enum:
-          - ""
-          - "High"
-          - "Moderate"
-          - "Low"
+        - ''
+        - High
+        - Moderate
+        - Low
         ui:
           group: Content
-        description: "Analyst confidence per ICD 203. Distinct from likelihood."
-
+        description: Analyst confidence per ICD 203. Distinct from likelihood.
       notes:
-        title: Speaker / analyst note
         type: string
-        default: ""
+        default: ''
         ui:
           group: Content
-        description: "Rendered as a small italicized block at the bottom of the slide. Supports inline `**bold**` emphasis."
-
+        description: Rendered as a small italicized block at the bottom of the slide. Supports inline `**bold**` emphasis.
       severity:
-        title: Threat severity
         type: string
-        default: ""
+        default: ''
         enum:
-          - ""
-          - "low"
-          - "moderate"
-          - "high"
-          - "critical"
+        - ''
+        - low
+        - moderate
+        - high
+        - critical
         ui:
           group: Context
         description: Optional threat-severity badge shown top-right on the title bar.
-
   image_slide:
-    title: Image slide
     description: A slide showing an image (map overlay, chart, photo) with a portion-marked caption.
     fields:
       portion:
-        title: Portion mark
         type: string
-        default: "U"
+        default: U
         ui:
           group: Classification
-
       title:
-        title: Slide title
         type: string
         required: true
         ui:
           group: Content
-        description: "Supports inline `**bold**` emphasis. Title bars are already bold; markers are stripped so literal asterisks do not render."
-
+        description: Supports inline `**bold**` emphasis. Title bars are already bold; markers are stripped so literal asterisks do not render.
       image_path:
-        title: Image filename (under assets/)
         type: string
         required: true
         ui:
           group: Content
-
       caption:
-        title: Caption
         type: string
-        default: ""
+        default: ''
         ui:
           group: Content
-        description: "Supports inline `**bold**` emphasis."
+        description: Supports inline `**bold**` emphasis.
