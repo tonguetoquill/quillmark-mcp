@@ -1,8 +1,8 @@
 # Quillmark MCP — Multi-Model Compatibility Evaluation
 
-**Date:** 2026-05-12
-**Models evaluated:** llama-3.1-8b-instant, meta-llama/llama-4-scout-17b-16e-instruct, qwen/qwen3-32b
-**Quill formats available:** cnn_news_article, discord_chat, nyt_news_article, static_analysis_report, usaf_intel_brief, usaf_memo, x_post
+- **Date:** 2026-05-12
+- **Models evaluated:** llama-3.1-8b-instant, meta-llama/llama-4-scout-17b-16e-instruct, qwen/qwen3-32b
+- **Quill formats available:** cnn_news_article, discord_chat, nyt_news_article, static_analysis_report, usaf_intel_brief, usaf_memo, x_post
 
 This report evaluates how well popular open-source models interact with the Quillmark MCP tool suite (`list_quills`, `get_specs`, `create_document`). Each scenario is run end-to-end: the model receives a natural-language task, calls tools as needed, and is scored on whether it produced a valid result.
 
