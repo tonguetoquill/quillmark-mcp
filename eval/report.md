@@ -48,16 +48,7 @@ This report evaluates how well popular open-source models interact with the Quil
 
 | Model | Result | Tool Sequence | Turns | Notes |
 |-------|--------|---------------|-------|-------|
-| `llama-3.1-8b-instant` | ❌ Fail | list_quills → get_specs → get_specs → create_document → create_document → create_document | 6 | create_document failed — YAML error at line 1 (block 0): error: line 20 column 1: simple key expect ':'
-  --> <input>:20:1
-   \|
-18 \| I am writing to request approval for an off-installation morale e…
-19 \|
-20 \| I have attached a detailed plan for the event, including the loca…
-   \| ^ simple key expect ':'
-21 \|
-22 \| Please let me know if you require any additional information or i…
-   \| |
+| `llama-3.1-8b-instant` | ❌ Fail | list_quills → get_specs → get_specs → create_document → create_document → create_document | 6 | create_document failed — YAML error at line 1 (block 0): error: line 20 column 1: simple key expect ':'...|
 | `meta-llama/llama-4-scout-17b-16e-instruct` | ❌ Fail | get_specs → create_document → create_document → create_document | 5 | create_document failed — QUILL: is required in frontmatter to select the Quill format. |
 | `qwen/qwen3-32b` | ❌ Fail | get_specs | 2 | Did not call create_document |
 
