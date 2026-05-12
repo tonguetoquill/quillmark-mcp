@@ -64,9 +64,9 @@ describe('integration', () => {
     );
 
     const specs = await getSpecs(quiver, engine, 'usaf_memo');
-    assert.equal(typeof specs.schema, 'string');
-    assert.ok(specs.schema.length > 0);
-    assert.equal(typeof specs.instructions, 'string');
+    assert.equal(typeof specs.instruction, 'string');
+    assert.ok(specs.instruction.length > 0);
+    assert.equal(typeof specs.blueprint, 'string');
 
     const strategy = {
       async handle(quill, doc) {

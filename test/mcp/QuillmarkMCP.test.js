@@ -76,7 +76,7 @@ describe('QuillmarkMCP', () => {
     const { server } = make();
     const tool = server.tools.find((t) => t.name === 'get_specs');
     assert.ok(tool);
-    assert.match(tool.description, /Get the schema and authoring instructions for a specific Quill format/);
+    assert.match(tool.description, /Get the composing instruction and blueprint for a specific Quill format/);
     assert.deepStrictEqual(tool.parameters.parse({ ref: 'usaf_memo' }), { ref: 'usaf_memo' });
     assert.throws(() => tool.parameters.parse({}), /Invalid input/);
   });
@@ -109,14 +109,15 @@ describe('QuillmarkMCP', () => {
     ]);
   });
 
-  it('get_specs tool returns schema and instructions for a valid ref', async () => {
+  it('get_specs tool returns instruction and blueprint for a valid ref', async () => {
     const { server } = make();
 
     const tool = server.tools.find((t) => t.name === 'get_specs');
     const result = await tool.execute({ ref: 'usaf_memo' });
 
-    assert.equal(typeof result.schema, 'string');
-    assert.equal(result.instructions, 'Write like this.');
+    assert.equal(typeof result.instruction, 'string');
+    assert.ok(result.instruction.includes('usaf_memo'));
+    assert.equal(result.blueprint, 'Write like this.');
   });
 
   it('create_document tool delegates to strategy with (quill, doc) and returns result', async () => {

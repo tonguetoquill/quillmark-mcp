@@ -13,7 +13,7 @@ import { getErrorMessage } from '../errors.js';
 /** @private */
 const LIST_QUILLS_DESCRIPTION = 'List available Quill formats with names and descriptions. A Quill format is a schematized document template for Quillmark. Call this when you need to discover which format to use. Returns an array of { name, description } objects. Returns an empty list if no Quill formats are available.';
 /** @private */
-const GET_SPECS_DESCRIPTION = 'Get the schema and authoring instructions for a specific Quill format. Returns a TOON-encoded schema (token-efficient for LLM consumption) and authoring instructions bundled with that format. Use the returned schema to structure your content and follow the authoring instructions for content guidance.';
+const GET_SPECS_DESCRIPTION = 'Get the composing instruction and blueprint for a specific Quill format. Returns a concise instruction explaining how to compose a document, plus the blueprint that specifies the required YAML fields and markdown body structure. Use both to write the content string passed to create_document.';
 /** @private */
 const CREATE_DOCUMENT_DESCRIPTION = 'Create a document from Quillmark content. Input must be a string containing YAML frontmatter with a QUILL: field (selecting the Quill format) and a markdown body. If QUILL: is missing from frontmatter, returns an error with guidance — fix the content and retry. Returns { status, url?, errors? }.';
 

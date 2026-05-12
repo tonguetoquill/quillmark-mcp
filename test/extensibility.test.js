@@ -64,9 +64,9 @@ describe('extensibility — new quills auto-discover without code changes', () =
     assert.ok(names.includes('my_custom_quill'), `new quill not discovered: ${names.join(',')}`);
   });
 
-  it('getSpecs returns a schema for the newly-added quill', async () => {
+  it('getSpecs returns instruction and blueprint for the newly-added quill', async () => {
     const specs = await getSpecs(mcp.quiver, mcp.engine, 'my_custom_quill');
-    assert.equal(typeof specs.schema, 'string');
-    assert.ok(specs.schema.length > 0);
+    assert.equal(typeof specs.instruction, 'string');
+    assert.ok(specs.instruction.length > 0);
   });
 });
