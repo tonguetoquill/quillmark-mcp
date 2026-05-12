@@ -20,7 +20,7 @@
     "test": "node --test",
     "test:docker": "./scripts/docker-test.sh",
     "test:install": "./scripts/test-mcp-install.sh",
-    "start": "node src/bin.js",
+    "start": "QUILLMARK_BIND=127.0.0.1:8080 node src/bin.js",
     "install:mcp": "./scripts/install-mcp.sh",
     "uninstall:mcp": "./scripts/uninstall-mcp.sh",
     "claude:reset": "./scripts/claude-reset.sh",
