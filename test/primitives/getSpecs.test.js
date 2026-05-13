@@ -1,18 +1,3 @@
-/**
- * @module test/primitives/getSpecs
- *
- * Tests for the {@link getSpecs} primitive.
- *
- * Covers:
- * - Happy path: resolves ref, returns instruction and blueprint
- * - Error propagation for unknown/invalid quill refs
- * - Error propagation when the quiver itself fails
- * - Blueprint passthrough (returned verbatim)
- * - Empty blueprint when blueprint is absent
- *
- * Stubs: a fake `quiver` with `getQuill()` returning a stub `quill` whose
- * shape mirrors `@quillmark/wasm` 0.77.0 (`schema`, `blueprint`, `metadata`).
- */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -90,5 +75,10 @@ describe('getSpecs', () => {
     const result = await getSpecs(quiver, STUB_ENGINE, 'sitrep');
 
     assert.strictEqual(result.blueprint, blueprint);
+  });
+
+  it('rejects empty string refs', async () => {
+    const quiver = makeQuiver(async () => assert.fail('should not call'));
+    await assert.rejects(() => getSpecs(quiver, STUB_ENGINE, '   '), /non-empty string/);
   });
 });

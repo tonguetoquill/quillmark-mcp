@@ -1,14 +1,3 @@
-/**
- * @module extensibility.test
- * @description Proves the "drop a quill directory and it just works" invariant.
- *
- * Builds a fresh Quiver source layout in a tempdir (Quiver.yaml +
- * quills/<name>/<version>/...), copies the fixture quill in under a fresh
- * name, boots createDefaultMCP against that tempdir, and confirms
- * listQuills surfaces the new quill and getSpecs returns its schema —
- * with zero code changes.
- */
-
 import assert from 'node:assert/strict';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -49,7 +38,7 @@ describe('extensibility — new quills auto-discover without code changes', () =
       manifest.replace(/name:\s*usaf_memo/, 'name: my_custom_quill'),
     );
 
-    const strategy = { async handle() { return { status: 'success', url: 'stub' }; } };
+    const strategy = { async handle() { return { url: 'stub', mimeType: 'application/pdf' }; } };
     mcp = await createDefaultMCP({ quiverDir: tempQuiverDir, strategy });
   });
 

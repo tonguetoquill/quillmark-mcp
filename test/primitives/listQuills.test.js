@@ -1,17 +1,3 @@
-/**
- * @module test/primitives/listQuills
- *
- * Tests for the {@link listQuills} primitive.
- *
- * Covers:
- * - Projection of quill names + descriptions from materialized Quill metadata
- * - Empty quiver handling (returns [])
- * - Quiver error resilience (returns [])
- * - Per-quill failure isolation (broken quill yields empty description)
- * - Missing description normalization
- *
- * Stubs: a fake `quiver` exposing `quillNames()` and `getQuill(name, { engine })`.
- */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -24,11 +10,12 @@ function makeQuiver({ names = () => [], getQuill = async () => ({ metadata: {} }
 }
 
 describe('listQuills', () => {
-  it('returns name + description pulled from each quill metadata', async () => {
+  it('returns name + version + description pulled from each quill metadata', async () => {
     const quiver = makeQuiver({
       names: () => ['usaf_memo', 'sitrep'],
       getQuill: async (name) => ({
         metadata: {
+          version: name === 'usaf_memo' ? '1.0.0' : '0.1.0',
           description: name === 'usaf_memo' ? 'USAF memo format' : 'Situation report',
         },
       }),
@@ -37,8 +24,8 @@ describe('listQuills', () => {
     const result = await listQuills(quiver, STUB_ENGINE);
 
     assert.deepStrictEqual(result, [
-      { name: 'usaf_memo', description: 'USAF memo format' },
-      { name: 'sitrep', description: 'Situation report' },
+      { name: 'usaf_memo', version: '1.0.0', description: 'USAF memo format' },
+      { name: 'sitrep', version: '0.1.0', description: 'Situation report' },
     ]);
   });
 
@@ -57,36 +44,35 @@ describe('listQuills', () => {
       names: () => ['ok', 'broken', 'also_ok'],
       getQuill: async (name) => {
         if (name === 'broken') throw new Error('load failed');
-        return { metadata: { description: `desc-${name}` } };
+        return { metadata: { version: '1.0.0', description: `desc-${name}` } };
       },
     });
 
     const result = await listQuills(quiver, STUB_ENGINE);
 
     assert.deepStrictEqual(result, [
-      { name: 'ok', description: 'desc-ok' },
-      { name: 'broken', description: '' },
-      { name: 'also_ok', description: 'desc-also_ok' },
+      { name: 'ok', version: '1.0.0', description: 'desc-ok' },
+      { name: 'broken', version: '', description: '' },
+      { name: 'also_ok', version: '1.0.0', description: 'desc-also_ok' },
     ]);
   });
 
-  it('normalizes missing or non-string descriptions to empty strings', async () => {
+  it('normalizes missing or non-string metadata fields to empty strings', async () => {
     const quiver = makeQuiver({
       names: () => ['no_metadata', 'no_description', 'numeric_description'],
       getQuill: async (name) => {
         if (name === 'no_metadata') return {};
-        if (name === 'no_description') return { metadata: {} };
-        return { metadata: { description: 42 } };
+        if (name === 'no_description') return { metadata: { version: '1.0.0' } };
+        return { metadata: { version: '1.0.0', description: 42 } };
       },
     });
 
     const result = await listQuills(quiver, STUB_ENGINE);
 
-    assert.ok(result.every((entry) => typeof entry.description === 'string'));
     assert.deepStrictEqual(result, [
-      { name: 'no_metadata', description: '' },
-      { name: 'no_description', description: '' },
-      { name: 'numeric_description', description: '' },
+      { name: 'no_metadata', version: '', description: '' },
+      { name: 'no_description', version: '1.0.0', description: '' },
+      { name: 'numeric_description', version: '1.0.0', description: '' },
     ]);
   });
 });

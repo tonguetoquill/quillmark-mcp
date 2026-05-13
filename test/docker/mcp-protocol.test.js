@@ -90,24 +90,21 @@ maybe('Layer 5: MCP protocol compliance (HTTP transport)', () => {
 
   it('tools/call list_quills returns the bundled usaf_memo quill', async () => {
     const result = await client.callTool({ name: 'list_quills', arguments: {} });
-    const text = result.content?.[0]?.text ?? '';
-    const arr = JSON.parse(text);
-    assert.ok(Array.isArray(arr), 'list_quills should return an array');
-    assert.ok(arr.some((q) => q.name === 'usaf_memo'), 'usaf_memo not in list');
+    const quills = result.structuredContent?.quills;
+    assert.ok(Array.isArray(quills), 'list_quills should return a quills array');
+    assert.ok(quills.some((q) => q.name === 'usaf_memo'), 'usaf_memo not in list');
   });
 
   it('tools/call get_specs returns TOON spec + instructions for usaf_memo', async () => {
     const result = await client.callTool({
       name: 'get_specs',
-      arguments: { ref: 'usaf_memo' },
+      arguments: { quill: 'usaf_memo' },
     });
-    const body = result.structuredContent ?? JSON.parse(result.content[0].text);
+    const body = result.structuredContent;
     assert.ok(body, 'get_specs returned nothing');
-    // The spec shape is schema + instructions per src/primitives/getSpecs.js.
-    assert.ok(
-      body.schema || body.spec || body.fields || body.instructions,
-      `unexpected get_specs shape: ${JSON.stringify(body).slice(0, 200)}`,
-    );
+    assert.equal(typeof body.instruction, 'string');
+    assert.equal(typeof body.blueprint, 'string');
+    assert.ok(body.instruction.length > 0);
   });
 
   it('tools/call create_document with valid memo returns an artifact URL', async () => {
@@ -115,37 +112,32 @@ maybe('Layer 5: MCP protocol compliance (HTTP transport)', () => {
       name: 'create_document',
       arguments: { content: exampleMemo },
     });
-    const body = result.structuredContent ?? JSON.parse(result.content[0].text);
-    assert.equal(body.status, 'success', `create failed: ${JSON.stringify(body)}`);
-    assert.match(body.url, /\/artifacts\/[^/]+\.pdf$/, `bad URL ${body.url}`);
+    assert.notEqual(result.isError, true, `create failed: ${JSON.stringify(result)}`);
+    const url = result.structuredContent?.url;
+    assert.match(url ?? '', /\/artifacts\/[^/]+\.pdf$/, `bad URL ${url}`);
   });
 
-  it('tools/call create_document without QUILL field returns structured error', async () => {
+  it('tools/call create_document without QUILL field returns isError', async () => {
     const result = await client.callTool({
       name: 'create_document',
       arguments: { content: '---\nnot_quill: foo\n---\nhello' },
     });
-    const body = result.structuredContent ?? JSON.parse(result.content[0].text);
-    assert.notEqual(body.status, 'success');
-    assert.ok(Array.isArray(body.errors) && body.errors.length > 0, 'errors array missing');
-    assert.match(JSON.stringify(body.errors).toLowerCase(), /quill/);
+    assert.equal(result.isError, true);
+    assert.match((result.content?.[0]?.text ?? '').toLowerCase(), /quill/);
   });
 
-  it('tools/call create_document with unknown quill returns structured error', async () => {
+  it('tools/call create_document with unknown quill returns isError', async () => {
     const result = await client.callTool({
       name: 'create_document',
       arguments: { content: '---\nQUILL: no_such_quill\n---\nhi' },
     });
-    const body = result.structuredContent ?? JSON.parse(result.content[0].text);
-    assert.notEqual(body.status, 'success');
-    assert.ok(Array.isArray(body.errors) && body.errors.length > 0);
+    assert.equal(result.isError, true);
+    assert.match(result.content?.[0]?.text ?? '', /no_such_quill|Unable to resolve/);
   });
 
-  it('tools/call get_specs with unknown ref surfaces a protocol error', async () => {
-    // The SDK routes tool-execution errors through result.isError = true rather
-    // than rejecting the callTool promise, so assert on that channel.
+  it('tools/call get_specs with unknown ref returns isError', async () => {
     const result = await client
-      .callTool({ name: 'get_specs', arguments: { ref: 'ghost' } })
+      .callTool({ name: 'get_specs', arguments: { quill: 'ghost' } })
       .catch((err) => ({ thrown: err }));
     if (result.thrown) {
       assert.match(String(result.thrown.message ?? result.thrown), /ghost|not.*found|unknown/i);
@@ -236,9 +228,9 @@ maybe('Layer 5b2: stateless HTTP supports client reconnects', () => {
         `${label} client saw unexpected tools`,
       );
       const result = await client.callTool({ name: 'list_quills', arguments: {} });
-      const arr = JSON.parse(result.content[0].text);
+      const quills = result.structuredContent?.quills ?? [];
       assert.ok(
-        arr.some((q) => q.name === 'usaf_memo'),
+        quills.some((q) => q.name === 'usaf_memo'),
         `${label} client could not list quills`,
       );
       await client.close();
@@ -305,8 +297,8 @@ maybe('Layer 5c: stdio transport variant', () => {
 
   it('stdio transport can list quills', async () => {
     const result = await client.callTool({ name: 'list_quills', arguments: {} });
-    const arr = JSON.parse(result.content[0].text);
-    assert.ok(arr.some((q) => q.name === 'usaf_memo'));
+    const quills = result.structuredContent?.quills ?? [];
+    assert.ok(quills.some((q) => q.name === 'usaf_memo'));
   });
 });
 
