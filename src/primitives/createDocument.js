@@ -15,7 +15,7 @@ function formatError(message) {
 
 /**
  * Identifies a missing-QUILL parse failure on a thrown Document error.
- * The wasm engine (>=0.66.1) emits a dedicated `parse::missing_quill_field`
+ * The wasm engine (>=0.77.0) emits a dedicated `parse::missing_quill_field`
  * diagnostic; we surface our own friendly wording so MCP clients see a
  * consistent prompt.
  */
