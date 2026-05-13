@@ -1,0 +1,52 @@
+{
+  "_comment": "Example model config. Copy to eval/config.json and edit. Each entry hits an OpenAI-compatible /chat/completions endpoint. `name` is sent as the model id in the request body. `apiKeyEnv` names the env var holding the bearer token. Add `extraHeaders` for providers that need extras (e.g. OpenRouter wants HTTP-Referer).",
+  "models": [
+    {
+      "name": "claude-haiku-4-5",
+      "baseUrl": "https://api.anthropic.com/v1",
+      "apiKeyEnv": "ANTHROPIC_API_KEY",
+      "extraHeaders": { "anthropic-version": "2023-06-01" },
+      "temperature": 0,
+      "maxTokens": 4096
+    },
+    {
+      "name": "openai/gpt-4o-mini",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKeyEnv": "OPENROUTER_API_KEY",
+      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
+      "temperature": 0,
+      "maxTokens": 4096
+    },
+    {
+      "name": "meta-llama/llama-3.1-8b-instruct",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKeyEnv": "OPENROUTER_API_KEY",
+      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
+      "temperature": 0,
+      "maxTokens": 4096
+    },
+    {
+      "name": "qwen/qwen-2.5-7b-instruct",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKeyEnv": "OPENROUTER_API_KEY",
+      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
+      "temperature": 0,
+      "maxTokens": 4096
+    },
+    {
+      "name": "google/gemini-2.0-flash-001",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKeyEnv": "OPENROUTER_API_KEY",
+      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
+      "temperature": 0,
+      "maxTokens": 4096
+    },
+    {
+      "name": "llama-3.1-8b-instant",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "apiKeyEnv": "GROQ_API_KEY",
+      "temperature": 0,
+      "maxTokens": 4096
+    }
+  ]
+}
