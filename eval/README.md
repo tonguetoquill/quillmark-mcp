@@ -71,6 +71,35 @@ Each model entry hits an OpenAI-compatible `/chat/completions` endpoint:
 env var holding the bearer token. `extraHeaders` is optional (e.g. OpenRouter
 likes `HTTP-Referer` / `X-Title`).
 
+## Selecting models
+
+Every entry in the `models` array runs against every prompt × every trial.
+To pick which models to evaluate, edit `eval/config.json` and delete the
+entries you don't want. JSON doesn't support comments, so there's no
+"comment out" — just remove the object.
+
+Suggested workflow:
+
+1. `cp eval/config.example.json eval/config.json` (the gitignored copy).
+2. Open `eval/config.json` and delete every model you don't want to run.
+3. Add new models by appending objects matching the schema above.
+
+The example config ships with a representative low-end set —
+`claude-haiku-4-5`, `gpt-4o-mini`, `llama-3.1-8b-instruct`,
+`qwen-2.5-7b-instruct`, `gemini-2.0-flash`, `llama-3.1-8b-instant`
+(Groq) — so a one-line edit is usually enough.
+
+To try just one model without touching the file, point the harness at a
+one-off config:
+
+```sh
+node -e "
+  const c = require('./eval/config.example.json');
+  console.log(JSON.stringify({ models: c.models.filter(m => m.name === 'meta-llama/llama-3.1-8b-instruct') }, null, 2));
+" > eval/config.json
+node eval/run.js --trials 3
+```
+
 ## API keys
 
 The harness reads the bearer token from the env var named in each model's
