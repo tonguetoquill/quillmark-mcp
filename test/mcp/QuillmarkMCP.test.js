@@ -24,7 +24,7 @@ class FakeServer {
 
 /**
  * In-memory test double for a Quiver. Returns canned quill names + lazy
- * `getQuill` results that mirror the new `@quillmark/wasm` metadata shape.
+ * `getQuill` results that mirror the `@quillmark/wasm` metadata shape.
  */
 class FakeQuiver {
   constructor() {

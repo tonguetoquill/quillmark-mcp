@@ -62,7 +62,7 @@ export class QuillmarkMCP {
    *
    * Tools registered:
    * 1. **list_quills** — Discover available quill formats (no params).
-   * 2. **get_specs** — Retrieve schema + authoring instructions for a quill (param: `ref`).
+   * 2. **get_specs** — Retrieve composing instruction + blueprint for a quill (param: `ref`).
    * 3. **create_document** — Render a document from raw Quillmark content (param: `content`).
    *
    * @private

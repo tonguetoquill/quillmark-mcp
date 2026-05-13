@@ -5,7 +5,7 @@
  *
  * Re-exports the three core operations that MCP tool handlers delegate to:
  * - {@link listQuills} — enumerate available Quill document formats
- * - {@link getSpecs} — retrieve schema + authoring instructions for a Quill
+ * - {@link getSpecs} — retrieve composing instruction + blueprint for a Quill
  * - {@link createDocument} — parse and persist a Quillmark document
  *
  * All primitives take a `(quiver, engine, ...)` prefix from
