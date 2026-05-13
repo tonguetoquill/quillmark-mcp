@@ -78,7 +78,15 @@ export class QuillmarkMCP {
       name: 'get_specs',
       description: 'Learn how to compose a document in a specific quill format. Call before `create_document`.',
       inputSchema: {
-        quill: z.string().min(1).describe('Either base name for latest or `name@version`.'),
+        quill: z
+          .string({
+            error: (issue) =>
+              issue.input === undefined
+                ? 'Missing required field `quill`. Pass either a base name (e.g., `usaf_memo`) or `name@version`.'
+                : 'Field `quill` must be a string (base name or `name@version`).',
+          })
+          .min(1, 'Field `quill` must be non-empty (base name or `name@version`).')
+          .describe('Either base name for latest or `name@version`.'),
       },
       outputSchema: {
         instruction: z.string(),
@@ -103,7 +111,15 @@ export class QuillmarkMCP {
       name: 'create_document',
       description: 'Render a document and return a URL to the rendered artifact. Call `list_quills` then `get_specs` first to learn how to compose `content` for the chosen quill format.',
       inputSchema: {
-        content: z.string().min(1).describe('Document body as quill-compliant markdown with a YAML frontmatter block containing `QUILL: <ref>`. Retrieve the format spec via `get_specs` before composing.'),
+        content: z
+          .string({
+            error: (issue) =>
+              issue.input === undefined
+                ? 'Missing required field `content`. Pass the full document body as a string: YAML frontmatter with `QUILL: <ref>` followed by markdown. Call `get_specs` first to learn the format.'
+                : 'Field `content` must be a string. Pass the full document body: YAML frontmatter with `QUILL: <ref>` followed by markdown.',
+          })
+          .min(1, 'Field `content` must be non-empty. It should contain YAML frontmatter with `QUILL: <ref>` followed by markdown.')
+          .describe('Document body as quill-compliant markdown with a YAML frontmatter block containing `QUILL: <ref>`. Retrieve the format spec via `get_specs` before composing.'),
       },
       execute: async ({ content }) => {
         const result = await createDocument(this.quiver, this.engine, this.strategy, content);

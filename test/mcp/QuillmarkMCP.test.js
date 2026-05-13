@@ -82,12 +82,47 @@ describe('QuillmarkMCP', () => {
     assert.ok(tool.outputSchema?.blueprint);
   });
 
+  it('get_specs surfaces friendly validation messages instead of raw Zod issue codes', () => {
+    const { server } = make();
+    const tool = findTool(server, 'get_specs');
+
+    const missing = tool.inputSchema.quill.safeParse(undefined);
+    assert.equal(missing.success, false);
+    assert.match(missing.error.issues[0].message, /Missing required field `quill`/);
+
+    const wrongType = tool.inputSchema.quill.safeParse(42);
+    assert.equal(wrongType.success, false);
+    assert.match(wrongType.error.issues[0].message, /must be a string/);
+
+    const empty = tool.inputSchema.quill.safeParse('');
+    assert.equal(empty.success, false);
+    assert.match(empty.error.issues[0].message, /non-empty/);
+  });
+
   it('registers create_document with content input', () => {
     const { server } = make();
     const tool = findTool(server, 'create_document');
     assert.match(tool.description, /Render a document/);
     assert.deepStrictEqual(tool.inputSchema.content.parse('---\nQUILL: q\n---\nBody'), '---\nQUILL: q\n---\nBody');
     assert.throws(() => tool.inputSchema.content.parse(''));
+  });
+
+  it('create_document surfaces friendly validation messages instead of raw Zod issue codes', () => {
+    const { server } = make();
+    const tool = findTool(server, 'create_document');
+
+    const missing = tool.inputSchema.content.safeParse(undefined);
+    assert.equal(missing.success, false);
+    assert.match(missing.error.issues[0].message, /Missing required field `content`/);
+    assert.match(missing.error.issues[0].message, /get_specs/);
+
+    const wrongType = tool.inputSchema.content.safeParse(42);
+    assert.equal(wrongType.success, false);
+    assert.match(wrongType.error.issues[0].message, /must be a string/);
+
+    const empty = tool.inputSchema.content.safeParse('');
+    assert.equal(empty.success, false);
+    assert.match(empty.error.issues[0].message, /non-empty/);
   });
 
   it('list_quills returns text + structuredContent.quills from materialized metadata', async () => {
