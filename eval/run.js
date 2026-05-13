@@ -3,9 +3,8 @@
 // records per-run telemetry as JSONL, and is model-agnostic (any
 // OpenAI-compatible endpoint or the built-in --mock provider).
 
-import { spawn } from 'node:child_process';
 import { mkdir, appendFile } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -13,8 +12,17 @@ import { parseArgs } from 'node:util';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
+import { summarize, printTable } from './report.js';
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..');
+
+const CONFIG_PATH = existsSync(path.join(HERE, 'config.json'))
+  ? path.join(HERE, 'config.json')
+  : path.join(HERE, 'config.example.json');
+const PROMPTS_PATH = path.join(HERE, 'prompts.json');
+const MAX_TOOL_CALLS = 12;
+const MAX_CREATE_ATTEMPTS = 5;
 
 const SYSTEM_PROMPT = [
   'You help a user generate a document using the available MCP tools.',
@@ -28,41 +36,29 @@ const SYSTEM_PROMPT = [
 function parseCli() {
   const { values } = parseArgs({
     options: {
-      config: { type: 'string', default: path.join(HERE, 'config.example.json') },
-      prompts: { type: 'string', default: path.join(HERE, 'prompts.json') },
-      out: { type: 'string' },
       trials: { type: 'string', default: '3' },
-      'max-tool-calls': { type: 'string', default: '12' },
-      'max-create-attempts': { type: 'string', default: '5' },
-      'filter-model': { type: 'string' },
-      'filter-prompt': { type: 'string' },
       mock: { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
     },
     strict: true,
   });
   if (values.help) {
-    console.log(`Usage: node eval/run.js [options]
+    console.log(`Usage: node eval/run.js [--mock] [--trials N]
 
-  --config <path>             Model config JSON (default: eval/config.example.json)
-  --prompts <path>            Prompt fixtures JSON (default: eval/prompts.json)
-  --out <path>                JSONL output (default: eval/results/<ts>.jsonl)
-  --trials <n>                Trials per (model, prompt) (default: 3)
-  --max-tool-calls <n>        Hard cap on tool calls per run (default: 12)
-  --max-create-attempts <n>   Cap on create_document attempts per run (default: 5)
-  --filter-model <name>       Run only this model
-  --filter-prompt <id>        Run only this prompt id
-  --mock                      Ignore config; run one built-in happy-path mock model
+  --mock         Skip config; run one built-in happy-path responder
+  --trials N     Trials per (model, prompt) [default: 3]
 
-Env: API keys for each provider come from the env var named in config.apiKeyEnv.`);
+Reads:  eval/config.json (or eval/config.example.json if absent)
+        eval/prompts.json
+Writes: eval/results/<timestamp>.jsonl`);
     process.exit(0);
   }
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
-  values.out ??= path.join(HERE, 'results', `${ts}.jsonl`);
-  values.trials = parseInt(values.trials, 10);
-  values['max-tool-calls'] = parseInt(values['max-tool-calls'], 10);
-  values['max-create-attempts'] = parseInt(values['max-create-attempts'], 10);
-  return values;
+  return {
+    trials: parseInt(values.trials, 10),
+    mock: values.mock,
+    out: path.join(HERE, 'results', `${ts}.jsonl`),
+  };
 }
 
 function loadJson(file) {
@@ -328,39 +324,28 @@ async function main() {
   const args = parseCli();
   await mkdir(path.dirname(args.out), { recursive: true });
 
-  const promptFixtures = loadJson(args.prompts);
-  const prompts = args['filter-prompt']
-    ? promptFixtures.filter((p) => p.id === args['filter-prompt'])
-    : promptFixtures;
-  if (prompts.length === 0) throw new Error('No prompts to run after filtering.');
+  const prompts = loadJson(PROMPTS_PATH);
+  if (prompts.length === 0) throw new Error(`No prompts in ${PROMPTS_PATH}`);
 
-  let models;
-  if (args.mock) {
-    models = [{ name: 'mock://happy-path', mock: true }];
-  } else {
-    const config = loadJson(args.config);
-    models = config.models ?? [];
-    if (args['filter-model']) models = models.filter((m) => m.name === args['filter-model']);
-    if (models.length === 0) throw new Error('No models to run after filtering.');
-  }
+  const models = args.mock
+    ? [{ name: 'mock://happy-path', mock: true }]
+    : (loadJson(CONFIG_PATH).models ?? []);
+  if (models.length === 0) throw new Error(`No models in ${CONFIG_PATH}`);
 
-  // Spawn the MCP server over stdio.
-  const serverCmd = process.execPath;
-  const serverArgs = [path.join(REPO, 'src', 'bin.js'), '--stdio'];
-  const transport = new StdioClientTransport({ command: serverCmd, args: serverArgs });
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [path.join(REPO, 'src', 'bin.js'), '--stdio'],
+  });
   const mcp = new Client({ name: 'quillmark-eval', version: '0.1.0' });
   await mcp.connect(transport);
 
   const { tools } = await mcp.listTools();
   const openaiTools = mcpToolsToOpenAI(tools);
-
-  const limits = {
-    maxToolCalls: args['max-tool-calls'],
-    maxCreateAttempts: args['max-create-attempts'],
-  };
+  const limits = { maxToolCalls: MAX_TOOL_CALLS, maxCreateAttempts: MAX_CREATE_ATTEMPTS };
 
   console.error(`[eval] models=${models.length} prompts=${prompts.length} trials=${args.trials} out=${args.out}`);
 
+  const records = [];
   let runIdx = 0;
   const total = models.length * prompts.length * args.trials;
   for (const model of models) {
@@ -369,12 +354,12 @@ async function main() {
         runIdx += 1;
         const mockResponder = model.mock ? makeMockResponder(prompt.quill) : null;
         const label = `[${runIdx}/${total}] ${model.name} :: ${prompt.id} trial=${trial}`;
+        let record;
         try {
-          const record = await runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResponder });
-          await appendFile(args.out, JSON.stringify(record) + '\n');
+          record = await runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResponder });
           console.error(`${label} -> success=${record.success} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
         } catch (err) {
-          const record = {
+          record = {
             model: model.name,
             promptId: prompt.id,
             trial,
@@ -382,15 +367,17 @@ async function main() {
             harnessError: err.message,
             timestamp: new Date().toISOString(),
           };
-          await appendFile(args.out, JSON.stringify(record) + '\n');
           console.error(`${label} -> harnessError: ${err.message}`);
         }
+        records.push(record);
+        await appendFile(args.out, JSON.stringify(record) + '\n');
       }
     }
   }
 
   await mcp.close();
-  console.error(`[eval] done. wrote ${args.out}`);
+  console.error(`[eval] done. wrote ${args.out}\n`);
+  printTable(summarize(records));
 }
 
 main().catch((err) => {

@@ -34,19 +34,23 @@ node eval/run.js --trials 3
 node eval/report.js eval/results/<timestamp>.jsonl
 ```
 
-Flags worth knowing:
+Flags:
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--config <path>` | `eval/config.example.json` | Model config JSON |
-| `--prompts <path>` | `eval/prompts.json` | Prompt fixtures |
-| `--out <path>` | `eval/results/<ts>.jsonl` | Output file |
-| `--trials <n>` | `3` | Trials per (model, prompt) |
-| `--max-tool-calls <n>` | `12` | Hard cap per run |
-| `--max-create-attempts <n>` | `5` | Cap on `create_document` retries |
-| `--filter-model <name>` | — | Restrict to one model |
-| `--filter-prompt <id>` | — | Restrict to one prompt |
-| `--mock` | off | Ignore config; use built-in mock |
+| `--mock` | off | Skip config; use built-in mock |
+| `--trials N` | `3` | Trials per (model, prompt) |
+
+Everything else is hard-coded for KISS:
+
+- Config: `eval/config.json` (falls back to `eval/config.example.json`)
+- Prompts: `eval/prompts.json`
+- Output: `eval/results/<timestamp>.jsonl`
+- Caps: 12 tool calls and 5 `create_document` attempts per run
+
+Edit those files or the constants at the top of `run.js` to change behavior.
+A summary table prints to stdout at the end of the run — no separate
+`report.js` invocation needed unless you're combining multiple files.
 
 ## Config schema
 

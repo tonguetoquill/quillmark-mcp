@@ -5,6 +5,7 @@
 
 import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
+import { pathToFileURL } from 'node:url';
 
 function parseCli() {
   const { values, positionals } = parseArgs({
@@ -38,7 +39,7 @@ function quantile(sorted, q) {
   return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
 }
 
-function summarize(records) {
+export function summarize(records) {
   const byModel = new Map();
   for (const r of records) {
     if (!byModel.has(r.model)) byModel.set(r.model, []);
@@ -86,7 +87,7 @@ function summarize(records) {
 function fmtPct(x) { return x == null ? '   -' : (x * 100).toFixed(1).padStart(5) + '%'; }
 function fmtNum(x, w = 5) { return x == null ? '-'.padStart(w) : (typeof x === 'number' ? x.toFixed(2) : String(x)).padStart(w); }
 
-function printTable(rows) {
+export function printTable(rows) {
   const headers = ['model', 'n', 'success', 'mean-att', 'med-att', 'p90-att', 'specs1st', 'self-corr', 'mean-tools', 'mean-tok'];
   const widths = [38, 4, 7, 8, 7, 7, 8, 9, 10, 9];
   const fmt = (cells) => cells.map((c, i) => String(c).padEnd(widths[i])).join(' ');
@@ -125,4 +126,6 @@ function main() {
   printTable(rows);
 }
 
-main();
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}
