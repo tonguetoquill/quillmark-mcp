@@ -229,11 +229,12 @@ async function renderOneMemo(container) {
       name: 'create_document',
       arguments: { content: memo },
     });
-    const body = result.structuredContent ?? JSON.parse(result.content?.[0]?.text ?? '{}');
-    if (body.status !== 'success') {
-      throw new Error(`create_document failed: ${JSON.stringify(body)}`);
+    if (result.isError) {
+      throw new Error(`create_document failed: ${result.content?.[0]?.text ?? 'unknown'}`);
     }
-    return body.url;
+    const url = result.structuredContent?.url;
+    if (!url) throw new Error(`create_document missing url: ${JSON.stringify(result)}`);
+    return url;
   } finally {
     await client.close();
   }

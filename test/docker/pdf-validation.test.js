@@ -38,11 +38,12 @@ async function renderMemo(client, content) {
     name: 'create_document',
     arguments: { content },
   });
-  const body = result.structuredContent ?? JSON.parse(result.content[0].text);
-  if (body.status !== 'success') {
-    throw new Error(`create_document failed: ${JSON.stringify(body)}`);
+  if (result.isError) {
+    throw new Error(`create_document failed: ${result.content?.[0]?.text ?? 'unknown'}`);
   }
-  return body.url;
+  const url = result.structuredContent?.url;
+  if (!url) throw new Error(`create_document missing url: ${JSON.stringify(result)}`);
+  return url;
 }
 
 /**
@@ -215,8 +216,7 @@ maybe('Layer 6: PDF fidelity + rendering stress', () => {
       name: 'create_document',
       arguments: { content: '---\nQUILL: usaf_memo\ngarbage yaml: [not-closed\n---\nhi' },
     });
-    const body = result.structuredContent ?? JSON.parse(result.content[0].text);
-    assert.notEqual(body.status, 'success');
+    assert.equal(result.isError, true);
     // Server should still be alive for a follow-up valid render.
     const url = await renderMemo(client, exampleMemo);
     const pdf = await downloadPdf(url);

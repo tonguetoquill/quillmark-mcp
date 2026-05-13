@@ -75,20 +75,19 @@ maybe('Install round-trip', () => {
       name: 'create_document',
       arguments: { content: memo },
     });
-    const body = result.structuredContent ?? JSON.parse(result.content[0].text);
-    assert.equal(body.status, 'success', `render failed: ${JSON.stringify(body)}`);
-    assert.ok(body.url, 'no url in response');
+    assert.notEqual(result.isError, true, `render failed: ${JSON.stringify(result)}`);
+    const url = result.structuredContent?.url;
+    assert.ok(url, 'no url in response');
 
-    // The regression gate: artifact URLs MUST use 127.0.0.1, never 0.0.0.0.
+    // Regression gate: artifact URLs MUST use 127.0.0.1, never 0.0.0.0.
     assert.ok(
-      body.url.startsWith(`http://127.0.0.1:${PORT}/artifacts/`),
-      `expected 127.0.0.1:${PORT} in artifact URL, got ${body.url}`,
+      url.startsWith(`http://127.0.0.1:${PORT}/artifacts/`),
+      `expected 127.0.0.1:${PORT} in artifact URL, got ${url}`,
     );
-    assert.doesNotMatch(body.url, /0\.0\.0\.0/);
+    assert.doesNotMatch(url, /0\.0\.0\.0/);
 
-    // And the URL must actually be fetchable from the host.
-    const res = await fetch(body.url);
-    assert.equal(res.status, 200, `artifact URL ${body.url} returned ${res.status}`);
+    const res = await fetch(url);
+    assert.equal(res.status, 200, `artifact URL ${url} returned ${res.status}`);
     const buf = Buffer.from(await res.arrayBuffer());
     assert.equal(buf.subarray(0, 5).toString('ascii'), '%PDF-',
       'downloaded artifact is not a PDF');

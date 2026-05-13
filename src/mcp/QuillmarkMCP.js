@@ -1,37 +1,30 @@
-/**
- * @module mcp/QuillmarkMCP
- * Orchestrator that wires a Quiver, a Quillmark engine, a DeliveryStrategy,
- * and an MCP server adapter together, exposing Quillmark capabilities as MCP tools.
- */
-
 import { z } from 'zod';
 
 import { createDocument, getSpecs, listQuills } from '../primitives/index.js';
 import { logger } from '../logger.js';
 import { getErrorMessage } from '../errors.js';
 
-/** @private */
-const LIST_QUILLS_DESCRIPTION = 'List available Quill formats with names and descriptions. A Quill format is a schematized document template for Quillmark. Call this when you need to discover which format to use. Returns an array of { name, description } objects. Returns an empty list if no Quill formats are available.';
-/** @private */
-const GET_SPECS_DESCRIPTION = 'Get the composing instruction and blueprint for a specific Quill format. Returns a concise instruction explaining how to compose a document, plus the blueprint that specifies the required YAML fields and markdown body structure. Use both to write the content string passed to create_document.';
-/** @private */
-const CREATE_DOCUMENT_DESCRIPTION = 'Create a document from Quillmark content. Input must be a string containing YAML frontmatter with a QUILL: field (selecting the Quill format) and a markdown body. If QUILL: is missing from frontmatter, returns an error with guidance — fix the content and retry. Returns { status, url?, errors? }.';
+const SERVER_INSTRUCTIONS = 'Workflow: list_quills → get_specs → create_document → surface the returned URL to the user as a markdown link.';
 
-/**
- * Top-level orchestrator that registers Quillmark MCP tools and manages the
- * server lifecycle.
- */
+function formatDiagnostic(d) {
+  const parts = [`[${d.severity ?? 'error'}] ${d.message ?? ''}`];
+  if (d.hint) parts.push(`  Hint: ${d.hint}`);
+  if (d.location) parts.push(`  At: ${d.location.file}:${d.location.line}:${d.location.column}`);
+  return parts.join('\n');
+}
+
+function errorResult(message, diagnostics) {
+  const text = diagnostics && diagnostics.length > 0
+    ? [message, '', ...diagnostics.map(formatDiagnostic)].join('\n')
+    : message;
+  return { isError: true, content: [{ type: 'text', text }] };
+}
+
 export class QuillmarkMCP {
-  /**
-   * @param {object} options
-   * @param {object} options.quiver - `Quiver` instance from `@quillmark/quiver`.
-   *   Must expose `quillNames()`, `getQuill(ref, { engine })`, and `warm()`.
-   * @param {object} options.engine - `Quillmark` engine from `@quillmark/wasm`.
-   *   Must expose `quill(tree)`.
-   * @param {object} options.strategy - Delivery strategy. Must expose `handle(quill, doc)`.
-   * @param {object} options.server - MCP server adapter. Must expose `addTool`, `start`, `stop`.
-   * @throws {TypeError} If any dependency is missing or doesn't satisfy its interface contract.
-   */
+  static get instructions() {
+    return SERVER_INSTRUCTIONS;
+  }
+
   constructor({ quiver, engine, strategy, server }) {
     if (!quiver || typeof quiver.getQuill !== 'function' || typeof quiver.quillNames !== 'function') {
       throw new TypeError('QuillmarkMCP requires a quiver with getQuill() and quillNames() methods.');
@@ -57,109 +50,91 @@ export class QuillmarkMCP {
     this.registerTools();
   }
 
-  /**
-   * Register the Quillmark MCP tool suite on the server adapter.
-   *
-   * Tools registered:
-   * 1. **list_quills** — Discover available quill formats (no params).
-   * 2. **get_specs** — Retrieve composing instruction + blueprint for a quill (param: `ref`).
-   * 3. **create_document** — Render a document from raw Quillmark content (param: `content`).
-   *
-   * @private
-   */
   registerTools() {
     this.server.addTool({
       name: 'list_quills',
-      description: LIST_QUILLS_DESCRIPTION,
+      description: 'List available document formats (quills).',
+      inputSchema: {},
+      outputSchema: {
+        quills: z.array(z.object({
+          name: z.string(),
+          version: z.string(),
+          description: z.string().optional(),
+        })),
+      },
       execute: async () => {
-        logger.debug('Tool called: list_quills');
-        try {
-          const result = await listQuills(this.quiver, this.engine);
-          logger.info(`list_quills completed (count: ${result.length})`);
-          return result;
-        } catch (error) {
-          logger.error(`list_quills failed: ${getErrorMessage(error)}`);
-          throw error;
-        }
+        const quills = await listQuills(this.quiver, this.engine);
+        const text = quills
+          .map((q) => [q.version ? `${q.name}@${q.version}` : q.name, q.description].filter(Boolean).join(': '))
+          .join('\n');
+        return {
+          content: [{ type: 'text', text }],
+          structuredContent: { quills },
+        };
       },
     });
 
     this.server.addTool({
       name: 'get_specs',
-      description: GET_SPECS_DESCRIPTION,
-      parameters: z.object({
-        ref: z.string(),
-      }),
-      execute: async ({ ref }) => {
-        logger.debug(`Tool called: get_specs (ref: ${ref})`);
+      description: 'Learn how to compose a document in a specific quill format. Call before `create_document`.',
+      inputSchema: {
+        quill: z.string().min(1).describe('Either base name for latest or `name@version`.'),
+      },
+      outputSchema: {
+        instruction: z.string(),
+        blueprint: z.string(),
+      },
+      execute: async ({ quill }) => {
         try {
-          const result = await getSpecs(this.quiver, this.engine, ref);
-          logger.info(`get_specs completed (ref: ${ref})`);
-          return result;
+          const { instruction, blueprint } = await getSpecs(this.quiver, this.engine, quill);
+          const text = blueprint ? `${instruction}\n\n${blueprint}` : instruction;
+          return {
+            content: [{ type: 'text', text }],
+            structuredContent: { instruction, blueprint },
+          };
         } catch (error) {
-          logger.error(`get_specs failed (ref: ${ref}): ${getErrorMessage(error)}`);
-          throw error;
+          logger.warn(`get_specs failed (quill: ${quill}): ${getErrorMessage(error)}`);
+          return errorResult(getErrorMessage(error));
         }
       },
     });
 
     this.server.addTool({
       name: 'create_document',
-      description: CREATE_DOCUMENT_DESCRIPTION,
-      parameters: z.object({
-        content: z.string(),
-      }),
+      description: 'Render a document and return a URL to the rendered artifact. Call `list_quills` then `get_specs` first to learn how to compose `content` for the chosen quill format.',
+      inputSchema: {
+        content: z.string().min(1).describe('Document body as quill-compliant markdown with a YAML frontmatter block containing `QUILL: <ref>`. Retrieve the format spec via `get_specs` before composing.'),
+      },
       execute: async ({ content }) => {
-        logger.debug(`Tool called: create_document (bytes: ${content.length})`);
-        try {
-          const result = await createDocument(this.quiver, this.engine, this.strategy, content);
-          if (result.status === 'success') {
-            logger.info(`create_document completed successfully (url: ${result.url})`);
-          } else {
-            const errorCount = result.errors?.length ?? 0;
-            logger.warn(`create_document completed with errors (count: ${errorCount})`);
-          }
-          return result;
-        } catch (error) {
-          logger.error(`create_document failed: ${getErrorMessage(error)}`);
-          throw error;
+        const result = await createDocument(this.quiver, this.engine, this.strategy, content);
+        if (!result.ok) {
+          logger.warn(`create_document failed: ${result.message}`);
+          return errorResult(result.message, result.diagnostics);
         }
+        const mimeType = result.mimeType ?? 'application/octet-stream';
+        return {
+          content: [
+            { type: 'text', text: `[Document](${result.url})` },
+            { type: 'resource_link', uri: result.url, name: 'Document', mimeType },
+          ],
+          structuredContent: { url: result.url, mimeType },
+        };
       },
     });
   }
 
-  /**
-   * Prefetch all quill trees and start the MCP server.
-   *
-   * Quiver's `warm()` is fail-fast: a missing/unreadable quill tree at
-   * startup is treated as a fatal configuration error, not a recoverable
-   * warning. A server that can't read its catalog can't serve tools.
-   *
-   * @param {object} [startOptions={ transportType: 'stdio' }] - Transport options passed through to the server adapter's `start()`.
-   * @returns {Promise<void>}
-   */
   async start(startOptions = { transportType: 'stdio' }) {
     logger.info('Initializing Quillmark MCP server');
 
     const names = this.quiver.quillNames();
     logger.info(`Discovered Quill formats (count: ${names.length})`);
-    if (names.length > 0) {
-      logger.debug(`Available Quill formats: ${names.join(', ')}`);
-    }
 
     await this.quiver.warm();
-    logger.debug('Prefetched all Quill trees');
 
-    logger.info(`Starting MCP server (transport: ${startOptions.transportType})`);
     await this.server.start(startOptions);
-    logger.info('MCP server started');
+    logger.info(`MCP server started (transport: ${startOptions.transportType})`);
   }
 
-  /**
-   * Gracefully shut down the MCP server.
-   *
-   * @returns {Promise<void>}
-   */
   async stop() {
     await this.server.stop();
   }

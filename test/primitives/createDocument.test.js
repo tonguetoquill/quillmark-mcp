@@ -1,30 +1,14 @@
-/**
- * @module test/primitives/createDocument
- *
- * Tests for the {@link createDocument} primitive.
- *
- * Covers:
- * - YAML quoting handled natively by Document.fromMarkdown (single + double quotes on QUILL)
- * - Happy path: parse -> resolve -> strategy.handle delegation
- * - Structured error when QUILL field is missing from frontmatter
- * - Structured error for unresolvable quill refs
- * - Strategy delegation receives (quill handle, parsed Document)
- * - Strategy throws bubble out as structured errors
- * - Empty / non-string content is rejected up-front
- */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { Quillmark, init } from '@quillmark/wasm';
 import { Quiver } from '@quillmark/quiver/node';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createDocument } from '../../src/primitives/createDocument.js';
 
 const FIXTURE_QUIVER_DIR = fileURLToPath(new URL('../fixtures', import.meta.url));
 
-/** @constant {string} VALID_CONTENT - Minimal valid Quillmark document with frontmatter. */
 const VALID_CONTENT = `---
 QUILL: usaf_memo
 ---
@@ -45,11 +29,11 @@ describe('createDocument', () => {
     const strategy = {
       async handle(quill, doc) {
         receivedRef = doc.quillRef;
-        return { status: 'success', url: 'x' };
+        return { url: 'x', mimeType: 'application/pdf' };
       },
     };
     const result = await createDocument(quiver, engine, strategy, quotedContent);
-    assert.equal(result.status, 'success', JSON.stringify(result));
+    assert.equal(result.ok, true, JSON.stringify(result));
     assert.equal(receivedRef, 'usaf_memo@1.0.0');
   });
 
@@ -60,33 +44,32 @@ describe('createDocument', () => {
     const strategy = {
       async handle(quill, doc) {
         receivedRef = doc.quillRef;
-        return { status: 'success', url: 'x' };
+        return { url: 'x', mimeType: 'application/pdf' };
       },
     };
     await createDocument(quiver, engine, strategy, quotedContent);
     assert.equal(receivedRef, 'usaf_memo');
   });
 
-  it('returns strategy result for valid content and passes (quill, doc) tuple', async () => {
+  it('returns ok with url+mimeType for valid content and passes (quill, doc) tuple', async () => {
     const { quiver, engine } = await loadCatalog();
 
-    const strategyResult = { status: 'success', url: 'https://example.com/doc.pdf' };
     let captured;
     const strategy = {
       async handle(quill, doc) {
         captured = { quill, doc };
-        return strategyResult;
+        return { url: 'https://example.com/doc.pdf', mimeType: 'application/pdf' };
       },
     };
 
     const result = await createDocument(quiver, engine, strategy, VALID_CONTENT);
 
-    assert.deepStrictEqual(result, strategyResult);
+    assert.deepStrictEqual(result, { ok: true, url: 'https://example.com/doc.pdf', mimeType: 'application/pdf' });
     assert.equal(captured.quill.metadata.name, 'usaf_memo');
     assert.equal(captured.doc.quillRef, 'usaf_memo');
   });
 
-  it('returns structured error when QUILL field is missing', async () => {
+  it('returns ok:false when QUILL field is missing', async () => {
     const { quiver, engine } = await loadCatalog();
     const strategy = {
       async handle() {
@@ -101,13 +84,11 @@ describe('createDocument', () => {
       '---\ntitle: memo\n---\n# Memo',
     );
 
-    assert.deepStrictEqual(result, {
-      status: 'error',
-      errors: [{ message: 'QUILL: is required in frontmatter to select the Quill format.' }],
-    });
+    assert.equal(result.ok, false);
+    assert.match(result.message, /QUILL: is required in frontmatter/);
   });
 
-  it('returns structured error for invalid quill ref', async () => {
+  it('returns ok:false for invalid quill ref', async () => {
     const { quiver, engine } = await loadCatalog();
     const strategy = {
       async handle() {
@@ -122,14 +103,11 @@ describe('createDocument', () => {
       '---\nQUILL: not_a_real_quill\n---\n# Body',
     );
 
-    assert.equal(result.status, 'error');
-    assert.match(
-      result.errors[0].message,
-      /Unable to resolve Quill format reference "not_a_real_quill"/,
-    );
+    assert.equal(result.ok, false);
+    assert.match(result.message, /Unable to resolve Quill format reference "not_a_real_quill"/);
   });
 
-  it('returns structured error when strategy.handle() throws an Error', async () => {
+  it('returns ok:false when strategy.handle() throws an Error', async () => {
     const { quiver, engine } = await loadCatalog();
     const strategy = {
       async handle() {
@@ -139,13 +117,11 @@ describe('createDocument', () => {
 
     const result = await createDocument(quiver, engine, strategy, VALID_CONTENT);
 
-    assert.deepStrictEqual(result, {
-      status: 'error',
-      errors: [{ message: 'Strategy failed: disk full' }],
-    });
+    assert.equal(result.ok, false);
+    assert.match(result.message, /Document rendering failed: disk full/);
   });
 
-  it('returns structured error when strategy.handle() throws a non-Error value', async () => {
+  it('returns ok:false when strategy.handle() throws a non-Error value', async () => {
     const { quiver, engine } = await loadCatalog();
     const strategy = {
       async handle() {
@@ -155,10 +131,21 @@ describe('createDocument', () => {
 
     const result = await createDocument(quiver, engine, strategy, VALID_CONTENT);
 
-    assert.deepStrictEqual(result, {
-      status: 'error',
-      errors: [{ message: 'Strategy failed: unexpected failure' }],
+    assert.equal(result.ok, false);
+    assert.match(result.message, /Document rendering failed: unexpected failure/);
+  });
+
+  it('surfaces wasm diagnostics on render failure', async () => {
+    const { quiver, engine } = await loadCatalog();
+    const diagnosticsErr = Object.assign(new Error('render exploded'), {
+      diagnostics: [{ severity: 'error', message: 'unknown field', hint: 'try x' }],
     });
+    const strategy = { async handle() { throw diagnosticsErr; } };
+
+    const result = await createDocument(quiver, engine, strategy, VALID_CONTENT);
+
+    assert.equal(result.ok, false);
+    assert.deepStrictEqual(result.diagnostics, [{ severity: 'error', message: 'unknown field', hint: 'try x' }]);
   });
 
   it('rejects empty content up-front without touching quiver or strategy', async () => {
@@ -167,9 +154,6 @@ describe('createDocument', () => {
 
     const result = await createDocument(quiver, {}, strategy, '   ');
 
-    assert.deepStrictEqual(result, {
-      status: 'error',
-      errors: [{ message: 'Content must be a non-empty string.' }],
-    });
+    assert.deepStrictEqual(result, { ok: false, message: 'Content must be a non-empty string.' });
   });
 });
