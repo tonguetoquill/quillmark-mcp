@@ -71,6 +71,45 @@ Each model entry hits an OpenAI-compatible `/chat/completions` endpoint:
 env var holding the bearer token. `extraHeaders` is optional (e.g. OpenRouter
 likes `HTTP-Referer` / `X-Title`).
 
+## API keys
+
+The harness reads the bearer token from the env var named in each model's
+`apiKeyEnv` field. Get a key from the provider, export it in your shell, then
+run. Keys never get read from a file by the harness — only from env.
+
+```sh
+# Anthropic — https://console.anthropic.com/settings/keys
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# OpenRouter (one key, hundreds of models) — https://openrouter.ai/keys
+export OPENROUTER_API_KEY=sk-or-v1-...
+
+# Groq (fast Llama / Mixtral) — https://console.groq.com/keys
+export GROQ_API_KEY=gsk_...
+
+# OpenAI — https://platform.openai.com/api-keys
+export OPENAI_API_KEY=sk-...
+```
+
+You only need keys for the providers actually referenced in your
+`eval/config.json`. If a referenced env var is unset, the run for that
+model fails fast with a clear error and other models continue.
+
+For convenience, dotenv-style loading is **not** built in — keep it KISS.
+Two common patterns:
+
+```sh
+# Per-shell:
+source ~/.config/quillmark-eval.env
+
+# Per-invocation:
+env $(cat .env | xargs) node eval/run.js
+```
+
+Never commit `eval/config.json` if you bake keys into it (you shouldn't —
+use env vars). The `eval/.gitignore` already excludes `config.json` and
+`results/`.
+
 ## Prompt fixtures
 
 ```json
