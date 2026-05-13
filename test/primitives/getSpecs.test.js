@@ -11,7 +11,7 @@
  * - Empty blueprint when blueprint is absent
  *
  * Stubs: a fake `quiver` with `getQuill()` returning a stub `quill` whose
- * shape mirrors `@quillmark/wasm` 0.77.0 (`schema`, `blueprint`, `metadata`).
+ * shape mirrors the `@quillmark/wasm` `Quill` (`schema`, `blueprint`, `metadata`).
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';

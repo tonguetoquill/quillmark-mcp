@@ -16,7 +16,7 @@ quillmark-mcp is the foundation. Separate repos extend it for specific domains �
 Pure functions. Dependencies injected as arguments. No internal state. The MCP server is built from these primitives — sugar, not a separate layer.
 
 - `listQuills(quiver, engine)` → `[{ name, description }]`
-- `getSpecs(quiver, engine, ref)` → TOON-encoded schema + authoring instructions
+- `getSpecs(quiver, engine, ref)` → `{ instruction, blueprint }`
 - `createDocument(quiver, engine, strategy, content)` → `{ status, url?, errors? }`
 
 The `(quiver, engine)` prefix is the catalog layer; `strategy` is the persistence extension point.

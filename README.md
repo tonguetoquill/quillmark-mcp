@@ -8,7 +8,7 @@ A universal MCP server that surfaces [Quillmark](https://github.com/nibsbin/quil
 ## Tools
 
 - **`list_quills`** — discover available Quill formats. Returns `[{ name, description }]`.
-- **`get_specs`** — get the schema + authoring instructions for one Quill. Returns TOON-encoded schema.
+- **`get_specs`** — get the composing instruction and blueprint for one Quill. Returns `{ instruction, blueprint }`.
 - **`create_document`** — render a document from YAML frontmatter + markdown. Returns `{ status, url?, errors? }`.
 
 ### Shipped quills
