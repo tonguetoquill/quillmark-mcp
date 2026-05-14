@@ -37,16 +37,18 @@ function parseCli() {
   const { values } = parseArgs({
     options: {
       trials: { type: 'string', default: '3' },
+      concurrency: { type: 'string', default: '2' },
       mock: { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
     },
     strict: true,
   });
   if (values.help) {
-    console.log(`Usage: node eval/run.js [--mock] [--trials N]
+    console.log(`Usage: node eval/run.js [--mock] [--trials N] [--concurrency N]
 
-  --mock         Skip config; run one built-in happy-path responder
-  --trials N     Trials per (model, prompt) [default: 3]
+  --mock           Skip config; run one built-in happy-path responder
+  --trials N       Trials per (model, prompt) [default: 3]
+  --concurrency N  Concurrent runs across the (model, prompt, trial) matrix [default: 2]
 
 Reads:  eval/config.json (or eval/config.example.json if absent)
         eval/prompts.json
@@ -56,6 +58,7 @@ Writes: eval/results/<timestamp>.jsonl`);
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
   return {
     trials: parseInt(values.trials, 10),
+    concurrency: Math.max(1, parseInt(values.concurrency, 10)),
     mock: values.mock,
     out: path.join(HERE, 'results', `${ts}.jsonl`),
   };
@@ -343,37 +346,52 @@ async function main() {
   const openaiTools = mcpToolsToOpenAI(tools);
   const limits = { maxToolCalls: MAX_TOOL_CALLS, maxCreateAttempts: MAX_CREATE_ATTEMPTS };
 
-  console.error(`[eval] models=${models.length} prompts=${prompts.length} trials=${args.trials} out=${args.out}`);
+  console.error(`[eval] models=${models.length} prompts=${prompts.length} trials=${args.trials} concurrency=${args.concurrency} out=${args.out}`);
 
-  const records = [];
-  let runIdx = 0;
-  const total = models.length * prompts.length * args.trials;
-  for (const model of models) {
+  // Order: trial -> prompt -> model. Adjacent tasks differ in model, so
+  // a pool of N workers tends to hit N distinct providers concurrently
+  // rather than hammering one.
+  const tasks = [];
+  for (let trial = 1; trial <= args.trials; trial += 1) {
     for (const prompt of prompts) {
-      for (let trial = 1; trial <= args.trials; trial += 1) {
-        runIdx += 1;
-        const mockResponder = model.mock ? makeMockResponder(prompt.quill) : null;
-        const label = `[${runIdx}/${total}] ${model.name} :: ${prompt.id} trial=${trial}`;
-        let record;
-        try {
-          record = await runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResponder });
-          console.error(`${label} -> success=${record.success} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
-        } catch (err) {
-          record = {
-            model: model.name,
-            promptId: prompt.id,
-            trial,
-            success: false,
-            harnessError: err.message,
-            timestamp: new Date().toISOString(),
-          };
-          console.error(`${label} -> harnessError: ${err.message}`);
-        }
-        records.push(record);
-        await appendFile(args.out, JSON.stringify(record) + '\n');
+      for (const model of models) {
+        tasks.push({ model, prompt, trial });
       }
     }
   }
+  const total = tasks.length;
+  const queue = tasks.slice();
+  const records = [];
+  let done = 0;
+
+  async function worker() {
+    while (queue.length > 0) {
+      const task = queue.shift();
+      if (!task) return;
+      const idx = ++done;
+      const mockResponder = task.model.mock ? makeMockResponder(task.prompt.quill) : null;
+      const label = `[${idx}/${total}] ${task.model.name} :: ${task.prompt.id} trial=${task.trial}`;
+      let record;
+      try {
+        record = await runOne({ model: task.model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder });
+        console.error(`${label} -> success=${record.success} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
+      } catch (err) {
+        record = {
+          model: task.model.name,
+          promptId: task.prompt.id,
+          trial: task.trial,
+          success: false,
+          harnessError: err.message,
+          timestamp: new Date().toISOString(),
+        };
+        console.error(`${label} -> harnessError: ${err.message}`);
+      }
+      records.push(record);
+      await appendFile(args.out, JSON.stringify(record) + '\n');
+    }
+  }
+
+  await Promise.all(Array.from({ length: args.concurrency }, () => worker()));
 
   await mcp.close();
   console.error(`[eval] done. wrote ${args.out}\n`);

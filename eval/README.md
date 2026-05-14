@@ -40,6 +40,7 @@ Flags:
 |---|---|---|
 | `--mock` | off | Skip config; use built-in mock |
 | `--trials N` | `3` | Trials per (model, prompt) |
+| `--concurrency N` | `2` | Concurrent runs across the matrix |
 
 Everything else is hard-coded for KISS:
 
@@ -51,6 +52,24 @@ Everything else is hard-coded for KISS:
 Edit those files or the constants at the top of `run.js` to change behavior.
 A summary table prints to stdout at the end of the run — no separate
 `report.js` invocation needed unless you're combining multiple files.
+
+## Concurrency
+
+Most wall-clock time is spent waiting on the LLM provider's HTTP response,
+so a small worker pool gives a big speedup with minimal complexity.
+`--concurrency N` runs N tasks from the (model, prompt, trial) matrix in
+parallel. Default is 2 — gentle on rate limits, ~2x faster than serial.
+
+Tasks are ordered `trial -> prompt -> model` so adjacent tasks differ in
+model: with 2 workers across multiple providers, the pair tends to hit
+distinct providers rather than hammering one. The single MCP client is
+shared across workers (JSON-RPC ids match responses to requests, so
+concurrent `callTool`s are safe).
+
+Dial it up if your providers can take it (`--concurrency 4` or `8`),
+or down to `1` for fully serial behavior — useful when chasing a flaky
+provider or diffing against a baseline run. If you see runs failing with
+`provider_error` due to HTTP 429s, lower concurrency.
 
 ## Config schema
 
