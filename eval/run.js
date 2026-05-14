@@ -37,7 +37,7 @@ function parseCli() {
   const { values } = parseArgs({
     options: {
       trials: { type: 'string', default: '3' },
-      concurrency: { type: 'string', default: '4' },
+      concurrency: { type: 'string', default: '2' },
       mock: { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
     },
@@ -48,7 +48,7 @@ function parseCli() {
 
   --mock           Skip config; run one built-in happy-path responder
   --trials N       Trials per (model, prompt) [default: 3]
-  --concurrency N  Concurrent runs across the (model, prompt, trial) matrix [default: 4]
+  --concurrency N  Concurrent runs across the (model, prompt, trial) matrix [default: 2]
 
 Reads:  eval/config.json (or eval/config.example.json if absent)
         eval/prompts.json
