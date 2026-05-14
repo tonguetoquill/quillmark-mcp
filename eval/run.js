@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
-import { summarize, printTable } from './report.js';
+import { printReport } from './report.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..');
@@ -395,7 +395,7 @@ async function main() {
 
   await mcp.close();
   console.error(`[eval] done. wrote ${args.out}\n`);
-  printTable(summarize(records));
+  printReport(records);
 }
 
 main().catch((err) => {
