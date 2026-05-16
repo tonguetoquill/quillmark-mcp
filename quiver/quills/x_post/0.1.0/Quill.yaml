@@ -3,7 +3,6 @@ quill:
   version: 0.1.0
   backend: typst
   plate_file: plate.typ
-  example_file: example.md
   description: X (Twitter) feed mockup — multiple posts, replies, quoted tweets, Community Notes. For wargaming/exercise injects and training materials.
 main:
   fields:
@@ -30,7 +29,7 @@ main:
       ui:
         group: Feed
       description: Handle of the notional viewer (unused in v0.1.0 but reserved for future highlight states).
-card_types:
+card_kinds:
   post:
     description: A top-level X post shown in the feed. Multiple posts render in order.
     fields:

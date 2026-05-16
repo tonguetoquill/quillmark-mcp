@@ -56,7 +56,7 @@ quiver/
   quills/
     <name>/
       <x.y.z>/            # canonical semver only
-        Quill.yaml        # quill: section + main + card_types
+        Quill.yaml        # quill: section + main + card_kinds
         plate.typ
         example.md
         ...
