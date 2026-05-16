@@ -3,7 +3,6 @@ quill:
   version: 0.1.0
   backend: typst
   plate_file: plate.typ
-  example_file: example.md
   description: Discord channel chat mockup — messages, replies, embeds, reactions, system messages. For wargaming/exercise injects and training materials.
 main:
   fields:
@@ -38,7 +37,7 @@ main:
       ui:
         group: Channel
       description: Optional channel topic shown next to channel name.
-card_types:
+card_kinds:
   message:
     description: 'A Discord message from a user. Use sentinel tokens in body_md: {@user}, {#channel}, {@everyone}, {spoiler:hidden text}. Inline markdown: **bold**, *italic*, __underline__, ~~strike~~, `code`, ```lang\nblock```.'
     fields:

@@ -3,7 +3,6 @@ quill:
   version: 0.1.0
   backend: typst
   plate_file: plate.typ
-  example_file: example.md
   description: USAF/DoD intelligence briefing (landscape 16:9) with CAPCO classification markings, ICD 203 confidence doctrine, AF Style Briefing layout. Author-controlled classification; opt-in notional/EXERCISE mode.
 main:
   fields:
@@ -132,7 +131,7 @@ main:
       - 'false'
       ui:
         group: Seals
-card_types:
+card_kinds:
   slide:
     description: A single content slide. Use `slide_type` to invoke a doctrine-specific layout (bluf, confidence, mlcoa, mdcoa, etc.).
     fields:
