@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-// Aggregates one or more JSONL result files into a per-model summary:
-// success rate, attempts-to-success distribution, get_specs-before-create rate,
-// self-correction rate, and error-category distribution. Prints a table to stdout.
+// Aggregates one or more JSONL result files: per-model summary table with timing,
+// and a per-prompt × model success-rate grid. Prints to stdout.
 
 import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
@@ -84,46 +83,164 @@ export function summarize(records) {
   return out;
 }
 
-function fmtPct(x) { return x == null ? '   -' : (x * 100).toFixed(1).padStart(5) + '%'; }
-function fmtNum(x, w = 5) { return x == null ? '-'.padStart(w) : (typeof x === 'number' ? x.toFixed(2) : String(x)).padStart(w); }
+export function summarizeByPrompt(records) {
+  const prompts = [...new Set(records.map((r) => r.promptId))].sort();
+  const models = [...new Set(records.map((r) => r.model))];
+  const meta = {};
+  for (const r of records) {
+    if (!meta[r.promptId]) meta[r.promptId] = { difficulty: r.difficulty ?? null, quill: r.quill ?? null };
+  }
+  const grid = {};
+  for (const promptId of prompts) {
+    grid[promptId] = { meta: meta[promptId], byModel: {} };
+    for (const model of models) {
+      const runs = records.filter((r) => r.promptId === promptId && r.model === model);
+      if (runs.length === 0) { grid[promptId].byModel[model] = null; continue; }
+      const successes = runs.filter((r) => r.success);
+      grid[promptId].byModel[model] = {
+        successRate: successes.length / runs.length,
+        meanDurationMs: runs.reduce((a, r) => a + (r.durationMs ?? 0), 0) / runs.length,
+        n: runs.length,
+      };
+    }
+  }
+  return { prompts, models, grid };
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
+
+const USE_COLOR = process.stdout.isTTY;
+const C = USE_COLOR
+  ? { reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m', green: '\x1b[32m', yellow: '\x1b[33m', red: '\x1b[31m' }
+  : { reset: '', bold: '', dim: '', green: '', yellow: '', red: '' };
+
+function visLen(s) { return String(s).replace(/\x1b\[[0-9;]*m/g, '').length; }
+function rpad(s, w) { s = String(s); return s + ' '.repeat(Math.max(0, w - visLen(s))); }
+function lpad(s, w) { s = String(s); return ' '.repeat(Math.max(0, w - visLen(s))) + s; }
+
+function colorPct(x) {
+  if (x == null) return C.dim + '  -' + C.reset;
+  const s = Math.round(x * 100) + '%';
+  if (x >= 0.8) return C.green + s + C.reset;
+  if (x >= 0.5) return C.yellow + s + C.reset;
+  return C.red + s + C.reset;
+}
+
+function fmtDur(ms) {
+  if (ms == null || ms === 0) return '-';
+  return ms >= 1000 ? (ms / 1000).toFixed(1) + 's' : Math.round(ms) + 'ms';
+}
+
+function fmtNum(x, dec = 2) { return x == null ? '-' : Number(x).toFixed(dec); }
+
+function shortModel(name, max = 13) {
+  const base = name.includes('/') ? name.split('/').slice(1).join('/') : name;
+  return base.length > max ? base.slice(0, max - 1) + '…' : base;
+}
+
+function hline(widths, l, m, r) {
+  return l + widths.map((w) => '─'.repeat(w + 2)).join(m) + r;
+}
+
+function tableRow(cells, widths, pads) {
+  return '│' + cells.map((c, i) => ' ' + (pads[i] ?? rpad)(String(c), widths[i]) + ' ').join('│') + '│';
+}
 
 export function printTable(rows) {
-  const headers = ['model', 'n', 'success', 'mean-att', 'med-att', 'p90-att', 'specs1st', 'self-corr', 'mean-tools', 'mean-tok'];
-  const widths = [38, 4, 7, 8, 7, 7, 8, 9, 10, 9];
-  const fmt = (cells) => cells.map((c, i) => String(c).padEnd(widths[i])).join(' ');
-  console.log(fmt(headers));
-  console.log(fmt(widths.map((w) => '-'.repeat(w))));
+  const cols = [
+    { h: 'model',     w: 34, p: rpad },
+    { h: 'n',         w:  3, p: lpad },
+    { h: 'success',   w:  7, p: lpad },
+    { h: 'mean-att',  w:  8, p: lpad },
+    { h: 'med-att',   w:  7, p: lpad },
+    { h: 'p90-att',   w:  7, p: lpad },
+    { h: 'specs1st',  w:  8, p: lpad },
+    { h: 'self-corr', w:  9, p: lpad },
+    { h: 'tools',     w:  5, p: lpad },
+    { h: 'mean-tok',  w:  8, p: lpad },
+    { h: 'mean-time', w:  9, p: lpad },
+  ];
+  const W = cols.map((c) => c.w);
+  const P = cols.map((c) => c.p);
+
+  console.log('\n' + C.bold + 'Model Summary' + C.reset);
+  console.log(hline(W, '┌', '┬', '┐'));
+  console.log(tableRow(cols.map((c) => C.bold + c.h + C.reset), W, P));
+  console.log(hline(W, '├', '┼', '┤'));
   for (const r of rows) {
-    console.log(fmt([
-      r.model.slice(0, widths[0]),
+    console.log(tableRow([
+      r.model.slice(0, W[0]),
       r.total,
-      fmtPct(r.successRate),
+      colorPct(r.successRate),
       fmtNum(r.attemptsMean),
       fmtNum(r.attemptsMedian),
       fmtNum(r.attemptsP90),
-      fmtPct(r.specsBeforeCreateRate),
-      fmtPct(r.selfCorrectionRate),
+      colorPct(r.specsBeforeCreateRate),
+      colorPct(r.selfCorrectionRate),
       fmtNum(r.meanToolCalls),
-      fmtNum(r.meanTokens, 9),
-    ]));
+      fmtNum(r.meanTokens, 0),
+      fmtDur(r.meanDurationMs),
+    ], W, P));
   }
+  console.log(hline(W, '└', '┴', '┘'));
+
   console.log('');
   for (const r of rows) {
-    console.log(`# ${r.model}`);
-    console.log('  errorCategories: ' + (Object.keys(r.errorCategories).length ? JSON.stringify(r.errorCategories) : '(none)'));
-    console.log('  termination:     ' + JSON.stringify(r.terminationReasons));
+    console.log(C.bold + r.model + C.reset);
+    if (Object.keys(r.errorCategories).length) {
+      console.log('  ' + C.dim + 'errors:' + C.reset + '      ' + JSON.stringify(r.errorCategories));
+    }
+    console.log('  ' + C.dim + 'termination:' + C.reset + ' ' + JSON.stringify(r.terminationReasons));
   }
+  console.log('');
+}
+
+function fmtPromptCell(cell) {
+  if (!cell) return C.dim + '-' + C.reset;
+  const pctStr = lpad(Math.round(cell.successRate * 100) + '%', 4);
+  let colored;
+  if (cell.successRate >= 0.8) colored = C.green + pctStr + C.reset;
+  else if (cell.successRate >= 0.5) colored = C.yellow + pctStr + C.reset;
+  else colored = C.red + pctStr + C.reset;
+  return colored + C.dim + ' ' + fmtDur(cell.meanDurationMs) + C.reset;
+}
+
+export function printPromptTable({ prompts, models, grid }) {
+  const MC = 13;
+  const shortModels = models.map((m) => shortModel(m, MC));
+  const W = [24, 4, ...shortModels.map(() => MC)];
+  const P = [rpad, rpad, ...models.map(() => rpad)];
+
+  console.log(C.bold + 'Per-Prompt Results' + C.reset);
+  console.log(hline(W, '┌', '┬', '┐'));
+  console.log(tableRow(['prompt', 'dif', ...shortModels].map((h) => C.bold + h + C.reset), W, P));
+  console.log(hline(W, '├', '┼', '┤'));
+  for (const promptId of prompts) {
+    const { meta, byModel } = grid[promptId];
+    const cells = [
+      promptId.slice(0, W[0]),
+      (meta?.difficulty ?? '-').slice(0, 4),
+      ...models.map((m) => fmtPromptCell(byModel[m])),
+    ];
+    console.log(tableRow(cells, W, P));
+  }
+  console.log(hline(W, '└', '┴', '┘'));
+  console.log('');
+}
+
+export function printReport(records) {
+  printTable(summarize(records));
+  printPromptTable(summarizeByPrompt(records));
 }
 
 function main() {
   const { files, json } = parseCli();
   const records = files.flatMap(loadJsonl);
-  const rows = summarize(records);
   if (json) {
-    process.stdout.write(JSON.stringify(rows, null, 2) + '\n');
+    process.stdout.write(JSON.stringify({ byModel: summarize(records), byPrompt: summarizeByPrompt(records) }, null, 2) + '\n');
     return;
   }
-  printTable(rows);
+  printReport(records);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
