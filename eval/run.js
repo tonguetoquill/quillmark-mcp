@@ -306,7 +306,6 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
     model: model.name,
     promptId: prompt.id,
     quill: prompt.quill ?? null,
-    difficulty: prompt.difficulty ?? null,
     trial,
     success,
     createAttempts,

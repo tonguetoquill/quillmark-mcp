@@ -88,7 +88,7 @@ export function summarizeByPrompt(records) {
   const models = [...new Set(records.map((r) => r.model))];
   const meta = {};
   for (const r of records) {
-    if (!meta[r.promptId]) meta[r.promptId] = { difficulty: r.difficulty ?? null, quill: r.quill ?? null };
+    if (!meta[r.promptId]) meta[r.promptId] = { quill: r.quill ?? null };
   }
   const grid = {};
   for (const promptId of prompts) {
@@ -208,18 +208,17 @@ function fmtPromptCell(cell) {
 export function printPromptTable({ prompts, models, grid }) {
   const MC = 13;
   const shortModels = models.map((m) => shortModel(m, MC));
-  const W = [24, 4, ...shortModels.map(() => MC)];
-  const P = [rpad, rpad, ...models.map(() => rpad)];
+  const W = [24, ...shortModels.map(() => MC)];
+  const P = [rpad, ...models.map(() => rpad)];
 
   console.log(C.bold + 'Per-Prompt Results' + C.reset);
   console.log(hline(W, '┌', '┬', '┐'));
-  console.log(tableRow(['prompt', 'dif', ...shortModels].map((h) => C.bold + h + C.reset), W, P));
+  console.log(tableRow(['prompt', ...shortModels].map((h) => C.bold + h + C.reset), W, P));
   console.log(hline(W, '├', '┼', '┤'));
   for (const promptId of prompts) {
-    const { meta, byModel } = grid[promptId];
+    const { byModel } = grid[promptId];
     const cells = [
       promptId.slice(0, W[0]),
-      (meta?.difficulty ?? '-').slice(0, 4),
       ...models.map((m) => fmtPromptCell(byModel[m])),
     ];
     console.log(tableRow(cells, W, P));

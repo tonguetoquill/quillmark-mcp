@@ -162,9 +162,8 @@ use env vars). The `eval/.gitignore` already excludes `config.json` and
 
 ```json
 {
-  "id": "memo_easy",
+  "id": "memo",
   "quill": "usaf_memo",
-  "difficulty": "easy",
   "prompt": "Use the usaf_memo quill to render..."
 }
 ```
@@ -182,9 +181,8 @@ One record per run, written to `eval/results/<ts>.jsonl`:
 ```json
 {
   "model": "meta-llama/llama-3.1-8b-instruct",
-  "promptId": "memo_easy",
+  "promptId": "memo",
   "quill": "usaf_memo",
-  "difficulty": "easy",
   "trial": 1,
   "success": true,
   "createAttempts": 2,
