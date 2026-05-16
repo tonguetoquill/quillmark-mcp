@@ -3,7 +3,6 @@ quill:
   version: 0.1.0
   backend: typst
   plate_file: plate.typ
-  example_file: example.md
   description: CNN-style web news article for wargaming exercise injects
 main:
   fields:
@@ -103,7 +102,7 @@ main:
       ui:
         group: Metadata
       description: Array of topic keywords.
-card_types:
+card_kinds:
   live_update:
     description: A timestamped live update entry. Multiple live_update cards create a chronological update feed.
     fields:
