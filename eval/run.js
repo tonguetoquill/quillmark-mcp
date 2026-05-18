@@ -108,6 +108,12 @@ function maxTokensField(model, value) {
   return { [model.maxTokensParam ?? 'max_tokens']: value };
 }
 
+// GPT-5 / o-series models reject any temperature other than the default, so
+// omit the field entirely when a model's config leaves `temperature` unset.
+function temperatureField(model) {
+  return model.temperature === undefined ? {} : { temperature: model.temperature };
+}
+
 async function callOpenAICompat(model, body, signal) {
   const headers = { 'Content-Type': 'application/json' };
   const apiKey = model.apiKeyEnv ? process.env[model.apiKeyEnv] : undefined;
@@ -229,7 +235,7 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
       messages,
       tools: openaiTools,
       tool_choice: 'auto',
-      temperature: model.temperature ?? 0,
+      ...temperatureField(model),
       ...maxTokensField(model, model.maxTokens ?? 2048),
     };
     let resp;
@@ -382,7 +388,7 @@ async function preflightProbe(models, perProvider) {
       const resp = await callOpenAICompat(model, {
         model: model.name,
         messages: [{ role: 'user', content: `Reply with exactly this and nothing else: ${PREFLIGHT_CRIB}` }],
-        temperature: model.temperature ?? 0,
+        ...temperatureField(model),
         ...maxTokensField(model, 64),
       }, ac.signal);
       const out = resp.choices?.[0]?.message?.content ?? '';

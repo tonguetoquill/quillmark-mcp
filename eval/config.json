@@ -14,7 +14,6 @@
       "baseUrl": "https://api.openai.com/v1",
       "apiKeyEnv": "OPENAI_API_KEY",
       "maxTokensParam": "max_completion_tokens",
-      "temperature": 0,
       "maxTokens": 4096
     },
     {
