@@ -38,6 +38,19 @@ function quantile(sorted, q) {
   return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
 }
 
+// Single source of truth for run outcomes, shared by run.js and the report.
+// Every run lands in exactly one bucket, so success + infra + llm = 100%.
+//   success — create_document succeeded
+//   infra   — run died outside the model's control (provider / harness error)
+//   llm     — model was reached but failed to complete the task
+export function classifyOutcome(record) {
+  if (record.success) return 'success';
+  if (record.harnessError) return 'infra';
+  if (record.terminationReason === 'provider_error') return 'infra';
+  if (record.terminationReason === 'no_assistant_message') return 'infra';
+  return 'llm';
+}
+
 export function summarize(records) {
   const byModel = new Map();
   for (const r of records) {
@@ -48,6 +61,8 @@ export function summarize(records) {
   for (const [model, runs] of byModel) {
     const total = runs.length;
     const successes = runs.filter((r) => r.success);
+    const infra = runs.filter((r) => classifyOutcome(r) === 'infra').length;
+    const llm = runs.filter((r) => classifyOutcome(r) === 'llm').length;
     const attemptCounts = successes.map((r) => r.createAttempts).sort((a, b) => a - b);
     const calledSpecs = runs.filter((r) => r.calledGetSpecsBeforeCreate === true).length;
     const sawCreate = runs.filter((r) => r.calledGetSpecsBeforeCreate !== null).length;
@@ -67,6 +82,8 @@ export function summarize(records) {
       model,
       total,
       successRate: successes.length / total,
+      infraRate: infra / total,
+      llmRate: llm / total,
       attemptsMean: attemptCounts.length ? attemptCounts.reduce((a, b) => a + b, 0) / attemptCounts.length : null,
       attemptsMedian: quantile(attemptCounts, 0.5),
       attemptsP90: quantile(attemptCounts, 0.9),
@@ -118,11 +135,13 @@ function visLen(s) { return String(s).replace(/\x1b\[[0-9;]*m/g, '').length; }
 function rpad(s, w) { s = String(s); return s + ' '.repeat(Math.max(0, w - visLen(s))); }
 function lpad(s, w) { s = String(s); return ' '.repeat(Math.max(0, w - visLen(s))) + s; }
 
-function colorPct(x) {
+function colorPct(x, { invert = false } = {}) {
   if (x == null) return C.dim + '  -' + C.reset;
   const s = Math.round(x * 100) + '%';
-  if (x >= 0.8) return C.green + s + C.reset;
-  if (x >= 0.5) return C.yellow + s + C.reset;
+  const good = invert ? x <= 0.2 : x >= 0.8;
+  const ok = invert ? x <= 0.5 : x >= 0.5;
+  if (good) return C.green + s + C.reset;
+  if (ok) return C.yellow + s + C.reset;
   return C.red + s + C.reset;
 }
 
@@ -151,6 +170,8 @@ export function printTable(rows) {
     { h: 'model',     w: 34, p: rpad },
     { h: 'n',         w:  3, p: lpad },
     { h: 'success',   w:  7, p: lpad },
+    { h: 'infra-err', w:  9, p: lpad },
+    { h: 'llm-err',   w:  7, p: lpad },
     { h: 'mean-att',  w:  8, p: lpad },
     { h: 'med-att',   w:  7, p: lpad },
     { h: 'p90-att',   w:  7, p: lpad },
@@ -172,6 +193,8 @@ export function printTable(rows) {
       r.model.slice(0, W[0]),
       r.total,
       colorPct(r.successRate),
+      colorPct(r.infraRate, { invert: true }),
+      colorPct(r.llmRate, { invert: true }),
       fmtNum(r.attemptsMean),
       fmtNum(r.attemptsMedian),
       fmtNum(r.attemptsP90),
@@ -227,7 +250,38 @@ export function printPromptTable({ prompts, models, grid }) {
   console.log('');
 }
 
+// Detect runs that died before reaching the model (provider/harness errors).
+// When these dominate, the success grid below is meaningless config noise, so
+// flag the cause once at the top instead of letting it read as "all 0%".
+function preflightFailures(records) {
+  const failed = records.filter((r) => classifyOutcome(r) === 'infra');
+  if (failed.length === 0) return null;
+  const missingKeys = new Set();
+  for (const r of failed) {
+    const texts = [r.harnessError, ...(r.errors ?? []).map((e) => e.message)];
+    for (const text of texts) {
+      const m = /env var (\w+) is unset/.exec(text ?? '');
+      if (m) missingKeys.add(m[1]);
+    }
+  }
+  return { total: records.length, failed: failed.length, missingKeys: [...missingKeys] };
+}
+
+export function printPreflightBanner(records) {
+  const s = preflightFailures(records);
+  if (!s || s.failed / s.total < 0.5) return;
+  console.log('');
+  console.log(C.red + C.bold + `⚠  ${s.failed}/${s.total} runs failed before reaching the model.` + C.reset);
+  if (s.missingKeys.length) {
+    console.log(C.red + `   Unset API key env var(s): ${s.missingKeys.join(', ')}` + C.reset);
+    console.log(C.dim + '   Set these and re-run — the tables below reflect a misconfigured run.' + C.reset);
+  } else {
+    console.log(C.dim + '   Cause: provider/harness errors — check connectivity and config.' + C.reset);
+  }
+}
+
 export function printReport(records) {
+  printPreflightBanner(records);
   printTable(summarize(records));
   printPromptTable(summarizeByPrompt(records));
 }

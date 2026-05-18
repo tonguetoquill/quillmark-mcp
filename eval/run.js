@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
-import { printReport } from './report.js';
+import { printReport, classifyOutcome } from './report.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..');
@@ -48,7 +48,7 @@ function parseCli() {
 
   --mock           Skip config; run one built-in happy-path responder
   --trials N       Trials per (model, prompt) [default: 3]
-  --concurrency N  Concurrent runs across the (model, prompt, trial) matrix [default: 2]
+  --concurrency N  Max concurrent calls per provider (base URL) [default: 2]
 
 Reads:  eval/config.json (or eval/config.example.json if absent)
         eval/prompts.json
@@ -100,6 +100,18 @@ function categorizeError(errorText) {
   if (t.includes('document rendering failed')) return 'render_failure';
   if (t.includes('template') || t.includes('typst')) return 'template_failure';
   return 'other';
+}
+
+// GPT-5 / o-series models reject `max_tokens` and require `max_completion_tokens`.
+// Config can override the field name per model via `maxTokensParam`.
+function maxTokensField(model, value) {
+  return { [model.maxTokensParam ?? 'max_tokens']: value };
+}
+
+// GPT-5 / o-series models reject any temperature other than the default, so
+// omit the field entirely when a model's config leaves `temperature` unset.
+function temperatureField(model) {
+  return model.temperature === undefined ? {} : { temperature: model.temperature };
 }
 
 async function callOpenAICompat(model, body, signal) {
@@ -223,8 +235,8 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
       messages,
       tools: openaiTools,
       tool_choice: 'auto',
-      temperature: model.temperature ?? 0,
-      max_tokens: model.maxTokens ?? 2048,
+      ...temperatureField(model),
+      ...maxTokensField(model, model.maxTokens ?? 2048),
     };
     let resp;
     try {
@@ -322,6 +334,87 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
   };
 }
 
+// Bounds concurrency: at most `max` holders at once. release() hands the
+// permit straight to the next waiter, so the live count never exceeds `max`.
+class Semaphore {
+  constructor(max) {
+    this.max = max;
+    this.held = 0;
+    this.waiters = [];
+  }
+  async acquire() {
+    if (this.held < this.max) { this.held += 1; return; }
+    await new Promise((resolve) => this.waiters.push(resolve));
+  }
+  release() {
+    const next = this.waiters.shift();
+    if (next) next();
+    else this.held -= 1;
+  }
+}
+
+const providerKey = (model) => (model.mock ? 'mock' : model.baseUrl);
+
+// One Semaphore per provider (keyed by base URL) capping concurrent calls.
+function providerSemaphores(models, perProvider) {
+  const sems = new Map();
+  for (const m of models) {
+    const key = providerKey(m);
+    if (!sems.has(key)) sems.set(key, new Semaphore(perProvider));
+  }
+  return sems;
+}
+
+const PREFLIGHT_CRIB = 'hello world';
+const PREFLIGHT_TIMEOUT_MS = 30000;
+
+// Probe each model with a trivial known-answer ("crib") query before the run.
+// This verifies the provider is actually reachable and the key is valid — not
+// just that the env var is set — so a misconfigured provider surfaces as one
+// clear line instead of N identical provider_error records. Warn, never abort.
+async function preflightProbe(models, perProvider) {
+  const targets = models.filter((m) => !m.mock);
+  if (targets.length === 0) return;
+  console.error(`[eval] preflight: probing ${targets.length} model(s) with a crib query...`);
+
+  const sems = providerSemaphores(targets, perProvider);
+  const results = [];
+  await Promise.all(targets.map(async (model) => {
+    const sem = sems.get(providerKey(model));
+    await sem.acquire();
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), PREFLIGHT_TIMEOUT_MS);
+    try {
+      const resp = await callOpenAICompat(model, {
+        model: model.name,
+        messages: [{ role: 'user', content: `Reply with exactly this and nothing else: ${PREFLIGHT_CRIB}` }],
+        ...temperatureField(model),
+        ...maxTokensField(model, 64),
+      }, ac.signal);
+      const out = resp.choices?.[0]?.message?.content ?? '';
+      const ok = out.toLowerCase().includes(PREFLIGHT_CRIB);
+      results.push({
+        model: model.name,
+        ok,
+        detail: ok ? '' : `crib not echoed (got: ${JSON.stringify(out.slice(0, 80))})`,
+      });
+    } catch (err) {
+      results.push({ model: model.name, ok: false, detail: err.message });
+    } finally {
+      clearTimeout(timer);
+      sem.release();
+    }
+  }));
+
+  for (const r of results) {
+    console.error(`[eval] ${r.ok ? 'ok  ' : 'FAIL'} ${r.model}${r.detail ? ' — ' + r.detail : ''}`);
+  }
+  const failed = results.filter((r) => !r.ok).length;
+  if (failed > 0) {
+    console.error(`[eval] WARNING: ${failed}/${targets.length} model(s) failed preflight; their runs will likely fail.`);
+  }
+}
+
 async function main() {
   const args = parseCli();
   await mkdir(path.dirname(args.out), { recursive: true });
@@ -334,6 +427,8 @@ async function main() {
     : (loadJson(CONFIG_PATH).models ?? []);
   if (models.length === 0) throw new Error(`No models in ${CONFIG_PATH}`);
 
+  if (!args.mock) await preflightProbe(models, args.concurrency);
+
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [path.join(REPO, 'src', 'bin.js'), '--stdio'],
@@ -345,11 +440,6 @@ async function main() {
   const openaiTools = mcpToolsToOpenAI(tools);
   const limits = { maxToolCalls: MAX_TOOL_CALLS, maxCreateAttempts: MAX_CREATE_ATTEMPTS };
 
-  console.error(`[eval] models=${models.length} prompts=${prompts.length} trials=${args.trials} concurrency=${args.concurrency} out=${args.out}`);
-
-  // Order: trial -> prompt -> model. Adjacent tasks differ in model, so
-  // a pool of N workers tends to hit N distinct providers concurrently
-  // rather than hammering one.
   const tasks = [];
   for (let trial = 1; trial <= args.trials; trial += 1) {
     for (const prompt of prompts) {
@@ -359,21 +449,31 @@ async function main() {
     }
   }
   const total = tasks.length;
-  const queue = tasks.slice();
   const records = [];
   let done = 0;
 
-  async function worker() {
-    while (queue.length > 0) {
-      const task = queue.shift();
-      if (!task) return;
+  // One worker per model => at most 1 run per model in flight. Each run also
+  // acquires its provider's semaphore => at most --concurrency per provider.
+  const sems = providerSemaphores(models, args.concurrency);
+  const byModel = new Map();
+  for (const task of tasks) {
+    if (!byModel.has(task.model.name)) byModel.set(task.model.name, []);
+    byModel.get(task.model.name).push(task);
+  }
+
+  console.error(`[eval] models=${models.length} prompts=${prompts.length} trials=${args.trials} providers=${sems.size} perProvider=${args.concurrency} out=${args.out}`);
+
+  await Promise.all([...byModel.values()].map(async (queue) => {
+    const sem = sems.get(providerKey(queue[0].model));
+    for (const task of queue) {
+      await sem.acquire();
       const idx = ++done;
       const mockResponder = task.model.mock ? makeMockResponder(task.prompt.quill) : null;
       const label = `[${idx}/${total}] ${task.model.name} :: ${task.prompt.id} trial=${task.trial}`;
       let record;
       try {
         record = await runOne({ model: task.model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder });
-        console.error(`${label} -> success=${record.success} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
+        console.error(`${label} -> ${classifyOutcome(record)} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
       } catch (err) {
         record = {
           model: task.model.name,
@@ -383,14 +483,14 @@ async function main() {
           harnessError: err.message,
           timestamp: new Date().toISOString(),
         };
-        console.error(`${label} -> harnessError: ${err.message}`);
+        console.error(`${label} -> ${classifyOutcome(record)} harnessError: ${err.message}`);
+      } finally {
+        sem.release();
       }
       records.push(record);
       await appendFile(args.out, JSON.stringify(record) + '\n');
     }
-  }
-
-  await Promise.all(Array.from({ length: args.concurrency }, () => worker()));
+  }));
 
   await mcp.close();
   console.error(`[eval] done. wrote ${args.out}\n`);
