@@ -6,14 +6,14 @@ Quillmark engine upgrade and source-layout reorganisation. Breaking changes for 
 
 ### Engine
 
-- **Bumped `@quillmark/wasm` 0.54.1 → 0.80.0**. The wasm engine moved from a per-instance quill registry to a stateless factory: `engine.quill(tree) → Quill`, with rendering on `quill.render(doc, opts?)` and parsing on `Document.fromMarkdown(content)`. Engine-level `registerQuill`, `dryRun`, `parseMarkdown`, `getQuillInfo`, and `getQuillSchema` are gone.
+- **Bumped `@quillmark/wasm` 0.77.0 → 0.80.0**. The wasm engine moved from a per-instance quill registry to a stateless factory: `engine.quill(tree) → Quill`, with rendering on `quill.render(doc, opts?)` and parsing on `Document.fromMarkdown(content)`. Engine-level `registerQuill`, `dryRun`, `parseMarkdown`, `getQuillInfo`, and `getQuillSchema` are gone.
 - **Replaced `@quillmark/registry` with `@quillmark/quiver` (^0.5.1)**. Quiver owns quill selection, version resolution, and per-`(engine, canonical-ref)` caching. The pre-render `engine.dryRun` validation step is folded into the parse + render path.
 - **Dropped the `js-yaml` dependency**. `quill.metadata.schema` is now a plain JS object straight from the engine; the YAML round-trip is unnecessary.
 
 ### Quill.yaml format
 
 - Top-level key is now lowercase `quill:` (was `Quill:`).
-- Composable card definitions live under `card_kinds:` (was `cards:`, then `card_types:`).
+- Composable card definitions live under `card_kinds:` (was `card_types:`).
 - `example_file` is no longer a valid key in the `quill:` section; removed from all shipped quills.
 - All seven shipped quills + the test fixture migrated. Authors of custom quills must apply the same renames; the engine does not accept the legacy keys.
 - Quill-level `description:` (under `quill:`) now surfaces at `metadata.description` — independent of `metadata.schema.main.description` (the schema description of the entry-point card).
