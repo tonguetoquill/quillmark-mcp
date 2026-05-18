@@ -17,7 +17,7 @@
       "maxTokens": 4096
     },
     {
-      "name": "google/gemma-4-31b-it",
+      "name": "google/gemma-4-26b-a4b-it",
       "baseUrl": "https://openrouter.ai/api/v1",
       "apiKeyEnv": "OPENROUTER_API_KEY",
       "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
