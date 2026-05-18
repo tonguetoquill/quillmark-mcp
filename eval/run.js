@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
-import { printReport } from './report.js';
+import { printReport, classifyOutcome } from './report.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..');
@@ -429,7 +429,7 @@ async function main() {
       let record;
       try {
         record = await runOne({ model: task.model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder });
-        console.error(`${label} -> success=${record.success} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
+        console.error(`${label} -> ${classifyOutcome(record)} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
       } catch (err) {
         record = {
           model: task.model.name,
@@ -439,7 +439,7 @@ async function main() {
           harnessError: err.message,
           timestamp: new Date().toISOString(),
         };
-        console.error(`${label} -> harnessError: ${err.message}`);
+        console.error(`${label} -> ${classifyOutcome(record)} harnessError: ${err.message}`);
       }
       records.push(record);
       await appendFile(args.out, JSON.stringify(record) + '\n');
