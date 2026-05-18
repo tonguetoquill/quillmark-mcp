@@ -322,6 +322,31 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
   };
 }
 
+// Warn (but do not abort) about API key env vars that are unset. Any model
+// whose key is missing will fail every run with a provider_error; surfacing
+// that up front turns 192 identical failure lines into one clear message.
+function preflightApiKeys(models) {
+  const byEnv = new Map();
+  for (const m of models) {
+    if (!m.apiKeyEnv) continue;
+    if (!byEnv.has(m.apiKeyEnv)) byEnv.set(m.apiKeyEnv, []);
+    byEnv.get(m.apiKeyEnv).push(m.name);
+  }
+  if (byEnv.size === 0) return;
+  const missing = [];
+  for (const [env, names] of byEnv) {
+    const present = Boolean(process.env[env]);
+    console.error(`[eval] ${present ? 'ok  ' : 'MISS'} ${env} (${names.length} model${names.length === 1 ? '' : 's'})`);
+    if (!present) missing.push({ env, names });
+  }
+  if (missing.length === 0) return;
+  const affected = missing.reduce((a, m) => a + m.names.length, 0);
+  console.error(`[eval] WARNING: ${missing.length} API key env var(s) unset; ${affected}/${models.length} model(s) will fail every run with provider_error.`);
+  for (const m of missing) {
+    console.error(`[eval]   ${m.env}: ${m.names.join(', ')}`);
+  }
+}
+
 async function main() {
   const args = parseCli();
   await mkdir(path.dirname(args.out), { recursive: true });
@@ -333,6 +358,8 @@ async function main() {
     ? [{ name: 'mock://happy-path', mock: true }]
     : (loadJson(CONFIG_PATH).models ?? []);
   if (models.length === 0) throw new Error(`No models in ${CONFIG_PATH}`);
+
+  if (!args.mock) preflightApiKeys(models);
 
   const transport = new StdioClientTransport({
     command: process.execPath,

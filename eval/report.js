@@ -227,7 +227,40 @@ export function printPromptTable({ prompts, models, grid }) {
   console.log('');
 }
 
+// Detect runs that died before reaching the model (provider/harness errors).
+// When these dominate, the success grid below is meaningless config noise, so
+// flag the cause once at the top instead of letting it read as "all 0%".
+function preflightFailures(records) {
+  const failed = records.filter(
+    (r) => r.terminationReason === 'provider_error' || r.harnessError,
+  );
+  if (failed.length === 0) return null;
+  const missingKeys = new Set();
+  for (const r of failed) {
+    const texts = [r.harnessError, ...(r.errors ?? []).map((e) => e.message)];
+    for (const text of texts) {
+      const m = /env var (\w+) is unset/.exec(text ?? '');
+      if (m) missingKeys.add(m[1]);
+    }
+  }
+  return { total: records.length, failed: failed.length, missingKeys: [...missingKeys] };
+}
+
+export function printPreflightBanner(records) {
+  const s = preflightFailures(records);
+  if (!s || s.failed / s.total < 0.5) return;
+  console.log('');
+  console.log(C.red + C.bold + `⚠  ${s.failed}/${s.total} runs failed before reaching the model.` + C.reset);
+  if (s.missingKeys.length) {
+    console.log(C.red + `   Unset API key env var(s): ${s.missingKeys.join(', ')}` + C.reset);
+    console.log(C.dim + '   Set these and re-run — the tables below reflect a misconfigured run.' + C.reset);
+  } else {
+    console.log(C.dim + '   Cause: provider/harness errors — check connectivity and config.' + C.reset);
+  }
+}
+
 export function printReport(records) {
+  printPreflightBanner(records);
   printTable(summarize(records));
   printPromptTable(summarizeByPrompt(records));
 }
