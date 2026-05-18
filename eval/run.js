@@ -328,30 +328,35 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
   };
 }
 
-// Run `handler` over `items`, capped at `perProvider` concurrent calls to any
-// one provider. Each provider key gets its own queue and pool, so distinct
-// providers run fully in parallel while no single one is over-driven.
-async function runPerProvider(items, providerOf, perProvider, handler) {
-  const groups = new Map();
-  for (const item of items) {
-    const key = providerOf(item);
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(item);
+// Bounds concurrency: at most `max` holders at once. release() hands the
+// permit straight to the next waiter, so the live count never exceeds `max`.
+class Semaphore {
+  constructor(max) {
+    this.max = max;
+    this.held = 0;
+    this.waiters = [];
   }
-  const pools = [];
-  for (const queue of groups.values()) {
-    const drain = async () => {
-      while (queue.length > 0) {
-        const item = queue.shift();
-        if (item === undefined) return;
-        await handler(item);
-      }
-    };
-    for (let i = 0; i < Math.min(perProvider, queue.length); i += 1) {
-      pools.push(drain());
-    }
+  async acquire() {
+    if (this.held < this.max) { this.held += 1; return; }
+    await new Promise((resolve) => this.waiters.push(resolve));
   }
-  await Promise.all(pools);
+  release() {
+    const next = this.waiters.shift();
+    if (next) next();
+    else this.held -= 1;
+  }
+}
+
+const providerKey = (model) => (model.mock ? 'mock' : model.baseUrl);
+
+// One Semaphore per provider (keyed by base URL) capping concurrent calls.
+function providerSemaphores(models, perProvider) {
+  const sems = new Map();
+  for (const m of models) {
+    const key = providerKey(m);
+    if (!sems.has(key)) sems.set(key, new Semaphore(perProvider));
+  }
+  return sems;
 }
 
 const PREFLIGHT_CRIB = 'hello world';
@@ -366,8 +371,11 @@ async function preflightProbe(models, perProvider) {
   if (targets.length === 0) return;
   console.error(`[eval] preflight: probing ${targets.length} model(s) with a crib query...`);
 
+  const sems = providerSemaphores(targets, perProvider);
   const results = [];
-  await runPerProvider(targets, (m) => m.baseUrl, perProvider, async (model) => {
+  await Promise.all(targets.map(async (model) => {
+    const sem = sems.get(providerKey(model));
+    await sem.acquire();
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), PREFLIGHT_TIMEOUT_MS);
     try {
@@ -388,8 +396,9 @@ async function preflightProbe(models, perProvider) {
       results.push({ model: model.name, ok: false, detail: err.message });
     } finally {
       clearTimeout(timer);
+      sem.release();
     }
-  });
+  }));
 
   for (const r of results) {
     console.error(`[eval] ${r.ok ? 'ok  ' : 'FAIL'} ${r.model}${r.detail ? ' — ' + r.detail : ''}`);
@@ -425,8 +434,6 @@ async function main() {
   const openaiTools = mcpToolsToOpenAI(tools);
   const limits = { maxToolCalls: MAX_TOOL_CALLS, maxCreateAttempts: MAX_CREATE_ATTEMPTS };
 
-  // Order trial -> prompt -> model so each provider's queue rotates through
-  // its models rather than draining one model at a time.
   const tasks = [];
   for (let trial = 1; trial <= args.trials; trial += 1) {
     for (const prompt of prompts) {
@@ -438,33 +445,46 @@ async function main() {
   const total = tasks.length;
   const records = [];
   let done = 0;
-  const providerOf = (t) => (t.model.mock ? 'mock' : t.model.baseUrl);
-  const providerCount = new Set(tasks.map(providerOf)).size;
 
-  console.error(`[eval] models=${models.length} prompts=${prompts.length} trials=${args.trials} providers=${providerCount} perProvider=${args.concurrency} out=${args.out}`);
+  // One worker per model => at most 1 run per model in flight. Each run also
+  // acquires its provider's semaphore => at most --concurrency per provider.
+  const sems = providerSemaphores(models, args.concurrency);
+  const byModel = new Map();
+  for (const task of tasks) {
+    if (!byModel.has(task.model.name)) byModel.set(task.model.name, []);
+    byModel.get(task.model.name).push(task);
+  }
 
-  await runPerProvider(tasks, providerOf, args.concurrency, async (task) => {
-    const idx = ++done;
-    const mockResponder = task.model.mock ? makeMockResponder(task.prompt.quill) : null;
-    const label = `[${idx}/${total}] ${task.model.name} :: ${task.prompt.id} trial=${task.trial}`;
-    let record;
-    try {
-      record = await runOne({ model: task.model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder });
-      console.error(`${label} -> ${classifyOutcome(record)} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
-    } catch (err) {
-      record = {
-        model: task.model.name,
-        promptId: task.prompt.id,
-        trial: task.trial,
-        success: false,
-        harnessError: err.message,
-        timestamp: new Date().toISOString(),
-      };
-      console.error(`${label} -> ${classifyOutcome(record)} harnessError: ${err.message}`);
+  console.error(`[eval] models=${models.length} prompts=${prompts.length} trials=${args.trials} providers=${sems.size} perProvider=${args.concurrency} out=${args.out}`);
+
+  await Promise.all([...byModel.values()].map(async (queue) => {
+    const sem = sems.get(providerKey(queue[0].model));
+    for (const task of queue) {
+      await sem.acquire();
+      const idx = ++done;
+      const mockResponder = task.model.mock ? makeMockResponder(task.prompt.quill) : null;
+      const label = `[${idx}/${total}] ${task.model.name} :: ${task.prompt.id} trial=${task.trial}`;
+      let record;
+      try {
+        record = await runOne({ model: task.model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder });
+        console.error(`${label} -> ${classifyOutcome(record)} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
+      } catch (err) {
+        record = {
+          model: task.model.name,
+          promptId: task.prompt.id,
+          trial: task.trial,
+          success: false,
+          harnessError: err.message,
+          timestamp: new Date().toISOString(),
+        };
+        console.error(`${label} -> ${classifyOutcome(record)} harnessError: ${err.message}`);
+      } finally {
+        sem.release();
+      }
+      records.push(record);
+      await appendFile(args.out, JSON.stringify(record) + '\n');
     }
-    records.push(record);
-    await appendFile(args.out, JSON.stringify(record) + '\n');
-  });
+  }));
 
   await mcp.close();
   console.error(`[eval] done. wrote ${args.out}\n`);
