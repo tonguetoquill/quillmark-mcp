@@ -102,6 +102,12 @@ function categorizeError(errorText) {
   return 'other';
 }
 
+// GPT-5 / o-series models reject `max_tokens` and require `max_completion_tokens`.
+// Config can override the field name per model via `maxTokensParam`.
+function maxTokensField(model, value) {
+  return { [model.maxTokensParam ?? 'max_tokens']: value };
+}
+
 async function callOpenAICompat(model, body, signal) {
   const headers = { 'Content-Type': 'application/json' };
   const apiKey = model.apiKeyEnv ? process.env[model.apiKeyEnv] : undefined;
@@ -224,7 +230,7 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
       tools: openaiTools,
       tool_choice: 'auto',
       temperature: model.temperature ?? 0,
-      max_tokens: model.maxTokens ?? 2048,
+      ...maxTokensField(model, model.maxTokens ?? 2048),
     };
     let resp;
     try {
@@ -347,7 +353,7 @@ async function preflightProbe(models, concurrency) {
           model: model.name,
           messages: [{ role: 'user', content: `Reply with exactly this and nothing else: ${PREFLIGHT_CRIB}` }],
           temperature: model.temperature ?? 0,
-          max_tokens: 64,
+          ...maxTokensField(model, 64),
         }, ac.signal);
         const out = resp.choices?.[0]?.message?.content ?? '';
         const ok = out.toLowerCase().includes(PREFLIGHT_CRIB);
