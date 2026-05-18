@@ -322,28 +322,57 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
   };
 }
 
-// Warn (but do not abort) about API key env vars that are unset. Any model
-// whose key is missing will fail every run with a provider_error; surfacing
-// that up front turns 192 identical failure lines into one clear message.
-function preflightApiKeys(models) {
-  const byEnv = new Map();
-  for (const m of models) {
-    if (!m.apiKeyEnv) continue;
-    if (!byEnv.has(m.apiKeyEnv)) byEnv.set(m.apiKeyEnv, []);
-    byEnv.get(m.apiKeyEnv).push(m.name);
+const PREFLIGHT_CRIB = 'hello world';
+const PREFLIGHT_TIMEOUT_MS = 30000;
+
+// Probe each model with a trivial known-answer ("crib") query before the run.
+// This verifies the provider is actually reachable and the key is valid — not
+// just that the env var is set — so a misconfigured provider surfaces as one
+// clear line instead of N identical provider_error records. Warn, never abort.
+async function preflightProbe(models, concurrency) {
+  const targets = models.filter((m) => !m.mock);
+  if (targets.length === 0) return;
+  console.error(`[eval] preflight: probing ${targets.length} model(s) with a crib query...`);
+
+  const results = [];
+  const queue = targets.slice();
+  async function worker() {
+    while (queue.length > 0) {
+      const model = queue.shift();
+      if (!model) return;
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), PREFLIGHT_TIMEOUT_MS);
+      try {
+        const resp = await callOpenAICompat(model, {
+          model: model.name,
+          messages: [{ role: 'user', content: `Reply with exactly this and nothing else: ${PREFLIGHT_CRIB}` }],
+          temperature: model.temperature ?? 0,
+          max_tokens: 64,
+        }, ac.signal);
+        const out = resp.choices?.[0]?.message?.content ?? '';
+        const ok = out.toLowerCase().includes(PREFLIGHT_CRIB);
+        results.push({
+          model: model.name,
+          ok,
+          detail: ok ? '' : `crib not echoed (got: ${JSON.stringify(out.slice(0, 80))})`,
+        });
+      } catch (err) {
+        results.push({ model: model.name, ok: false, detail: err.message });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
   }
-  if (byEnv.size === 0) return;
-  const missing = [];
-  for (const [env, names] of byEnv) {
-    const present = Boolean(process.env[env]);
-    console.error(`[eval] ${present ? 'ok  ' : 'MISS'} ${env} (${names.length} model${names.length === 1 ? '' : 's'})`);
-    if (!present) missing.push({ env, names });
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, targets.length) }, () => worker()),
+  );
+
+  for (const r of results) {
+    console.error(`[eval] ${r.ok ? 'ok  ' : 'FAIL'} ${r.model}${r.detail ? ' — ' + r.detail : ''}`);
   }
-  if (missing.length === 0) return;
-  const affected = missing.reduce((a, m) => a + m.names.length, 0);
-  console.error(`[eval] WARNING: ${missing.length} API key env var(s) unset; ${affected}/${models.length} model(s) will fail every run with provider_error.`);
-  for (const m of missing) {
-    console.error(`[eval]   ${m.env}: ${m.names.join(', ')}`);
+  const failed = results.filter((r) => !r.ok).length;
+  if (failed > 0) {
+    console.error(`[eval] WARNING: ${failed}/${targets.length} model(s) failed preflight; their runs will likely fail.`);
   }
 }
 
@@ -359,7 +388,7 @@ async function main() {
     : (loadJson(CONFIG_PATH).models ?? []);
   if (models.length === 0) throw new Error(`No models in ${CONFIG_PATH}`);
 
-  if (!args.mock) preflightApiKeys(models);
+  if (!args.mock) await preflightProbe(models, args.concurrency);
 
   const transport = new StdioClientTransport({
     command: process.execPath,
