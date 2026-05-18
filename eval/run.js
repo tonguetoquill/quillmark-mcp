@@ -48,7 +48,7 @@ function parseCli() {
 
   --mock           Skip config; run one built-in happy-path responder
   --trials N       Trials per (model, prompt) [default: 3]
-  --concurrency N  Concurrent runs across the (model, prompt, trial) matrix [default: 2]
+  --concurrency N  Max concurrent calls per provider (base URL) [default: 2]
 
 Reads:  eval/config.json (or eval/config.example.json if absent)
         eval/prompts.json
@@ -328,6 +328,32 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
   };
 }
 
+// Run `handler` over `items`, capped at `perProvider` concurrent calls to any
+// one provider. Each provider key gets its own queue and pool, so distinct
+// providers run fully in parallel while no single one is over-driven.
+async function runPerProvider(items, providerOf, perProvider, handler) {
+  const groups = new Map();
+  for (const item of items) {
+    const key = providerOf(item);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  }
+  const pools = [];
+  for (const queue of groups.values()) {
+    const drain = async () => {
+      while (queue.length > 0) {
+        const item = queue.shift();
+        if (item === undefined) return;
+        await handler(item);
+      }
+    };
+    for (let i = 0; i < Math.min(perProvider, queue.length); i += 1) {
+      pools.push(drain());
+    }
+  }
+  await Promise.all(pools);
+}
+
 const PREFLIGHT_CRIB = 'hello world';
 const PREFLIGHT_TIMEOUT_MS = 30000;
 
@@ -335,43 +361,35 @@ const PREFLIGHT_TIMEOUT_MS = 30000;
 // This verifies the provider is actually reachable and the key is valid — not
 // just that the env var is set — so a misconfigured provider surfaces as one
 // clear line instead of N identical provider_error records. Warn, never abort.
-async function preflightProbe(models, concurrency) {
+async function preflightProbe(models, perProvider) {
   const targets = models.filter((m) => !m.mock);
   if (targets.length === 0) return;
   console.error(`[eval] preflight: probing ${targets.length} model(s) with a crib query...`);
 
   const results = [];
-  const queue = targets.slice();
-  async function worker() {
-    while (queue.length > 0) {
-      const model = queue.shift();
-      if (!model) return;
-      const ac = new AbortController();
-      const timer = setTimeout(() => ac.abort(), PREFLIGHT_TIMEOUT_MS);
-      try {
-        const resp = await callOpenAICompat(model, {
-          model: model.name,
-          messages: [{ role: 'user', content: `Reply with exactly this and nothing else: ${PREFLIGHT_CRIB}` }],
-          temperature: model.temperature ?? 0,
-          ...maxTokensField(model, 64),
-        }, ac.signal);
-        const out = resp.choices?.[0]?.message?.content ?? '';
-        const ok = out.toLowerCase().includes(PREFLIGHT_CRIB);
-        results.push({
-          model: model.name,
-          ok,
-          detail: ok ? '' : `crib not echoed (got: ${JSON.stringify(out.slice(0, 80))})`,
-        });
-      } catch (err) {
-        results.push({ model: model.name, ok: false, detail: err.message });
-      } finally {
-        clearTimeout(timer);
-      }
+  await runPerProvider(targets, (m) => m.baseUrl, perProvider, async (model) => {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), PREFLIGHT_TIMEOUT_MS);
+    try {
+      const resp = await callOpenAICompat(model, {
+        model: model.name,
+        messages: [{ role: 'user', content: `Reply with exactly this and nothing else: ${PREFLIGHT_CRIB}` }],
+        temperature: model.temperature ?? 0,
+        ...maxTokensField(model, 64),
+      }, ac.signal);
+      const out = resp.choices?.[0]?.message?.content ?? '';
+      const ok = out.toLowerCase().includes(PREFLIGHT_CRIB);
+      results.push({
+        model: model.name,
+        ok,
+        detail: ok ? '' : `crib not echoed (got: ${JSON.stringify(out.slice(0, 80))})`,
+      });
+    } catch (err) {
+      results.push({ model: model.name, ok: false, detail: err.message });
+    } finally {
+      clearTimeout(timer);
     }
-  }
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, targets.length) }, () => worker()),
-  );
+  });
 
   for (const r of results) {
     console.error(`[eval] ${r.ok ? 'ok  ' : 'FAIL'} ${r.model}${r.detail ? ' — ' + r.detail : ''}`);
@@ -407,11 +425,8 @@ async function main() {
   const openaiTools = mcpToolsToOpenAI(tools);
   const limits = { maxToolCalls: MAX_TOOL_CALLS, maxCreateAttempts: MAX_CREATE_ATTEMPTS };
 
-  console.error(`[eval] models=${models.length} prompts=${prompts.length} trials=${args.trials} concurrency=${args.concurrency} out=${args.out}`);
-
-  // Order: trial -> prompt -> model. Adjacent tasks differ in model, so
-  // a pool of N workers tends to hit N distinct providers concurrently
-  // rather than hammering one.
+  // Order trial -> prompt -> model so each provider's queue rotates through
+  // its models rather than draining one model at a time.
   const tasks = [];
   for (let trial = 1; trial <= args.trials; trial += 1) {
     for (const prompt of prompts) {
@@ -421,38 +436,35 @@ async function main() {
     }
   }
   const total = tasks.length;
-  const queue = tasks.slice();
   const records = [];
   let done = 0;
+  const providerOf = (t) => (t.model.mock ? 'mock' : t.model.baseUrl);
+  const providerCount = new Set(tasks.map(providerOf)).size;
 
-  async function worker() {
-    while (queue.length > 0) {
-      const task = queue.shift();
-      if (!task) return;
-      const idx = ++done;
-      const mockResponder = task.model.mock ? makeMockResponder(task.prompt.quill) : null;
-      const label = `[${idx}/${total}] ${task.model.name} :: ${task.prompt.id} trial=${task.trial}`;
-      let record;
-      try {
-        record = await runOne({ model: task.model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder });
-        console.error(`${label} -> ${classifyOutcome(record)} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
-      } catch (err) {
-        record = {
-          model: task.model.name,
-          promptId: task.prompt.id,
-          trial: task.trial,
-          success: false,
-          harnessError: err.message,
-          timestamp: new Date().toISOString(),
-        };
-        console.error(`${label} -> ${classifyOutcome(record)} harnessError: ${err.message}`);
-      }
-      records.push(record);
-      await appendFile(args.out, JSON.stringify(record) + '\n');
+  console.error(`[eval] models=${models.length} prompts=${prompts.length} trials=${args.trials} providers=${providerCount} perProvider=${args.concurrency} out=${args.out}`);
+
+  await runPerProvider(tasks, providerOf, args.concurrency, async (task) => {
+    const idx = ++done;
+    const mockResponder = task.model.mock ? makeMockResponder(task.prompt.quill) : null;
+    const label = `[${idx}/${total}] ${task.model.name} :: ${task.prompt.id} trial=${task.trial}`;
+    let record;
+    try {
+      record = await runOne({ model: task.model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder });
+      console.error(`${label} -> ${classifyOutcome(record)} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
+    } catch (err) {
+      record = {
+        model: task.model.name,
+        promptId: task.prompt.id,
+        trial: task.trial,
+        success: false,
+        harnessError: err.message,
+        timestamp: new Date().toISOString(),
+      };
+      console.error(`${label} -> ${classifyOutcome(record)} harnessError: ${err.message}`);
     }
-  }
-
-  await Promise.all(Array.from({ length: args.concurrency }, () => worker()));
+    records.push(record);
+    await appendFile(args.out, JSON.stringify(record) + '\n');
+  });
 
   await mcp.close();
   console.error(`[eval] done. wrote ${args.out}\n`);
