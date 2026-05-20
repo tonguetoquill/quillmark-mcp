@@ -60,7 +60,7 @@ describe('integration', () => {
       quiver,
       engine,
       strategy,
-      '---\nQUILL: usaf_memo\n---\n# Memo\n\nBody text.',
+      '~~~card-yaml\n#@quill: usaf_memo\n~~~\n# Memo\n\nBody text.',
     );
 
     assert.deepStrictEqual(result, {
@@ -85,16 +85,16 @@ describe('integration', () => {
       quiver,
       engine,
       strategy,
-      '---\nTITLE: Memo\n---\nBody',
+      '~~~card-yaml\ntitle: Memo\n~~~\nBody',
     );
     assert.equal(missingQuill.ok, false);
-    assert.match(missingQuill.message, /QUILL: is required in frontmatter/);
+    assert.match(missingQuill.message, /`#@quill` is required/);
 
     const unknownQuill = await createDocument(
       quiver,
       engine,
       strategy,
-      '---\nQUILL: not_a_real_quill\n---\nBody',
+      '~~~card-yaml\n#@quill: not_a_real_quill\n~~~\nBody',
     );
     assert.equal(unknownQuill.ok, false);
     assert.match(unknownQuill.message, /Unable to resolve Quill format reference "not_a_real_quill"/);

@@ -27,8 +27,8 @@ const MAX_CREATE_ATTEMPTS = 5;
 const SYSTEM_PROMPT = [
   'You help a user generate a document using the available MCP tools.',
   'Workflow: list_quills (if you need to discover formats) -> get_specs for the chosen quill -> create_document.',
-  'Always call get_specs before create_document so you know the required fields and YAML shape.',
-  'Pass the full document body as the `content` argument to create_document.',
+  'Always call get_specs before create_document so you know the required fields and card-yaml shape.',
+  'Pass the full document body as the `content` argument to create_document. The body opens with a `~~~card-yaml` block whose header is `#@quill: <ref>`, followed by `~~~` and markdown prose.',
   'If create_document returns an error, read the diagnostics and try again with corrected content.',
   'Stop after create_document succeeds.',
 ].join(' ');
@@ -92,7 +92,7 @@ function toolResultText(result) {
 function categorizeError(errorText) {
   if (!errorText) return 'unknown';
   const t = errorText.toLowerCase();
-  if (t.includes('quill:') && t.includes('required')) return 'missing_quill_field';
+  if (t.includes('#@quill') && t.includes('required')) return 'missing_quill_field';
   if (t.includes('document parse failed') || t.includes('parse::')) return 'yaml_parse';
   if (t.includes('unable to resolve quill format reference')) return 'unknown_quill';
   if (t.includes('missing required field')) return 'schema_missing_field';
@@ -190,7 +190,7 @@ function makeMockResponder(promptQuill) {
         const version = subdirs.find((d) => /^\d/.test(d)) ?? subdirs[0];
         example = await fs.readFile(path.join(exampleDir, version, 'example.md'), 'utf8');
       } catch {
-        example = `---\nQUILL: ${chosenQuill}\n---\n# Mock body\n`;
+        example = `~~~card-yaml\n#@quill: ${chosenQuill}\n~~~\n# Mock body\n`;
       }
       return {
         choices: [{

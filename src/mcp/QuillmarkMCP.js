@@ -115,11 +115,11 @@ export class QuillmarkMCP {
           .string({
             error: (issue) =>
               issue.input === undefined
-                ? 'Missing required field `content`. Pass the full document body as a string: YAML frontmatter with `QUILL: <ref>` followed by markdown. Call `get_specs` first to learn the format.'
-                : 'Field `content` must be a string. Pass the full document body: YAML frontmatter with `QUILL: <ref>` followed by markdown.',
+                ? 'Missing required field `content`. Pass the full document body as a string: a `~~~card-yaml` block with `#@quill: <ref>` followed by markdown. Call `get_specs` first to learn the format.'
+                : 'Field `content` must be a string. Pass the full document body: a `~~~card-yaml` block with `#@quill: <ref>` followed by markdown.',
           })
-          .min(1, 'Field `content` must be non-empty. It should contain YAML frontmatter with `QUILL: <ref>` followed by markdown.')
-          .describe('Document body as quill-compliant markdown with a YAML frontmatter block containing `QUILL: <ref>`. Retrieve the format spec via `get_specs` before composing.'),
+          .min(1, 'Field `content` must be non-empty. It should contain a `~~~card-yaml` block with `#@quill: <ref>` followed by markdown.')
+          .describe('Document body as quill-compliant markdown opening with a `~~~card-yaml` block whose header is `#@quill: <ref>`. Retrieve the format spec via `get_specs` before composing.'),
       },
       execute: async ({ content }) => {
         const result = await createDocument(this.quiver, this.engine, this.strategy, content);

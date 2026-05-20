@@ -51,7 +51,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@quillmark/quiver": "^0.7.0",
-    "@quillmark/wasm": "^0.80.0",
+    "@quillmark/wasm": "file:../quillmark/pkg",
     "loglevel": "^1.9.1"
   }
 }

@@ -1,11 +1,11 @@
----
-QUILL: x_post@0.1.0
+~~~card-yaml
+#@quill: x_post@0.1.0
 theme: dim
 feed_header: "For you"
----
+~~~
 
----
-CARD: post
+~~~card-yaml
+#@kind: post
 display_name: "Pentagon Press Secretary"
 handle: "PentagonPresSec"
 verified: "true"
@@ -19,14 +19,14 @@ like_count: "38100"
 bookmark_count: "4210"
 view_count: "2100000"
 pinned: "true"
----
+~~~
 
 U.S. and allied naval forces have increased maritime patrols in the Baltic Sea in response to unusual underwater activity near the Northern Resolve exercise area.
 
 We remain in close coordination with NATO allies. All exercise participants are accounted for and safe.
 
----
-CARD: reply
+~~~card-yaml
+#@kind: reply
 belongs_to_post_index: 0
 replying_to_handles: "PentagonPresSec"
 display_name: "Marcus Reed"
@@ -40,12 +40,12 @@ reply_count: "142"
 repost_count: "310"
 like_count: "1900"
 view_count: "87000"
----
+~~~
 
 Just confirmed with a senior defense official — NATO SNMG1 has been redirected from planned exercises NE of Gotland to assist. More details coming on @CNN at 5pm ET.
 
----
-CARD: reply
+~~~card-yaml
+#@kind: reply
 belongs_to_post_index: 0
 replying_to_handles: "PentagonPresSec,MarcusReedCNN"
 display_name: "Helsinki Defense Analyst"
@@ -58,12 +58,12 @@ reply_count: "38"
 repost_count: "94"
 like_count: "612"
 view_count: "24000"
----
+~~~
 
 Acoustic signature reportedly doesn't match any NATO boat scheduled for the exercise. This is the 4th such incident in the region this quarter.
 
----
-CARD: reply
+~~~card-yaml
+#@kind: reply
 belongs_to_post_index: 0
 replying_to_handles: "PentagonPresSec"
 display_name: "Random Poster"
@@ -75,12 +75,12 @@ reply_count: "8"
 repost_count: "1"
 like_count: "4"
 view_count: "2100"
----
+~~~
 
 so what are you actually going to DO about it though
 
----
-CARD: post
+~~~card-yaml
+#@kind: post
 display_name: "NATO"
 handle: "NATO"
 verified: "true"
@@ -93,14 +93,14 @@ repost_count: "6300"
 like_count: "21400"
 view_count: "890000"
 community_note: "NATO's Allied Maritime Command is headquartered in Northwood, UK. Standing NATO Maritime Group 1 (SNMG1) is one of four standing multinational naval task groups."
----
+~~~
 
 NATO's Allied Maritime Command confirms maritime assets have been repositioned in response to an underwater contact of interest in the Baltic Sea.
 
 All 14 allied nations participating in Exercise Northern Resolve continue training as planned. Additional ASW aircraft from 🇩🇰 🇬🇧 🇳🇴 have been dispatched.
 
----
-CARD: quoted_tweet
+~~~card-yaml
+#@kind: quoted_tweet
 attached_to: post
 belongs_to_post_index: 1
 display_name: "Pentagon Press Secretary"
@@ -110,12 +110,12 @@ verified_type: "gray"
 avatar_initials: "PP"
 avatar_color: "#36454F"
 timestamp: "4:12 PM"
----
+~~~
 
 U.S. and allied naval forces have increased maritime patrols in the Baltic Sea in response to unusual underwater activity near the Northern Resolve exercise area.
 
----
-CARD: post
+~~~card-yaml
+#@kind: post
 display_name: "Open Source Intel"
 handle: "OSINTbaltic"
 verified: "false"
@@ -126,7 +126,7 @@ reply_count: "1120"
 repost_count: "890"
 like_count: "2400"
 view_count: "340000"
----
+~~~
 
 Ratio'd take incoming but: three Russian Kilo-class boats departed Kaliningrad earlier this week per public AIS gaps. Circumstantial — but the timing is interesting.
 

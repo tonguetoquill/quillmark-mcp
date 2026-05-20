@@ -1,7 +1,7 @@
----
-# Essential 
+~~~card-yaml
+#@quill: usaf_memo@0.2.0
+# Essential
 #===========
-QUILL: usaf_memo@0.2.0
 letterhead_title: DEPARTMENT OF THE AIR FORCE
 letterhead_caption:
   - HEADQUARTERS YOUR UNIT NAME
@@ -31,7 +31,7 @@ signature_block:
   - Duty Title
 tag_line: Aim High
 classification: UNCLASSIFIED
----
+~~~
 
 The `usaf_memo` Quill package takes care of all 33-337 formatting details. Focus on the content.
 
@@ -42,8 +42,8 @@ The `usaf_memo` Quill package takes care of all 33-337 formatting details. Focus
 
 Do not include a complimentary close (e.g. "Respectfully,") in official memorandums.
 
----
-CARD: indorsement
+~~~card-yaml
+#@kind: indorsement
 for: ORG/SYMBOL
 format: standard
 from: ORG/SYMBOL
@@ -51,6 +51,6 @@ action: undecided
 signature_block:
   - FIRST M. LAST, Rank, USAF
   - Duty Title
----
+~~~
 
 This body and the metdata above are an indorsement card. Multiple or no indorsements cards can be used.

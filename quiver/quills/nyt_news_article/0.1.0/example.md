@@ -1,5 +1,5 @@
----
-QUILL: nyt_news_article@0.1.0
+~~~card-yaml
+#@quill: nyt_news_article@0.1.0
 headline: "U.S. and Allied Forces Begin Major Naval Exercise in Western Pacific"
 subheadline: "The exercise, involving 12 nations, is the largest joint maritime operation in the region since 2019"
 byline: "By Jennifer A. Collins"
@@ -29,7 +29,7 @@ organizations:
 word_count: 840
 masthead_text: "The New York Times"
 print_edition_date: "Late Edition - Final"
----
+~~~
 
 The exercise, designated Resolute Shield 26, will involve more than 40 warships, three carrier strike groups and approximately 25,000 personnel from the United States, Japan, Australia, South Korea, the Philippines and seven other Indo-Pacific nations, according to Pentagon officials who spoke on the condition of background briefing rules.
 

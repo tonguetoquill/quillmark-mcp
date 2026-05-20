@@ -1,5 +1,5 @@
----
-QUILL: usaf_intel_brief@0.1.0
+~~~card-yaml
+#@quill: usaf_intel_brief@0.1.0
 classification: "SECRET"
 classification_caveats: "NOFORN"
 notional: "true"
@@ -18,10 +18,10 @@ center_seal: "dod_seal.svg"
 right_seal: "ussf_seal.svg"
 wordmark: "usaf_wordmark.svg"
 show_wordmark: "true"
----
+~~~
 
----
-CARD: slide
+~~~card-yaml
+#@kind: slide
 slide_type: bluf
 portion: "S//NF"
 title: "Bottom Line Up Front"
@@ -32,10 +32,10 @@ bullets: |-
   - (S//NF) Forward deployment of **two Flanker-E regiments** to TENORE airfield
   - (S//NF) Elevated tanker activity suggests sustained-ops intent
   - (S//NF) Satellite coverage confirms munitions transfer 13–14 APR
----
+~~~
 
----
-CARD: slide
+~~~card-yaml
+#@kind: slide
 slide_type: situation
 portion: "S//NF"
 title: "Situation"
@@ -48,10 +48,10 @@ bullets: |-
   * (S//NF) Unusual tanker planning patterns
   - (C//NF) No known movement of strategic assets at this time
   - (U) Allied ISR coverage adequate; request for additional P-8 sortie hours submitted
----
+~~~
 
----
-CARD: slide
+~~~card-yaml
+#@kind: slide
 slide_type: threat_assessment
 portion: "S//NF"
 title: "Threat Assessment"
@@ -63,10 +63,10 @@ bullets: |-
   - (S//NF) **Intent**: signal resolve, deter allied posture changes
   - (S//NF) **Opportunity**: exercise window may mask actual pre-positioning
   - (S//NF) **Constraints**: logistics tether to 2 primary bases limits sustained ops
----
+~~~
 
----
-CARD: slide
+~~~card-yaml
+#@kind: slide
 slide_type: mlcoa
 portion: "S//NF"
 title: "72-Hour Show of Force"
@@ -76,10 +76,10 @@ bullets: |-
   - (S//NF) Coordinated with naval task group transit
   - (S//NF) Limited duration (≤5 days) to avoid logistics strain
   - (S//NF) Designed to signal, not engage — ROE unchanged
----
+~~~
 
----
-CARD: slide
+~~~card-yaml
+#@kind: slide
 slide_type: mdcoa
 portion: "S//NF"
 title: "Airspace Violation + Forced Response"
@@ -89,10 +89,10 @@ bullets: |-
   - (S//NF) Paired with cyber or GPS-denial effects against regional ISR
   - (S//NF) Risk of miscalculation during intercept sequence
   - (S//NF) Would require 72-hour deconfliction failure to execute
----
+~~~
 
----
-CARD: slide
+~~~card-yaml
+#@kind: slide
 slide_type: iw
 portion: "S//NF"
 title: "Indications & Warnings"
@@ -103,10 +103,10 @@ bullets: |-
   - (S//NF) **TRIGGER**: STRATCOM-equivalent C2 node activation
   - (S//NF) **SUPPORTING**: civil airspace closure NOTAMs within AOR
   - (S//NF) **SUPPORTING**: observed live-fire exercise cancellation
----
+~~~
 
----
-CARD: slide
+~~~card-yaml
+#@kind: slide
 slide_type: confidence
 portion: "S//NF"
 title: "Analyst Confidence"
@@ -117,10 +117,10 @@ bullets: |-
   - (S//NF) Uncertainty: adversary maskirovka patterns degrade predictive reliability
 likelihood_text: "Very likely (80–95%)"
 confidence_text: "Moderate"
----
+~~~
 
----
-CARD: slide
+~~~card-yaml
+#@kind: slide
 slide_type: gaps
 portion: "U"
 title: "Collection Gaps & Requests"
@@ -132,4 +132,4 @@ bullets: |-
   - (U) Request: expedite SIGINT collection platform retasking
   - (U) Tipper: cross-cue MASINT to detect fuel-transfer signatures
 notes: "Coordinate collection requests through CENTCOM J2 watch by 151800Z."
----
+~~~

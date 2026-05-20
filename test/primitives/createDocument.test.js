@@ -9,9 +9,9 @@ import { createDocument } from '../../src/primitives/createDocument.js';
 
 const FIXTURE_QUIVER_DIR = fileURLToPath(new URL('../fixtures', import.meta.url));
 
-const VALID_CONTENT = `---
-QUILL: usaf_memo
----
+const VALID_CONTENT = `~~~card-yaml
+#@quill: usaf_memo
+~~~
 # Memo`;
 
 async function loadCatalog() {
@@ -22,33 +22,15 @@ async function loadCatalog() {
 }
 
 describe('createDocument', () => {
-  it('accepts double-quoted QUILL scalars', async () => {
+  it('rejects quoted #@quill scalars — the value is a plain string, not a YAML scalar', async () => {
     const { quiver, engine } = await loadCatalog();
-    const quotedContent = `---\nQUILL: "usaf_memo@1.0.0"\n---\n# Memo`;
-    let receivedRef;
+    const quotedContent = `~~~card-yaml\n#@quill: "usaf_memo@1.0.0"\n~~~\n# Memo`;
     const strategy = {
-      async handle(quill, doc) {
-        receivedRef = doc.quillRef;
-        return { url: 'x', mimeType: 'application/pdf' };
-      },
+      async handle() { throw new Error('should not be called'); },
     };
     const result = await createDocument(quiver, engine, strategy, quotedContent);
-    assert.equal(result.ok, true, JSON.stringify(result));
-    assert.equal(receivedRef, 'usaf_memo@1.0.0');
-  });
-
-  it('accepts single-quoted QUILL scalars', async () => {
-    const { quiver, engine } = await loadCatalog();
-    const quotedContent = `---\nQUILL: 'usaf_memo'\n---\n# Memo`;
-    let receivedRef;
-    const strategy = {
-      async handle(quill, doc) {
-        receivedRef = doc.quillRef;
-        return { url: 'x', mimeType: 'application/pdf' };
-      },
-    };
-    await createDocument(quiver, engine, strategy, quotedContent);
-    assert.equal(receivedRef, 'usaf_memo');
+    assert.equal(result.ok, false);
+    assert.match(result.message, /Invalid Quill name/);
   });
 
   it('returns ok with url+mimeType for valid content and passes (quill, doc) tuple', async () => {
@@ -69,7 +51,7 @@ describe('createDocument', () => {
     assert.equal(captured.doc.quillRef, 'usaf_memo');
   });
 
-  it('returns ok:false when QUILL field is missing', async () => {
+  it('returns ok:false when #@quill is missing', async () => {
     const { quiver, engine } = await loadCatalog();
     const strategy = {
       async handle() {
@@ -81,11 +63,11 @@ describe('createDocument', () => {
       quiver,
       engine,
       strategy,
-      '---\ntitle: memo\n---\n# Memo',
+      '~~~card-yaml\ntitle: memo\n~~~\n# Memo',
     );
 
     assert.equal(result.ok, false);
-    assert.match(result.message, /QUILL: is required in frontmatter/);
+    assert.match(result.message, /`#@quill` is required/);
   });
 
   it('returns ok:false for invalid quill ref', async () => {
@@ -100,7 +82,7 @@ describe('createDocument', () => {
       quiver,
       engine,
       strategy,
-      '---\nQUILL: not_a_real_quill\n---\n# Body',
+      '~~~card-yaml\n#@quill: not_a_real_quill\n~~~\n# Body',
     );
 
     assert.equal(result.ok, false);
