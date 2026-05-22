@@ -371,7 +371,8 @@ const PREFLIGHT_TIMEOUT_MS = 30000;
 // Probe each model with a trivial known-answer ("crib") query before the run.
 // This verifies the provider is actually reachable and the key is valid — not
 // just that the env var is set — so a misconfigured provider surfaces as one
-// clear line instead of N identical provider_error records. Warn, never abort.
+// clear line instead of N identical provider_error records. Aborts the run if
+// any model fails its crib so we never burn a full eval on a broken provider.
 async function preflightProbe(models, perProvider) {
   const targets = models.filter((m) => !m.mock);
   if (targets.length === 0) return;
@@ -409,9 +410,10 @@ async function preflightProbe(models, perProvider) {
   for (const r of results) {
     console.error(`[eval] ${r.ok ? 'ok  ' : 'FAIL'} ${r.model}${r.detail ? ' — ' + r.detail : ''}`);
   }
-  const failed = results.filter((r) => !r.ok).length;
-  if (failed > 0) {
-    console.error(`[eval] WARNING: ${failed}/${targets.length} model(s) failed preflight; their runs will likely fail.`);
+  const failed = results.filter((r) => !r.ok);
+  if (failed.length > 0) {
+    const names = failed.map((r) => r.model).join(', ');
+    throw new Error(`preflight failed for ${failed.length}/${targets.length} model(s): ${names}`);
   }
 }
 

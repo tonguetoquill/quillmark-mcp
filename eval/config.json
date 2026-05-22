@@ -40,7 +40,7 @@
       "maxTokens": 4096
     },
     {
-      "name": "nvidia/nemotron-3-nano-30b-a3b",
+      "name": "nvidia/nemotron-nano-9b-v2",
       "baseUrl": "https://openrouter.ai/api/v1",
       "apiKeyEnv": "OPENROUTER_API_KEY",
       "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
