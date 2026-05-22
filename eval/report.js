@@ -66,6 +66,7 @@ export function summarize(records) {
     const attemptCounts = successes.map((r) => r.createAttempts).sort((a, b) => a - b);
     const calledSpecs = runs.filter((r) => r.calledGetSpecsBeforeCreate === true).length;
     const sawCreate = runs.filter((r) => r.calledGetSpecsBeforeCreate !== null).length;
+    const oneShot = successes.filter((r) => r.createAttempts === 1).length;
     const selfCorrected = successes.filter((r) => r.createAttempts > 1).length;
     const errorTally = new Map();
     for (const r of runs) {
@@ -89,6 +90,7 @@ export function summarize(records) {
       attemptsP90: quantile(attemptCounts, 0.9),
       attemptsMax: attemptCounts.at(-1) ?? null,
       specsBeforeCreateRate: sawCreate ? calledSpecs / sawCreate : null,
+      oneShotRate: oneShot / total,
       selfCorrectionRate: successes.length ? selfCorrected / successes.length : null,
       meanToolCalls: runs.reduce((a, r) => a + (r.toolCallCount ?? 0), 0) / total,
       meanTokens: runs.reduce((a, r) => a + (r.totalTokens ?? 0), 0) / total,
@@ -152,9 +154,27 @@ function fmtDur(ms) {
 
 function fmtNum(x, dec = 2) { return x == null ? '-' : Number(x).toFixed(dec); }
 
+function fmtTokens(x) {
+  if (x == null) return '-';
+  return x >= 1000 ? (x / 1000).toFixed(1) + 'k' : String(Math.round(x));
+}
+
+function fmtAtt(mean, max) {
+  if (mean == null) return '-';
+  return `${mean.toFixed(1)}/${max ?? '-'}`;
+}
+
 function shortModel(name, max = 13) {
   const base = name.includes('/') ? name.split('/').slice(1).join('/') : name;
   return base.length > max ? base.slice(0, max - 1) + '…' : base;
+}
+
+function topN(tally, n = 3) {
+  if (!tally) return '';
+  const entries = Object.entries(tally).filter(([, v]) => v > 0);
+  if (entries.length === 0) return '';
+  entries.sort((a, b) => b[1] - a[1]);
+  return entries.slice(0, n).map(([k, v]) => `${k}×${v}`).join(', ');
 }
 
 function hline(widths, l, m, r) {
@@ -165,57 +185,42 @@ function tableRow(cells, widths, pads) {
   return '│' + cells.map((c, i) => ' ' + (pads[i] ?? rpad)(String(c), widths[i]) + ' ').join('│') + '│';
 }
 
-export function printTable(rows) {
+export function renderModelTable(rows) {
   const cols = [
-    { h: 'model',     w: 34, p: rpad },
-    { h: 'n',         w:  3, p: lpad },
-    { h: 'success',   w:  7, p: lpad },
-    { h: 'infra-err', w:  9, p: lpad },
-    { h: 'llm-err',   w:  7, p: lpad },
-    { h: 'mean-att',  w:  8, p: lpad },
-    { h: 'med-att',   w:  7, p: lpad },
-    { h: 'p90-att',   w:  7, p: lpad },
-    { h: 'specs1st',  w:  8, p: lpad },
-    { h: 'self-corr', w:  9, p: lpad },
-    { h: 'tools',     w:  5, p: lpad },
-    { h: 'mean-tok',  w:  8, p: lpad },
-    { h: 'mean-time', w:  9, p: lpad },
+    { h: 'model',    w: 22, p: rpad },
+    { h: 'n',        w:  3, p: lpad },
+    { h: 'success',  w:  7, p: lpad },
+    { h: 'llm-err',  w:  7, p: lpad },
+    { h: 'att',      w:  6, p: lpad },
+    { h: 'specs1st', w:  8, p: lpad },
+    { h: '1-shot',   w:  6, p: lpad },
+    { h: 'tools',    w:  5, p: lpad },
+    { h: 'tokens',   w:  6, p: lpad },
+    { h: 'time',     w:  6, p: lpad },
   ];
   const W = cols.map((c) => c.w);
   const P = cols.map((c) => c.p);
-
-  console.log('\n' + C.bold + 'Model Summary' + C.reset);
-  console.log(hline(W, '┌', '┬', '┐'));
-  console.log(tableRow(cols.map((c) => C.bold + c.h + C.reset), W, P));
-  console.log(hline(W, '├', '┼', '┤'));
+  const lines = [];
+  lines.push(C.bold + 'Model Summary' + C.reset);
+  lines.push(hline(W, '┌', '┬', '┐'));
+  lines.push(tableRow(cols.map((c) => C.bold + c.h + C.reset), W, P));
+  lines.push(hline(W, '├', '┼', '┤'));
   for (const r of rows) {
-    console.log(tableRow([
-      r.model.slice(0, W[0]),
+    lines.push(tableRow([
+      shortModel(r.model, W[0]),
       r.total,
       colorPct(r.successRate),
-      colorPct(r.infraRate, { invert: true }),
       colorPct(r.llmRate, { invert: true }),
-      fmtNum(r.attemptsMean),
-      fmtNum(r.attemptsMedian),
-      fmtNum(r.attemptsP90),
+      fmtAtt(r.attemptsMean, r.attemptsMax),
       colorPct(r.specsBeforeCreateRate),
-      colorPct(r.selfCorrectionRate),
-      fmtNum(r.meanToolCalls),
-      fmtNum(r.meanTokens, 0),
+      colorPct(r.oneShotRate),
+      fmtNum(r.meanToolCalls, 1),
+      fmtTokens(r.meanTokens),
       fmtDur(r.meanDurationMs),
     ], W, P));
   }
-  console.log(hline(W, '└', '┴', '┘'));
-
-  console.log('');
-  for (const r of rows) {
-    console.log(C.bold + r.model + C.reset);
-    if (Object.keys(r.errorCategories).length) {
-      console.log('  ' + C.dim + 'errors:' + C.reset + '      ' + JSON.stringify(r.errorCategories));
-    }
-    console.log('  ' + C.dim + 'termination:' + C.reset + ' ' + JSON.stringify(r.terminationReasons));
-  }
-  console.log('');
+  lines.push(hline(W, '└', '┴', '┘'));
+  return lines;
 }
 
 function fmtPromptCell(cell) {
@@ -228,26 +233,48 @@ function fmtPromptCell(cell) {
   return colored + C.dim + ' ' + fmtDur(cell.meanDurationMs) + C.reset;
 }
 
-export function printPromptTable({ prompts, models, grid }) {
+export function renderPromptTable({ prompts, models, grid }) {
   const MC = 13;
   const shortModels = models.map((m) => shortModel(m, MC));
-  const W = [24, ...shortModels.map(() => MC)];
+  const W = [22, ...shortModels.map(() => MC)];
   const P = [rpad, ...models.map(() => rpad)];
-
-  console.log(C.bold + 'Per-Prompt Results' + C.reset);
-  console.log(hline(W, '┌', '┬', '┐'));
-  console.log(tableRow(['prompt', ...shortModels].map((h) => C.bold + h + C.reset), W, P));
-  console.log(hline(W, '├', '┼', '┤'));
+  const lines = [];
+  lines.push(C.bold + 'Per-Prompt Results' + C.reset);
+  lines.push(hline(W, '┌', '┬', '┐'));
+  lines.push(tableRow(['prompt', ...shortModels].map((h) => C.bold + h + C.reset), W, P));
+  lines.push(hline(W, '├', '┼', '┤'));
   for (const promptId of prompts) {
     const { byModel } = grid[promptId];
     const cells = [
       promptId.slice(0, W[0]),
       ...models.map((m) => fmtPromptCell(byModel[m])),
     ];
-    console.log(tableRow(cells, W, P));
+    lines.push(tableRow(cells, W, P));
   }
-  console.log(hline(W, '└', '┴', '┘'));
+  lines.push(hline(W, '└', '┴', '┘'));
+  return lines;
+}
+
+// Preserved for backwards-compat: print versions of the renderers.
+export function printTable(rows) {
   console.log('');
+  for (const line of renderModelTable(rows)) console.log(line);
+  console.log('');
+  for (const r of rows) printModelFooter(r);
+  console.log('');
+}
+
+export function printPromptTable(data) {
+  for (const line of renderPromptTable(data)) console.log(line);
+  console.log('');
+}
+
+function printModelFooter(r) {
+  console.log(C.bold + r.model + C.reset);
+  const errs = topN(r.errorCategories);
+  if (errs) console.log('  ' + C.dim + 'errors:     ' + C.reset + errs);
+  const term = topN(r.terminationReasons);
+  if (term) console.log('  ' + C.dim + 'termination:' + C.reset + ' ' + term);
 }
 
 // Detect runs that died before reaching the model (provider/harness errors).
@@ -280,10 +307,71 @@ export function printPreflightBanner(records) {
   }
 }
 
+// Identify prompts where ≥2 models attempted the prompt and the aggregate
+// success rate is below 30%. These are almost always quill/spec/doc bugs
+// (the same failure showing up across model families), not model weaknesses.
+export function systematicFailures(records, { threshold = 0.3, minModels = 2 } = {}) {
+  const byPrompt = new Map();
+  for (const r of records) {
+    if (classifyOutcome(r) === 'infra') continue;
+    if (!byPrompt.has(r.promptId)) byPrompt.set(r.promptId, []);
+    byPrompt.get(r.promptId).push(r);
+  }
+  const out = [];
+  for (const [promptId, runs] of byPrompt) {
+    const models = new Set(runs.map((r) => r.model));
+    if (models.size < minModels) continue;
+    const successes = runs.filter((r) => r.success).length;
+    const rate = successes / runs.length;
+    if (rate >= threshold) continue;
+    const cats = new Map();
+    for (const r of runs) {
+      for (const c of r.errorCategories ?? []) cats.set(c, (cats.get(c) ?? 0) + 1);
+    }
+    const sorted = [...cats.entries()].sort((a, b) => b[1] - a[1]);
+    out.push({
+      promptId,
+      quill: runs[0].quill ?? null,
+      total: runs.length,
+      successes,
+      modelCount: models.size,
+      topCategories: sorted.slice(0, 2),
+    });
+  }
+  out.sort((a, b) => a.successes / a.total - b.successes / b.total);
+  return out;
+}
+
+export function printSystematicFailures(records) {
+  const failures = systematicFailures(records);
+  if (failures.length === 0) return;
+  console.log('');
+  console.log(C.bold + C.red + '⚠ Systematic failures' + C.reset
+    + C.dim + '  — prompts where most models failed; likely a quill spec / doc issue, not a model issue' + C.reset);
+  for (const f of failures) {
+    const cats = f.topCategories.length
+      ? f.topCategories.map(([c, n]) => `${c}×${n}`).join(', ')
+      : C.dim + 'no categorized errors' + C.reset;
+    const quill = f.quill ? C.dim + ` (${f.quill})` + C.reset : '';
+    const ratio = `${f.successes}/${f.total}`;
+    console.log(`  ${C.red}${f.promptId}${C.reset}${quill} ${ratio} succeeded across ${f.modelCount} models — ${cats}`);
+  }
+}
+
 export function printReport(records) {
   printPreflightBanner(records);
-  printTable(summarize(records));
-  printPromptTable(summarizeByPrompt(records));
+  printSystematicFailures(records);
+
+  const modelRows = summarize(records);
+  const promptData = summarizeByPrompt(records);
+
+  console.log('');
+  for (const line of renderPromptTable(promptData)) console.log(line);
+  console.log('');
+  for (const line of renderModelTable(modelRows)) console.log(line);
+  console.log('');
+  for (const r of modelRows) printModelFooter(r);
+  console.log('');
 }
 
 function main() {

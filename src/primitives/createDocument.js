@@ -2,7 +2,29 @@ import { Document } from '@quillmark/wasm';
 
 import { getErrorMessage } from '../errors.js';
 
-const MISSING_QUILL_MESSAGE = '$quill: <name> is required in the root card-yaml block to select the Quill format.';
+const MISSING_QUILL_MESSAGE = [
+  '$quill: <name> is required in the root card-yaml block to select the Quill format.',
+  '',
+  'If you used `---` YAML frontmatter, that syntax is NOT supported. Replace the `---` fences with',
+  '`~~~card-yaml` (opener) and `~~~` (closer), and put `$quill: <name>@<version>` and `$kind: main`',
+  'as the first two lines inside the block. Call `get_spec` for a ready-to-edit blueprint.',
+].join('\n');
+
+// Patterns that indicate an internal renderer panic leaking through the WASM
+// boundary rather than a user-content problem. LLMs in a tool-use loop cannot
+// "fix" content based on Rust panic strings — wrap them so the caller knows
+// this is a Quillmark bug, not their input.
+const PANIC_PATTERNS = [
+  /is not a character boundary/i,
+  /^panicked at /i,
+  /assertion failed/i,
+  /index out of bounds/i,
+  /unreachable executed/i,
+];
+
+function looksLikePanic(message) {
+  return PANIC_PATTERNS.some((re) => re.test(message));
+}
 
 function isMissingQuillError(error) {
   const diagnostics = /** @type {any} */ (error)?.diagnostics;
@@ -12,6 +34,28 @@ function isMissingQuillError(error) {
 function extractDiagnostics(error) {
   const diagnostics = /** @type {any} */ (error)?.diagnostics;
   return Array.isArray(diagnostics) ? diagnostics : [];
+}
+
+function annotateParseError(message) {
+  if (/never closed with `~~~`/.test(message)) {
+    return [
+      message,
+      '',
+      'Close the block with a line containing exactly `~~~` (three tildes, no info string)',
+      'before any prose body. The closer is unadorned — do NOT use `~~~card-yaml` as the closer.',
+    ].join('\n');
+  }
+  return message;
+}
+
+function availableQuillsHint(quiver) {
+  try {
+    const names = typeof quiver?.quillNames === 'function' ? quiver.quillNames() : [];
+    if (!Array.isArray(names) || names.length === 0) return '';
+    return ` Available quills: ${names.join(', ')}. Drop the @version suffix to bind to the latest available version.`;
+  } catch {
+    return '';
+  }
 }
 
 export async function createDocument(quiver, engine, strategy, content) {
@@ -28,7 +72,7 @@ export async function createDocument(quiver, engine, strategy, content) {
     }
     return {
       ok: false,
-      message: `Document parse failed: ${getErrorMessage(error)}`,
+      message: `Document parse failed: ${annotateParseError(getErrorMessage(error))}`,
       diagnostics: extractDiagnostics(error),
     };
   }
@@ -44,7 +88,7 @@ export async function createDocument(quiver, engine, strategy, content) {
   } catch (error) {
     return {
       ok: false,
-      message: `Unable to resolve Quill format reference "${quillRef}": ${getErrorMessage(error)}`,
+      message: `Unable to resolve Quill format reference "${quillRef}": ${getErrorMessage(error)}.${availableQuillsHint(quiver)}`,
     };
   }
 
@@ -52,9 +96,16 @@ export async function createDocument(quiver, engine, strategy, content) {
     const { url, mimeType } = await strategy.handle(quill, doc);
     return { ok: true, url, mimeType };
   } catch (error) {
+    const raw = getErrorMessage(error);
+    if (looksLikePanic(raw)) {
+      return {
+        ok: false,
+        message: `Internal renderer error (please report to Quillmark maintainers): ${raw}`,
+      };
+    }
     return {
       ok: false,
-      message: `Document rendering failed: ${getErrorMessage(error)}`,
+      message: `Document rendering failed: ${raw}`,
       diagnostics: extractDiagnostics(error),
     };
   }

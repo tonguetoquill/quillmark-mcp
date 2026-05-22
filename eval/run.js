@@ -126,7 +126,7 @@ async function callOpenAICompat(model, body, signal) {
   const res = await fetch(url, {
     method: 'POST',
     headers,
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...model.extraBody, ...body }),
     signal,
   });
   if (!res.ok) {

@@ -136,6 +136,69 @@ describe('createDocument', () => {
     assert.match(result.message, /Document rendering failed: unexpected failure/);
   });
 
+  it('wraps Rust panic strings as internal renderer errors', async () => {
+    const { quiver, engine } = await loadCatalog();
+    const strategy = {
+      async handle() {
+        throw new Error('byte index 2 is not a character boundary; it is inside \'—\' (bytes 1..4)');
+      },
+    };
+
+    const result = await createDocument(quiver, engine, strategy, VALID_CONTENT);
+
+    assert.equal(result.ok, false);
+    assert.match(result.message, /Internal renderer error/);
+    assert.doesNotMatch(result.message, /Document rendering failed/);
+  });
+
+  it('annotates "$quill missing" with a hint about `---` frontmatter', async () => {
+    const { quiver, engine } = await loadCatalog();
+    const strategy = { async handle() { throw new Error('unreachable'); } };
+
+    const result = await createDocument(
+      quiver,
+      engine,
+      strategy,
+      '~~~card-yaml\n$kind: main\ntitle: memo\n~~~\n# Memo',
+    );
+
+    assert.equal(result.ok, false);
+    assert.match(result.message, /\$quill: <name> is required/);
+    assert.match(result.message, /`---` YAML frontmatter/);
+  });
+
+  it('annotates unclosed `~~~card-yaml` parse errors with a fix hint', async () => {
+    const { quiver, engine } = await loadCatalog();
+    const strategy = { async handle() { throw new Error('unreachable'); } };
+
+    const result = await createDocument(
+      quiver,
+      engine,
+      strategy,
+      '~~~card-yaml\n$quill: usaf_memo\n$kind: main\ntitle: memo\n\nbody without closer',
+    );
+
+    assert.equal(result.ok, false);
+    assert.match(result.message, /never closed with `~~~`/);
+    assert.match(result.message, /closer is unadorned|three tildes/);
+  });
+
+  it('includes available quill names when ref cannot be resolved', async () => {
+    const { quiver, engine } = await loadCatalog();
+    const strategy = { async handle() { throw new Error('unreachable'); } };
+
+    const result = await createDocument(
+      quiver,
+      engine,
+      strategy,
+      '~~~card-yaml\n$quill: not_a_real_quill\n$kind: main\n~~~\n# Body',
+    );
+
+    assert.equal(result.ok, false);
+    assert.match(result.message, /Unable to resolve Quill format reference "not_a_real_quill"/);
+    assert.match(result.message, /Available quills:/);
+  });
+
   it('surfaces wasm diagnostics on render failure', async () => {
     const { quiver, engine } = await loadCatalog();
     const diagnosticsErr = Object.assign(new Error('render exploded'), {

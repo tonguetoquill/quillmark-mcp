@@ -5,8 +5,10 @@ import { getSpec } from '../../src/primitives/getSpec.js';
 
 const STUB_ENGINE = {};
 
-function makeQuiver(getQuillImpl) {
-  return { getQuill: getQuillImpl };
+function makeQuiver(getQuillImpl, quillNames) {
+  const quiver = { getQuill: getQuillImpl };
+  if (quillNames) quiver.quillNames = () => quillNames;
+  return quiver;
 }
 
 describe('getSpec', () => {
@@ -80,5 +82,24 @@ describe('getSpec', () => {
   it('rejects empty string refs', async () => {
     const quiver = makeQuiver(async () => assert.fail('should not call'));
     await assert.rejects(() => getSpec(quiver, STUB_ENGINE, '   '), /non-empty string/);
+  });
+
+  it('includes available quill names when ref cannot be resolved', async () => {
+    const quiver = makeQuiver(
+      async () => { throw new Error('not found'); },
+      ['usaf_memo', 'nyt_news_article'],
+    );
+    await assert.rejects(
+      () => getSpec(quiver, STUB_ENGINE, 'bogus'),
+      /Available quills: usaf_memo, nyt_news_article/,
+    );
+  });
+
+  it('instruction leads with format rules warning', async () => {
+    const quiver = makeQuiver(async () => ({ blueprint: '', metadata: { name: 'usaf_memo' } }));
+    const result = await getSpec(quiver, STUB_ENGINE, 'usaf_memo');
+    assert.match(result.instruction, /Document format rules/);
+    assert.match(result.instruction, /~~~card-yaml/);
+    assert.match(result.instruction, /NOT.*---|---.*frontmatter/);
   });
 });

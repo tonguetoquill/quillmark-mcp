@@ -40,23 +40,16 @@
       "maxTokens": 4096
     },
     {
-      "name": "nvidia/nemotron-nano-9b-v2",
+      "name": "nvidia/nemotron-3-nano-30b-a3b",
       "baseUrl": "https://openrouter.ai/api/v1",
       "apiKeyEnv": "OPENROUTER_API_KEY",
       "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
+      "extraBody": { "reasoning": { "effort": "none" } },
       "temperature": 0,
       "maxTokens": 4096
     },
     {
       "name": "meta-llama/llama-3.1-8b-instruct",
-      "baseUrl": "https://openrouter.ai/api/v1",
-      "apiKeyEnv": "OPENROUTER_API_KEY",
-      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
-      "temperature": 0,
-      "maxTokens": 4096
-    },
-    {
-      "name": "meta-llama/llama-4-scout",
       "baseUrl": "https://openrouter.ai/api/v1",
       "apiKeyEnv": "OPENROUTER_API_KEY",
       "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
