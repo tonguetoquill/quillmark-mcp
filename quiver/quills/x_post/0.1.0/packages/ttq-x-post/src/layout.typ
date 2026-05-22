@@ -108,6 +108,7 @@
 }
 
 #let is-true(v) = {
+  if type(v) == bool { return v }
   let s = str(v).trim()
   s == "true" or s == "True" or s == "TRUE" or s == "yes" or s == "1"
 }

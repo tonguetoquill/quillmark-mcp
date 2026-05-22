@@ -48,14 +48,11 @@ card_kinds:
           group: Author
         description: X handle without the @ prefix.
       verified:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Author
-        description: Set to "true" to show a verified checkmark.
+        description: When true, show a verified checkmark next to the display name.
       verified_type:
         type: string
         default: blue
@@ -138,11 +135,8 @@ card_kinds:
           group: Post
         description: Text of a Community Note rendered as a rounded card above the engagement bar. Leave empty to omit.
       pinned:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Post
         description: Show a "📌 Pinned" indicator above the post.
@@ -168,20 +162,19 @@ card_kinds:
         required: true
         ui:
           group: Author
-        description: Reply author display name.
+        description: Reply author's display name (shown in bold). See `post.display_name`.
       handle:
         type: string
         required: true
         ui:
           group: Author
+        description: X handle without the @ prefix. See `post.handle`.
       verified:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Author
+        description: See `post.verified`.
       verified_type:
         type: string
         default: blue
@@ -191,51 +184,61 @@ card_kinds:
         - gray
         ui:
           group: Author
+        description: See `post.verified_type`.
       avatar_initials:
         type: string
         required: true
         ui:
           group: Author
+        description: See `post.avatar_initials`.
       avatar_color:
         type: string
         default: '#1D9BF0'
         ui:
           group: Author
+        description: See `post.avatar_color`.
       timestamp:
         type: string
         required: true
         ui:
           group: Post
+        description: See `post.timestamp`.
       reply_count:
         type: string
         default: ''
         ui:
           group: Engagement
+        description: See `post.reply_count`.
       repost_count:
         type: string
         default: ''
         ui:
           group: Engagement
+        description: See `post.repost_count`.
       like_count:
         type: string
         default: ''
         ui:
           group: Engagement
+        description: See `post.like_count`.
       view_count:
         type: string
         default: ''
         ui:
           group: Engagement
+        description: See `post.view_count`.
       bookmark_count:
         type: string
         default: ''
         ui:
           group: Engagement
+        description: See `post.bookmark_count`.
       community_note:
         type: string
         default: ''
         ui:
           group: Post
+        description: See `post.community_note`.
   quoted_tweet:
     description: A quoted tweet rendered as a nested card inside a post or reply. Attach by `attached_to` + `belongs_to_post_index`.
     fields:
@@ -259,19 +262,19 @@ card_kinds:
         required: true
         ui:
           group: Author
+        description: Display name of the quoted account. See `post.display_name`.
       handle:
         type: string
         required: true
         ui:
           group: Author
+        description: Handle of the quoted account (no @). See `post.handle`.
       verified:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Author
+        description: See `post.verified`.
       verified_type:
         type: string
         default: blue
@@ -281,18 +284,22 @@ card_kinds:
         - gray
         ui:
           group: Author
+        description: See `post.verified_type`.
       avatar_initials:
         type: string
         required: true
         ui:
           group: Author
+        description: See `post.avatar_initials`.
       avatar_color:
         type: string
         default: '#1D9BF0'
         ui:
           group: Author
+        description: See `post.avatar_color`.
       timestamp:
         type: string
         required: true
         ui:
           group: Post
+        description: Timestamp shown on the quoted card. Typically the quoted tweet's original time.

@@ -52,7 +52,7 @@ main:
       default: ''
       ui:
         group: Header
-      description: Optional path to an official seal image. Leave empty to use text fallback.
+      description: Optional filename of an official seal image under the quill's `assets/` directory. Leave empty to use a text fallback.
     version:
       type: string
       default: '1.0'
@@ -100,13 +100,13 @@ main:
       default: a
       ui:
         group: Header
-      description: Distribution statement keyword (a-f) or full custom statement text.
+      description: DoD Distribution Statement letter (`a`, `b`, `c`, `d`, `e`, or `f`) which expands to the canonical text, or supply your own full statement string to override.
     cover_stamp:
       type: string
       default: ''
       ui:
         group: Header
-      description: Optional stamp text (for example DRAFT or REVIEWED) rendered on the cover.
+      description: Optional stamp text (e.g. DRAFT, REVIEWED, APPROVED, FINAL) rendered diagonally across the cover. Leave empty to omit.
     authority:
       type: string
       default: ''

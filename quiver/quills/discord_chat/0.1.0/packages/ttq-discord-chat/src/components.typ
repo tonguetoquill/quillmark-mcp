@@ -69,108 +69,57 @@
 
 // ─── BODY RENDERING ────────────────────────────────────────────────────────
 //
-// Authors write message body_md as a string. We transform Discord sentinels
-// ({@user}, {#channel}, {@everyone}, {spoiler:...}) into Typst show-rule-
-// compatible markers, then hand off to `eval(...)` with markup mode so
-// markdown-style **bold**, *italic*, `code`, and code blocks work natively.
+// The message body arrives as already-rendered Typst content (Quillmark
+// converts the markdown prose after the card-yaml block via `$body`).
+// Standard markdown (**bold**, *italic*, `inline`, ```fenced``` blocks) is
+// rendered by the markdown layer. Discord-specific sentinels survive as
+// literal text in the content tree, and we transform them with Typst
+// `show regex(...)` rules scoped to this body.
 //
-// Pipeline:
-//   1. Split on triple-backtick code fences → render fenced blocks verbatim.
-//   2. For inline parts, replace sentinels with Typst function-call text.
-//   3. eval(part, mode: "markup", scope: (mention: ..., spoiler: ...))
-//      so Typst parses markdown-ish inline markup and resolves our helpers.
+// Recognized sentinels:
+//   {@everyone}, {@here}, {@user}, {#channel} → mention pill
+//   {spoiler:text}, ||text||                  → spoiler box
+// Show rules do not fire inside `raw` elements, so sentinels inside code
+// spans/blocks are preserved verbatim.
 
-#let message-body(raw-body, theme: "dark") = {
+#let message-body(body, theme: "dark") = {
   let t = theme-of(theme)
-  let s = str(raw-body)
-
-  // Scope passed into eval so our helpers are callable by name.
-  let eval-scope = (
-    mention: label => mention-pill(label, theme: theme),
-    spoiler: label => spoiler(label, theme: theme),
-    code: label => box(
+  [
+    #show raw.where(block: true): it => block(
+      width: 100%,
+      inset: 8pt,
+      radius: 4pt,
+      fill: t.code-bg,
+      stroke: 1pt + t.divider,
+    )[
+      #set text(font: config.mono-font, size: 8.5pt, fill: t.code-text)
+      #set par(leading: 0.4em)
+      #it
+    ]
+    #show raw.where(block: false): it => box(
       inset: (x: 3pt, y: 1pt),
       radius: 2pt,
       fill: t.code-bg,
       baseline: 1pt,
-      text(font: config.mono-font, size: 8.5pt, fill: t.code-text, label),
-    ),
-  )
-
-  // Pre-process sentinels into Typst function calls. Order matters:
-  //   {@everyone} and {@here} first (specific before general)
-  //   {@user}    → #mention("@user")
-  //   {#channel} → #mention("#channel")
-  //   {spoiler:text} → #spoiler("text")
-  //   ||text||   → #spoiler("text")
-  //   `inline`   → kept, rendered natively by markup as raw; but we override
-  //                with our code helper via a replace.
-  //
-  // We emit Typst markup (not code-mode), so mention/spoiler calls use
-  // `#func(...)`. Our eval scope wires those to the theme-aware helpers.
-  //
-  // We handle code fences ```lang\n...``` as whole-block substitutions prior
-  // to inline processing so backticks inside code don't leak into inline pass.
-
-  // Step 1: split on ```
-  let parts = s.split("```")
-  let out-blocks = ()
-  let in-code = false
-  for part in parts {
-    if in-code {
-      // Strip optional language tag on first line
-      let body = part
-      let nl-idx = body.position("\n")
-      if nl-idx != none {
-        let first = body.slice(0, nl-idx).trim()
-        // Treat as language tag if only letters/digits.
-        let is-lang = first != "" and first.match(regex("^[A-Za-z0-9_+-]+$")) != none
-        if is-lang {
-          body = body.slice(nl-idx + 1)
-        }
-      }
-      out-blocks.push(block(
-        width: 100%,
-        inset: 8pt,
-        radius: 4pt,
-        fill: t.code-bg,
-        stroke: 1pt + t.divider,
-      )[
-        #set text(font: config.mono-font, size: 8.5pt, fill: t.code-text)
-        #set par(leading: 0.4em)
-        #raw(body.trim("\n"))
-      ])
-    } else {
-      // Inline segment — substitute sentinels, then eval as markup.
-      let inline = part
-      // Sentinel substitutions — use unique unlikely ASCII marker sequences so
-      // we don't accidentally collide with normal text.
-      inline = inline.replace(
-        regex("\\{@(everyone|here)\\}"),
-        m => "#mention(\"@" + m.captures.at(0) + "\")",
-      )
-      inline = inline.replace(
-        regex("\\{@([A-Za-z0-9_\\.]+)\\}"),
-        m => "#mention(\"@" + m.captures.at(0) + "\")",
-      )
-      inline = inline.replace(
-        regex("\\{#([A-Za-z0-9_\\-]+)\\}"),
-        m => "#mention(\"#" + m.captures.at(0) + "\")",
-      )
-      inline = inline.replace(
-        regex("\\{spoiler:([^}]+)\\}"),
-        m => "#spoiler(\"" + m.captures.at(0).replace("\"", "\\\"") + "\")",
-      )
-      inline = inline.replace(
-        regex("\\|\\|([^|\\n]+)\\|\\|"),
-        m => "#spoiler(\"" + m.captures.at(0).replace("\"", "\\\"") + "\")",
-      )
-      // eval as markup; wrap in a scope so helpers resolve.
-      out-blocks.push(eval(inline, mode: "markup", scope: eval-scope))
+      text(font: config.mono-font, size: 8.5pt, fill: t.code-text, it),
+    )
+    #show regex("\{@(?:everyone|here)\}"): m => {
+      mention-pill("@" + m.text.slice(2, m.text.len() - 1), theme: theme)
     }
-    in-code = not in-code
-  }
-  out-blocks.join()
+    #show regex("\{@[A-Za-z0-9_\.]+\}"): m => {
+      mention-pill("@" + m.text.slice(2, m.text.len() - 1), theme: theme)
+    }
+    #show regex("\{#[A-Za-z0-9_\-]+\}"): m => {
+      mention-pill("#" + m.text.slice(2, m.text.len() - 1), theme: theme)
+    }
+    #show regex("\{spoiler:[^}]+\}"): m => {
+      spoiler(m.text.slice(9, m.text.len() - 1), theme: theme)
+    }
+    #show regex("\|\|[^|\n]+\|\|"): m => {
+      spoiler(m.text.slice(2, m.text.len() - 2), theme: theme)
+    }
+    #body
+  ]
 }
 
 // ─── CHANNEL HEADER ────────────────────────────────────────────────────────
@@ -368,7 +317,7 @@
 
 #let message-row(msg, embed: none, theme: "dark", legacy: false) = {
   let t = theme-of(theme)
-  let grouped = is-true(msg.at("group_with_previous", default: "false"))
+  let grouped = is-true(msg.at("group_with_previous", default: false))
 
   if msg.at("replying_to_user", default: "") != "" {
     reply-reference(
@@ -400,10 +349,10 @@
           username-line(
             username: msg.at("username", default: ""),
             user-color: msg.at("user_color", default: "#F2F3F5"),
-            is-bot: is-true(msg.at("is_bot", default: "false")),
-            is-verified-app: is-true(msg.at("is_verified_app", default: "false")),
+            is-bot: is-true(msg.at("is_bot", default: false)),
+            is-verified-app: is-true(msg.at("is_verified_app", default: false)),
             timestamp: msg.at("timestamp", default: ""),
-            pinned: is-true(msg.at("pinned", default: "false")),
+            pinned: is-true(msg.at("pinned", default: false)),
             legacy: legacy,
             theme: theme,
           )
@@ -411,8 +360,8 @@
         }
         #set text(font: config.font, size: config.body-size, fill: t.text)
         #set par(leading: 0.6em, spacing: 4pt)
-        #message-body(msg.at("body_md", default: ""), theme: theme)
-        #if is-true(msg.at("edited", default: "false")) {
+        #message-body(msg.at("$body", default: []), theme: theme)
+        #if is-true(msg.at("edited", default: false)) {
           text(size: 6.5pt, fill: t.timestamp, " (edited)")
         }
         #if embed != none { embed-card(embed, theme: theme) }

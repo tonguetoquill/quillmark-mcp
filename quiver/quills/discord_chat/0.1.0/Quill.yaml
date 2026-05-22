@@ -29,7 +29,7 @@ main:
       example: ops-coord
       ui:
         group: Channel
-      description: Channel name without the
+      description: Channel name without the leading # prefix.
     channel_topic:
       type: string
       default: ''
@@ -39,7 +39,9 @@ main:
       description: Optional channel topic shown next to channel name.
 card_kinds:
   message:
-    description: 'A Discord message from a user. Use sentinel tokens in body_md: {@user}, {#channel}, {@everyone}, {spoiler:hidden text}. Inline markdown: **bold**, *italic*, __underline__, ~~strike~~, `code`, ```lang\nblock```.'
+    description: "A Discord message from a user. The message body is the markdown prose written after the card's YAML block. Standard markdown is supported (**bold**, *italic*, `inline code`, ```code blocks```). Discord sentinel tokens are also recognized in the body: {@user}, {@everyone}, {@here}, {#channel}, {spoiler:hidden text}, and ||spoiler||."
+    body:
+      example: "Hey {@Sergeant}, the {#intel-feed} just dropped **BREAKING** ||check it now||"
     fields:
       username:
         type: string
@@ -61,26 +63,22 @@ card_kinds:
         example: CR
         ui:
           group: Author
+        description: 1–2 character initials shown inside the avatar circle when no avatar image is rendered.
       avatar_color:
         type: string
         default: '#5865F2'
         ui:
           group: Author
+        description: Hex color for the avatar circle background.
       is_bot:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Author
         description: Show the APP (or BOT in legacy theme) tag next to the username.
       is_verified_app:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Author
         description: Show a checkmark in the APP tag (verified application).
@@ -91,13 +89,6 @@ card_kinds:
         ui:
           group: Message
         description: Freeform timestamp (Discord uses contextual phrasing like "Today at X").
-      body_md:
-        type: string
-        required: true
-        example: Hey {@Sergeant}, the {#intel-feed} just dropped **BREAKING** ||check it now||
-        ui:
-          group: Message
-        description: Message content. Supports bold/italic/strike/underline/code/code-block and Discord sentinels {@user} {#channel} {@everyone} {spoiler:...}
       replying_to_user:
         type: string
         default: ''
@@ -109,6 +100,7 @@ card_kinds:
         default: ''
         ui:
           group: Threading
+        description: Hex color for the replied-to user's name in the reply reference. Should match that user's `user_color`.
       replying_to_preview:
         type: string
         default: ''
@@ -120,11 +112,13 @@ card_kinds:
         default: '?'
         ui:
           group: Threading
+        description: Avatar initials of the replied-to user, shown in the reply reference.
       replying_to_avatar_color:
         type: string
         default: '#5865F2'
         ui:
           group: Threading
+        description: Hex color for the replied-to user's avatar circle. Should match that user's `avatar_color`.
       reactions:
         type: string
         default: ''
@@ -133,28 +127,20 @@ card_kinds:
           group: Engagement
         description: Comma-separated emoji:count pairs. Trailing * marks viewer's own reaction.
       edited:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Message
         description: Show (edited) after the message body.
       pinned:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Message
+        description: Mark this message as pinned in the channel.
       group_with_previous:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Message
         description: Hide avatar and username (same author as previous message within ~7 min).
@@ -172,26 +158,31 @@ card_kinds:
         default: '#5865F2'
         ui:
           group: Appearance
+        description: Hex color for the embed's left accent bar.
       author_name:
         type: string
         default: ''
         ui:
           group: Content
+        description: Small author name shown above the embed title.
       title:
         type: string
         default: ''
         ui:
           group: Content
+        description: Embed title shown in bold above the description.
       description:
         type: string
         default: ''
         ui:
           group: Content
+        description: Main body text of the embed.
       url:
         type: string
         default: ''
         ui:
           group: Content
+        description: Optional URL that makes the title a clickable link.
       image_caption:
         type: string
         default: ''
@@ -203,6 +194,7 @@ card_kinds:
         default: ''
         ui:
           group: Content
+        description: Small footer text shown at the bottom of the embed.
   system_message:
     description: Non-user events like joins, pins, boosts.
     fields:
@@ -218,18 +210,22 @@ card_kinds:
         - call_end
         ui:
           group: Event
+        description: Kind of system event. Determines icon and phrasing (e.g. "X joined the channel", "X pinned a message").
       username:
         type: string
         required: true
         ui:
           group: Event
+        description: User whose action triggered the system event.
       timestamp:
         type: string
         required: true
         ui:
           group: Event
+        description: Freeform timestamp shown next to the event line.
       target_message_preview:
         type: string
         default: ''
         ui:
           group: Event
+        description: For pin events, short preview of the pinned message. Ignored for other event types.

@@ -9,7 +9,7 @@ feed_header: "For you"
 $kind: post
 display_name: "Pentagon Press Secretary"
 handle: "PentagonPresSec"
-verified: "true"
+verified: true
 verified_type: "gray"
 avatar_initials: "PP"
 avatar_color: "#36454F"
@@ -19,7 +19,7 @@ repost_count: "14200"
 like_count: "38100"
 bookmark_count: "4210"
 view_count: "2100000"
-pinned: "true"
+pinned: true
 ~~~
 
 U.S. and allied naval forces have increased maritime patrols in the Baltic Sea in response to unusual underwater activity near the Northern Resolve exercise area.
@@ -32,7 +32,7 @@ belongs_to_post_index: 0
 replying_to_handles: "PentagonPresSec"
 display_name: "Marcus Reed"
 handle: "MarcusReedCNN"
-verified: "true"
+verified: true
 verified_type: "blue"
 avatar_initials: "MR"
 avatar_color: "#CC0000"
@@ -51,7 +51,7 @@ belongs_to_post_index: 0
 replying_to_handles: "PentagonPresSec,MarcusReedCNN"
 display_name: "Helsinki Defense Analyst"
 handle: "HelsinkiDefense"
-verified: "false"
+verified: false
 avatar_initials: "HD"
 avatar_color: "#003580"
 timestamp: "4:44 PM · Apr 15, 2026"
@@ -84,7 +84,7 @@ so what are you actually going to DO about it though
 $kind: post
 display_name: "NATO"
 handle: "NATO"
-verified: "true"
+verified: true
 verified_type: "gold"
 avatar_initials: "N"
 avatar_color: "#004990"
@@ -106,7 +106,7 @@ attached_to: post
 belongs_to_post_index: 1
 display_name: "Pentagon Press Secretary"
 handle: "PentagonPresSec"
-verified: "true"
+verified: true
 verified_type: "gray"
 avatar_initials: "PP"
 avatar_color: "#36454F"
@@ -119,7 +119,7 @@ U.S. and allied naval forces have increased maritime patrols in the Baltic Sea i
 $kind: post
 display_name: "Open Source Intel"
 handle: "OSINTbaltic"
-verified: "false"
+verified: false
 avatar_initials: "OS"
 avatar_color: "#2E8B57"
 timestamp: "5:47 PM · Apr 15, 2026"

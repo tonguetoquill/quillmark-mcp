@@ -3,7 +3,7 @@ $quill: usaf_intel_brief@0.1.0
 $kind: main
 classification: "SECRET"
 classification_caveats: "NOFORN"
-notional: "true"
+notional: true
 exercise_name: "EXERCISE TANAGER FORGE 26-01"
 brief_title: "Adversary Air Order of Battle — 24-Hour Update"
 subtitle: "Regional Threat Assessment"
@@ -18,7 +18,7 @@ left_seal: "usaf_seal.svg"
 center_seal: "dod_seal.svg"
 right_seal: "ussf_seal.svg"
 wordmark: "usaf_wordmark.svg"
-show_wordmark: "true"
+show_wordmark: true
 ~~~
 
 ~~~card-yaml
