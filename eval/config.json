@@ -17,39 +17,14 @@
       "maxTokens": 4096
     },
     {
+      "name": "gpt-5.4-mini",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "maxTokensParam": "max_completion_tokens",
+      "maxTokens": 4096
+    },
+    {
       "name": "google/gemma-4-26b-a4b-it",
-      "baseUrl": "https://openrouter.ai/api/v1",
-      "apiKeyEnv": "OPENROUTER_API_KEY",
-      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
-      "temperature": 0,
-      "maxTokens": 4096
-    },
-    {
-      "name": "deepseek/deepseek-v4-flash",
-      "baseUrl": "https://openrouter.ai/api/v1",
-      "apiKeyEnv": "OPENROUTER_API_KEY",
-      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
-      "temperature": 0,
-      "maxTokens": 4096
-    },
-    {
-      "name": "qwen/qwen3.6-flash",
-      "baseUrl": "https://openrouter.ai/api/v1",
-      "apiKeyEnv": "OPENROUTER_API_KEY",
-      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
-      "temperature": 0,
-      "maxTokens": 4096
-    },
-    {
-      "name": "qwen/qwen3-8b",
-      "baseUrl": "https://openrouter.ai/api/v1",
-      "apiKeyEnv": "OPENROUTER_API_KEY",
-      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
-      "temperature": 0,
-      "maxTokens": 4096
-    },
-    {
-      "name": "moonshotai/kimi-k2.6",
       "baseUrl": "https://openrouter.ai/api/v1",
       "apiKeyEnv": "OPENROUTER_API_KEY",
       "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
