@@ -35,7 +35,7 @@ const maybe = SHOULD_RUN ? describe : describe.skip;
  * @type {Set<string>}
  * @constant
  */
-const EXPECTED_TOOLS = new Set(['list_quills', 'get_specs', 'create_document']);
+const EXPECTED_TOOLS = new Set(['list_quills', 'get_spec', 'create_document']);
 
 /**
  * @description Layer 5: HTTP transport protocol compliance via the MCP SDK Client.
@@ -76,7 +76,7 @@ maybe('Layer 5: MCP protocol compliance (HTTP transport)', () => {
     assert.ok(info?.version, 'server version missing');
   });
 
-  it('tools/list returns exactly list_quills, get_specs, create_document', async () => {
+  it('tools/list returns exactly list_quills, get_spec, create_document', async () => {
     const { tools } = await client.listTools();
     const names = new Set(tools.map((t) => t.name));
     assert.deepEqual(names, EXPECTED_TOOLS, `got ${[...names].join(',')}`);
@@ -95,13 +95,13 @@ maybe('Layer 5: MCP protocol compliance (HTTP transport)', () => {
     assert.ok(quills.some((q) => q.name === 'usaf_memo'), 'usaf_memo not in list');
   });
 
-  it('tools/call get_specs returns TOON spec + instructions for usaf_memo', async () => {
+  it('tools/call get_spec returns TOON spec + instructions for usaf_memo', async () => {
     const result = await client.callTool({
-      name: 'get_specs',
+      name: 'get_spec',
       arguments: { quill: 'usaf_memo' },
     });
     const body = result.structuredContent;
-    assert.ok(body, 'get_specs returned nothing');
+    assert.ok(body, 'get_spec returned nothing');
     assert.equal(typeof body.instruction, 'string');
     assert.equal(typeof body.blueprint, 'string');
     assert.ok(body.instruction.length > 0);
@@ -135,9 +135,9 @@ maybe('Layer 5: MCP protocol compliance (HTTP transport)', () => {
     assert.match(result.content?.[0]?.text ?? '', /no_such_quill|Unable to resolve/);
   });
 
-  it('tools/call get_specs with unknown ref returns isError', async () => {
+  it('tools/call get_spec with unknown ref returns isError', async () => {
     const result = await client
-      .callTool({ name: 'get_specs', arguments: { quill: 'ghost' } })
+      .callTool({ name: 'get_spec', arguments: { quill: 'ghost' } })
       .catch((err) => ({ thrown: err }));
     if (result.thrown) {
       assert.match(String(result.thrown.message ?? result.thrown), /ghost|not.*found|unknown/i);
