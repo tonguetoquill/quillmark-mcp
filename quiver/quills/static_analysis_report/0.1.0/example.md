@@ -1,5 +1,6 @@
----
-QUILL: static_analysis_report@0.1
+~~~card-yaml
+$quill: static_analysis_report@0.1
+$kind: main
 report_title: RAPTOR-9X Fire Control — Cybersecurity Assessment Report
 report_type: "WEAPON SYSTEM CYBERSECURITY ASSESSMENT REPORT"
 classification: unclassified
@@ -172,6 +173,6 @@ references:
 # Footer
 generator_name: Synthetic Static Analyzer (example)
 generator_version: "0.9.2"
----
+~~~
 
 This cybersecurity assessment report summarizes static analysis and configuration review artifacts for a fictional weapon system software baseline. The body section is optional and can hold program office notes, waiver text, or test limitations.

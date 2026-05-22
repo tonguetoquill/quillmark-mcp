@@ -9,10 +9,10 @@
 #feed-header-bar(label: data.at("feed_header", default: ""), theme: theme)
 
 // Partition cards.
-#let all-cards = data.at("CARDS", default: ())
-#let posts = all-cards.filter(c => c.at("CARD", default: "") == "post")
-#let replies = all-cards.filter(c => c.at("CARD", default: "") == "reply")
-#let quotes = all-cards.filter(c => c.at("CARD", default: "") == "quoted_tweet")
+#let all-cards = data.at("$cards", default: ())
+#let posts = all-cards.filter(c => c.at("$kind", default: "") == "post")
+#let replies = all-cards.filter(c => c.at("$kind", default: "") == "reply")
+#let quotes = all-cards.filter(c => c.at("$kind", default: "") == "quoted_tweet")
 
 // Render each top-level post, its quoted tweet (if any), then its replies.
 #for (i, post) in posts.enumerate() {

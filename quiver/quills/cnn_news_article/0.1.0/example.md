@@ -1,5 +1,6 @@
----
-QUILL: cnn_news_article@0.1.0
+~~~card-yaml
+$quill: cnn_news_article@0.1.0
+$kind: main
 headline: "NATO allies scramble as unidentified submarine detected near Baltic exercise zone"
 subheadline: "Multiple NATO warships have been redirected to track the contact, sources say"
 author: "Marcus J. Reed"
@@ -17,7 +18,7 @@ tags:
   - Submarine
   - Defense
   - Northern Europe
----
+~~~
 
 Multiple NATO warships participating in Exercise Northern Resolve have been diverted from planned training activities to track an unidentified submarine contact detected near the exercise area in the central Baltic Sea, according to three defense officials familiar with the situation.
 
@@ -35,36 +36,36 @@ The incident has prompted heightened vigilance among Baltic NATO members, severa
 
 A Pentagon spokesperson said the United States was "aware of the situation and in close coordination with our NATO allies" but referred further questions to NATO headquarters in Brussels.
 
----
-CARD: live_update
+~~~card-yaml
+$kind: live_update
 timestamp: "2026-04-13 09:15 ET"
 update_headline: "Pentagon confirms submarine contact"
----
+~~~
 
 A Pentagon spokesperson confirmed that NATO maritime forces detected "an underwater contact of interest" during Exercise Northern Resolve but declined to provide further details, citing operational security. "We are in close coordination with our NATO allies," the spokesperson said.
 
----
-CARD: live_update
+~~~card-yaml
+$kind: live_update
 timestamp: "2026-04-13 14:30 ET"
 update_headline: "NATO standing maritime group redirected"
----
+~~~
 
 Standing NATO Maritime Group 1 (SNMG1) has been redirected to the area, according to a NATO military official. The group, currently led by the German frigate FGS Sachsen, was conducting exercises northeast of Gotland when it received new tasking. Additional P-8A Poseidon aircraft from RAF Lossiemouth have been deployed.
 
----
-CARD: related_story
+~~~card-yaml
+$kind: related_story
 story_headline: "Pentagon moves additional naval assets to Northern Europe ahead of spring exercises"
 story_source: "CNN"
----
+~~~
 
----
-CARD: related_story
+~~~card-yaml
+$kind: related_story
 story_headline: "Baltic nations request enhanced NATO air patrol presence"
 story_source: "Reuters"
----
+~~~
 
----
-CARD: related_story
+~~~card-yaml
+$kind: related_story
 story_headline: "Undersea cable damage raises alarm in Nordic capitals"
 story_source: "Financial Times"
----
+~~~

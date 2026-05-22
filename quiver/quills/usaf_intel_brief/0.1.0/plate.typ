@@ -15,8 +15,8 @@
 #let _unit = data.at("unit", default: "")
 #let _dtg = data.at("dtg", default: "")
 
-#let _slides = data.at("CARDS", default: ()).filter(c => {
-  let k = c.at("CARD", default: "")
+#let _slides = data.at("$cards", default: ()).filter(c => {
+  let k = c.at("$kind", default: "")
   k == "slide" or k == "image_slide"
 })
 #let _slide-count = _slides.len() + 1  // +1 for title slide
@@ -68,7 +68,7 @@
 // ── CONTENT SLIDES ──
 #for slide in _slides {
   pagebreak()
-  let kind = slide.at("CARD", default: "slide")
+  let kind = slide.at("$kind", default: "slide")
   if kind == "image_slide" {
     image-slide(
       portion: slide.at("portion", default: "U"),

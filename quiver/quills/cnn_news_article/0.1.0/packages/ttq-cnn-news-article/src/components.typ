@@ -202,11 +202,11 @@
           fill: config.colors.text-primary, card.update_headline)
       }
 
-      #if card.BODY != "" {
+      #if card.at("$body", default: "") != "" {
         linebreak()
         set text(font: config.body-font, size: 10pt,
           fill: config.colors.text-secondary)
-        card.BODY
+        card.at("$body", default: [])
       }
     ]
     v(6pt)

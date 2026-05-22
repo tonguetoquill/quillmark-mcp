@@ -387,9 +387,9 @@
 // 11. ADDITIONAL NOTES (if any)
 // ========================================
 
-#if data.BODY != "" {
+#if data.at("$body", default: "") != "" {
   section-header("Additional Notes", icon-name: "note-sticky")
-  data.BODY
+  data.at("$body", default: [])
 }
 
 // ========================================
