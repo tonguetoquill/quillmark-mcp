@@ -1,3 +1,3 @@
 export { listQuills } from './listQuills.js';
-export { getSpecs } from './getSpecs.js';
+export { getSpec } from './getSpec.js';
 export { createDocument } from './createDocument.js';

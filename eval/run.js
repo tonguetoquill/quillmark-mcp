@@ -26,8 +26,8 @@ const MAX_CREATE_ATTEMPTS = 5;
 
 const SYSTEM_PROMPT = [
   'You help a user generate a document using the available MCP tools.',
-  'Workflow: list_quills (if you need to discover formats) -> get_specs for the chosen quill -> create_document.',
-  'Always call get_specs before create_document so you know the required fields and YAML shape.',
+  'Workflow: list_quills (if you need to discover formats) -> get_spec for the chosen quill -> create_document.',
+  'Always call get_spec before create_document so you know the required fields and YAML shape.',
   'Pass the full document body as the `content` argument to create_document.',
   'If create_document returns an error, read the diagnostics and try again with corrected content.',
   'Stop after create_document succeeds.',
@@ -136,7 +136,7 @@ async function callOpenAICompat(model, body, signal) {
   return res.json();
 }
 
-// Minimal happy-path "mock" model: list_quills -> get_specs -> create_document
+// Minimal happy-path "mock" model: list_quills -> get_spec -> create_document
 // using each quill's shipped example.md. Lets us verify the harness wiring
 // end-to-end without any API keys.
 function makeMockResponder(promptQuill) {
@@ -174,7 +174,7 @@ function makeMockResponder(promptQuill) {
             tool_calls: [{
               id: 'c2',
               type: 'function',
-              function: { name: 'get_specs', arguments: JSON.stringify({ quill: chosenQuill }) },
+              function: { name: 'get_spec', arguments: JSON.stringify({ quill: chosenQuill }) },
             }],
           },
         }],
@@ -311,7 +311,7 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
   const calledGetSpecsBeforeCreate = (() => {
     const i = toolSequence.indexOf('create_document');
     if (i < 0) return null;
-    return toolSequence.slice(0, i).includes('get_specs');
+    return toolSequence.slice(0, i).includes('get_spec');
   })();
 
   return {

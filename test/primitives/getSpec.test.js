@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { getSpecs } from '../../src/primitives/getSpecs.js';
+import { getSpec } from '../../src/primitives/getSpec.js';
 
 const STUB_ENGINE = {};
 
@@ -9,7 +9,7 @@ function makeQuiver(getQuillImpl) {
   return { getQuill: getQuillImpl };
 }
 
-describe('getSpecs', () => {
+describe('getSpec', () => {
   it('returns instruction and blueprint for a valid ref', async () => {
     const expectedBlueprint = 'Write a formal memo. Use concise language.';
     const quiver = makeQuiver(async (ref, opts) => {
@@ -22,7 +22,7 @@ describe('getSpecs', () => {
       };
     });
 
-    const result = await getSpecs(quiver, STUB_ENGINE, 'usaf_memo');
+    const result = await getSpec(quiver, STUB_ENGINE, 'usaf_memo');
 
     assert.strictEqual(result.blueprint, expectedBlueprint);
     assert.ok(typeof result.instruction === 'string' && result.instruction.length > 0);
@@ -36,7 +36,7 @@ describe('getSpecs', () => {
     });
 
     await assert.rejects(
-      () => getSpecs(quiver, STUB_ENGINE, 'unknown_quill'),
+      () => getSpec(quiver, STUB_ENGINE, 'unknown_quill'),
       /Unable to resolve Quill format reference "unknown_quill": quill_not_found/,
     );
   });
@@ -47,7 +47,7 @@ describe('getSpecs', () => {
     });
 
     await assert.rejects(
-      () => getSpecs(quiver, STUB_ENGINE, 'usaf_memo'),
+      () => getSpec(quiver, STUB_ENGINE, 'usaf_memo'),
       /source unavailable/,
     );
   });
@@ -59,7 +59,7 @@ describe('getSpecs', () => {
       metadata: { name: 'sitrep' },
     }));
 
-    const result = await getSpecs(quiver, STUB_ENGINE, 'sitrep');
+    const result = await getSpec(quiver, STUB_ENGINE, 'sitrep');
 
     assert.strictEqual(result.blueprint, '');
   });
@@ -72,13 +72,13 @@ describe('getSpecs', () => {
       metadata: { name: 'sitrep' },
     }));
 
-    const result = await getSpecs(quiver, STUB_ENGINE, 'sitrep');
+    const result = await getSpec(quiver, STUB_ENGINE, 'sitrep');
 
     assert.strictEqual(result.blueprint, blueprint);
   });
 
   it('rejects empty string refs', async () => {
     const quiver = makeQuiver(async () => assert.fail('should not call'));
-    await assert.rejects(() => getSpecs(quiver, STUB_ENGINE, '   '), /non-empty string/);
+    await assert.rejects(() => getSpec(quiver, STUB_ENGINE, '   '), /non-empty string/);
   });
 });

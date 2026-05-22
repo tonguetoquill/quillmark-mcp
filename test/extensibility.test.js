@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 
 import { createDefaultMCP } from '../src/index.js';
-import { listQuills, getSpecs } from '../src/primitives/index.js';
+import { listQuills, getSpec } from '../src/primitives/index.js';
 
 const FIXTURE_QUILLS_DIR = fileURLToPath(new URL('./fixtures/quills', import.meta.url));
 
@@ -53,8 +53,8 @@ describe('extensibility — new quills auto-discover without code changes', () =
     assert.ok(names.includes('my_custom_quill'), `new quill not discovered: ${names.join(',')}`);
   });
 
-  it('getSpecs returns instruction and blueprint for the newly-added quill', async () => {
-    const specs = await getSpecs(mcp.quiver, mcp.engine, 'my_custom_quill');
+  it('getSpec returns instruction and blueprint for the newly-added quill', async () => {
+    const specs = await getSpec(mcp.quiver, mcp.engine, 'my_custom_quill');
     assert.equal(typeof specs.instruction, 'string');
     assert.ok(specs.instruction.length > 0);
   });

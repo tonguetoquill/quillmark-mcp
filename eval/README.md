@@ -5,7 +5,7 @@ A small harness for measuring **MCP flow ergonomics** against the local
 per-run telemetry as JSONL, and aggregates into a per-model summary.
 
 The goal is **not** to evaluate model quality — it's to see how well low-end
-models can complete the `list_quills → get_specs → create_document` flow,
+models can complete the `list_quills → get_spec → create_document` flow,
 and where they get stuck.
 
 ## Quick start (no API keys)
@@ -187,7 +187,7 @@ One record per run, written to `eval/results/<ts>.jsonl`:
   "success": true,
   "createAttempts": 2,
   "toolCallCount": 4,
-  "toolSequence": ["list_quills", "get_specs", "create_document", "create_document"],
+  "toolSequence": ["list_quills", "get_spec", "create_document", "create_document"],
   "calledGetSpecsBeforeCreate": true,
   "errors": [
     { "attempt": 3, "tool": "create_document", "category": "schema_missing_field", "message": "..." }
@@ -229,7 +229,7 @@ mock://happy-path                      16   100.0%   1.00     1.00    1.00   100
 - `success` — fraction of runs where `create_document` returned non-error
 - `mean-att` / `med-att` / `p90-att` — attempts-to-success distribution
   (only over successful runs)
-- `specs1st` — fraction of runs that called `get_specs` before
+- `specs1st` — fraction of runs that called `get_spec` before
   `create_document`. Low values suggest models are jumping straight to
   `create_document` and failing
 - `self-corr` — fraction of successful runs that needed >1 attempt.

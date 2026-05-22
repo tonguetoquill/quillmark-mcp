@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
-import { createDocument, getSpecs, listQuills } from '../primitives/index.js';
+import { createDocument, getSpec, listQuills } from '../primitives/index.js';
 import { logger } from '../logger.js';
 import { getErrorMessage } from '../errors.js';
 
-const SERVER_INSTRUCTIONS = 'Workflow: list_quills → get_specs → create_document → surface the returned URL to the user as a markdown link.';
+const SERVER_INSTRUCTIONS = 'Workflow: list_quills → get_spec → create_document → surface the returned URL to the user as a markdown link. Always call `get_spec` before `create_document`; it returns a ready-to-edit blueprint and the full format spec for the chosen quill.';
 
 function formatDiagnostic(d) {
   const parts = [`[${d.severity ?? 'error'}] ${d.message ?? ''}`];
@@ -75,18 +75,18 @@ export class QuillmarkMCP {
     });
 
     this.server.addTool({
-      name: 'get_specs',
-      description: 'Learn how to compose a document in a specific quill format. Call before `create_document`.',
+      name: 'get_spec',
+      description: 'Returns the format spec and a ready-to-edit blueprint for a specific quill. Always call before `create_document` and use the blueprint as the starting point for `content`.',
       inputSchema: {
         quill: z
           .string({
             error: (issue) =>
               issue.input === undefined
-                ? 'Missing required field `quill`. Pass either a base name (e.g., `usaf_memo`) or `name@version`.'
-                : 'Field `quill` must be a string (base name or `name@version`).',
+                ? 'Missing required field `quill`. Pass either a base name (e.g., `usaf_memo`) for the latest version, or an explicit `name@version` pin (e.g., `usaf_memo@0.2.0`). Do NOT use `@latest` — it is not a valid selector.'
+                : 'Field `quill` must be a string: a base name (latest) or `name@version` with a numeric semver (e.g., `usaf_memo@0.2.0`). `@latest` is not accepted.',
           })
-          .min(1, 'Field `quill` must be non-empty (base name or `name@version`).')
-          .describe('Either base name for latest or `name@version`.'),
+          .min(1, 'Field `quill` must be non-empty. Use a base name (latest) or `name@version` (e.g., `usaf_memo@0.2.0`).')
+          .describe('Quill format reference. Use a base name like `usaf_memo` for the latest version, or pin a specific version like `usaf_memo@0.2.0`. Do NOT use `@latest` — only numeric semver selectors (`x`, `x.y`, `x.y.z`) are accepted.'),
       },
       outputSchema: {
         instruction: z.string(),
@@ -94,14 +94,14 @@ export class QuillmarkMCP {
       },
       execute: async ({ quill }) => {
         try {
-          const { instruction, blueprint } = await getSpecs(this.quiver, this.engine, quill);
+          const { instruction, blueprint } = await getSpec(this.quiver, this.engine, quill);
           const text = blueprint ? `${instruction}\n\n${blueprint}` : instruction;
           return {
             content: [{ type: 'text', text }],
             structuredContent: { instruction, blueprint },
           };
         } catch (error) {
-          logger.warn(`get_specs failed (quill: ${quill}): ${getErrorMessage(error)}`);
+          logger.warn(`get_spec failed (quill: ${quill}): ${getErrorMessage(error)}`);
           return errorResult(getErrorMessage(error));
         }
       },
@@ -109,17 +109,17 @@ export class QuillmarkMCP {
 
     this.server.addTool({
       name: 'create_document',
-      description: 'Render a document and return a URL to the rendered artifact. Call `list_quills` then `get_specs` first to learn how to compose `content` for the chosen quill format.',
+      description: 'Render a document and return a URL to the rendered artifact. Always call `list_quills` then `get_spec` first; copy the returned blueprint and edit it — do NOT compose `content` from scratch. The blueprint and its accompanying instruction are the source of truth for the document format.',
       inputSchema: {
         content: z
           .string({
             error: (issue) =>
               issue.input === undefined
-                ? 'Missing required field `content`. Pass the full document body as a string: YAML frontmatter with `QUILL: <ref>` followed by markdown. Call `get_specs` first to learn the format.'
-                : 'Field `content` must be a string. Pass the full document body: YAML frontmatter with `QUILL: <ref>` followed by markdown.',
+                ? 'Missing required field `content`. Pass the full document as a single string built from the blueprint returned by `get_spec`. Call `get_spec` first if you have not already.'
+                : 'Field `content` must be a string. Build it from the blueprint returned by `get_spec`.',
           })
-          .min(1, 'Field `content` must be non-empty. It should contain YAML frontmatter with `QUILL: <ref>` followed by markdown.')
-          .describe('Document body as quill-compliant markdown with a YAML frontmatter block containing `QUILL: <ref>`. Retrieve the format spec via `get_specs` before composing.'),
+          .min(1, 'Field `content` must be non-empty. Call `get_spec` to get a fillable blueprint, then edit and submit it.')
+          .describe('Full quill document as a single string, built by editing the blueprint returned by `get_spec`. The blueprint includes the required `~~~card-yaml` root block, all field types, and the body template.'),
       },
       execute: async ({ content }) => {
         const result = await createDocument(this.quiver, this.engine, this.strategy, content);

@@ -10,7 +10,7 @@ import { Quiver } from '@quillmark/quiver/node';
 
 import { createDefaultMCP } from '../src/index.js';
 import { QuillmarkMCP } from '../src/mcp/index.js';
-import { listQuills, getSpecs, createDocument } from '../src/primitives/index.js';
+import { listQuills, getSpec, createDocument } from '../src/primitives/index.js';
 import { RenderAndHostStrategy } from '../src/strategies/index.js';
 
 const FIXTURE_QUIVER_DIR = fileURLToPath(new URL('./fixtures', import.meta.url));
@@ -43,7 +43,7 @@ describe('integration', () => {
     assert.equal(fixtureMemo.description, 'USAF memo fixture');
     assert.equal(typeof fixtureMemo.version, 'string');
 
-    const specs = await getSpecs(quiver, engine, 'usaf_memo');
+    const specs = await getSpec(quiver, engine, 'usaf_memo');
     assert.equal(typeof specs.instruction, 'string');
     assert.ok(specs.instruction.length > 0);
     assert.equal(typeof specs.blueprint, 'string');
@@ -73,7 +73,7 @@ describe('integration', () => {
   it('covers primitive error paths', async () => {
     const { quiver, engine } = await createFixtureCatalog();
 
-    await assert.rejects(() => getSpecs(quiver, engine, 'missing_quill'));
+    await assert.rejects(() => getSpec(quiver, engine, 'missing_quill'));
 
     const strategy = {
       async handle() {
@@ -165,7 +165,7 @@ describe('integration', () => {
 
     const primitives = await import('quillmark-mcp/primitives');
     assert.equal(typeof primitives.listQuills, 'function');
-    assert.equal(typeof primitives.getSpecs, 'function');
+    assert.equal(typeof primitives.getSpec, 'function');
     assert.equal(typeof primitives.createDocument, 'function');
 
     const strategies = await import('quillmark-mcp/strategies');

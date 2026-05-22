@@ -4,6 +4,12 @@
 
 Quillmark engine upgrade and source-layout reorganisation. Breaking changes for users who embed quillmark-mcp as a library or who set the legacy CLI flags / env vars.
 
+### Tools
+
+- **Renamed `get_specs` → `get_spec`** (singular). The tool returns one instruction + one blueprint for one quill; the plural was semantically misleading. The `getSpecs` primitive export is likewise renamed to `getSpec`. Update client tool-name configs.
+- **Updated tool descriptions and the `get_spec` instruction** to reflect the post-0.81 markdown spec: metadata lives in `~~~card-yaml` fenced blocks (not `---` frontmatter), the root block must declare `$quill: <name>@<version>` and `$kind: main`, and reserved `$`-keys are `$quill`, `$kind`, `$id`, `$ext`. Spec rules are centralised in the `get_spec` instruction; `create_document` defers to it.
+- **`get_spec` input now rejects `@latest`** with an explicit error message — only numeric semver selectors (`x`, `x.y`, `x.y.z`) are accepted.
+
 ### Engine
 
 - **Bumped `@quillmark/wasm` 0.77.0 → 0.80.0**. The wasm engine moved from a per-instance quill registry to a stateless factory: `engine.quill(tree) → Quill`, with rendering on `quill.render(doc, opts?)` and parsing on `Document.fromMarkdown(content)`. Engine-level `registerQuill`, `dryRun`, `parseMarkdown`, `getQuillInfo`, and `getQuillSchema` are gone.
