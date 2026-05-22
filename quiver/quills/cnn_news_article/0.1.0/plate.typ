@@ -75,17 +75,17 @@
 
 // 10. BODY — starts with "Location CNN —" dateline inline
 #dateline-lead(dateline: data.at("dateline", default: ""))
-#data.BODY
+#data.at("$body", default: [])
 
 // 11. LIVE UPDATES (from cards)
 #{
-  let updates = data.CARDS.filter(c => c.CARD == "live_update")
+  let updates = data.at("$cards", default: ()).filter(c => c.at("$kind", default: "") == "live_update")
   if updates.len() > 0 { live-updates(updates) }
 }
 
 // 12. RELATED STORIES (from cards)
 #{
-  let related = data.CARDS.filter(c => c.CARD == "related_story")
+  let related = data.at("$cards", default: ()).filter(c => c.at("$kind", default: "") == "related_story")
   if related.len() > 0 { related-stories(related) }
 }
 

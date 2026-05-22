@@ -2,11 +2,11 @@ import { Document } from '@quillmark/wasm';
 
 import { getErrorMessage } from '../errors.js';
 
-const MISSING_QUILL_MESSAGE = 'QUILL: is required in frontmatter to select the Quill format.';
+const MISSING_QUILL_MESSAGE = '$quill: <name> is required in the root card-yaml block to select the Quill format.';
 
 function isMissingQuillError(error) {
   const diagnostics = /** @type {any} */ (error)?.diagnostics;
-  return Array.isArray(diagnostics) && diagnostics.some((d) => d?.code === 'parse::missing_quill_field');
+  return Array.isArray(diagnostics) && diagnostics.some((d) => d?.code === 'parse::missing_quill');
 }
 
 function extractDiagnostics(error) {

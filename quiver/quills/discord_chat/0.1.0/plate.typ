@@ -14,15 +14,15 @@
 )
 
 // Partition cards.
-#let all-cards = data.at("CARDS", default: ())
-#let messages = all-cards.filter(c => c.at("CARD", default: "") == "message")
-#let embeds = all-cards.filter(c => c.at("CARD", default: "") == "embed")
-#let system-msgs = all-cards.filter(c => c.at("CARD", default: "") == "system_message")
+#let all-cards = data.at("$cards", default: ())
+#let messages = all-cards.filter(c => c.at("$kind", default: "") == "message")
+#let embeds = all-cards.filter(c => c.at("$kind", default: "") == "embed")
+#let system-msgs = all-cards.filter(c => c.at("$kind", default: "") == "system_message")
 
 // Render in the order cards appear in the document so authors control flow.
 #let msg-idx = 0
 #for card in all-cards {
-  let kind = card.at("CARD", default: "")
+  let kind = card.at("$kind", default: "")
   if kind == "message" {
     let attached = embeds.find(e =>
       int(str(e.at("belongs_to_message_index", default: "-1"))) == msg-idx

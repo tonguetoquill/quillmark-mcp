@@ -144,7 +144,7 @@ describe('QuillmarkMCP', () => {
     };
 
     const tool = findTool(server, 'create_document');
-    const result = await tool.execute({ content: '---\nQUILL: usaf_memo\n---\nBody' });
+    const result = await tool.execute({ content: '~~~card-yaml\n$quill: usaf_memo\n$kind: main\n~~~\nBody' });
 
     assert.equal(captured.quill.metadata.name, 'usaf_memo');
     assert.equal(captured.doc.quillRef, 'usaf_memo');
@@ -166,7 +166,7 @@ describe('QuillmarkMCP', () => {
     };
 
     const tool = findTool(server, 'create_document');
-    const result = await tool.execute({ content: '---\nQUILL: usaf_memo\n---\nBody' });
+    const result = await tool.execute({ content: '~~~card-yaml\n$quill: usaf_memo\n$kind: main\n~~~\nBody' });
 
     assert.equal(result.isError, true);
     assert.match(result.content[0].text, /render exploded/);

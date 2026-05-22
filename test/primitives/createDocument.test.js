@@ -9,9 +9,10 @@ import { createDocument } from '../../src/primitives/createDocument.js';
 
 const FIXTURE_QUIVER_DIR = fileURLToPath(new URL('../fixtures', import.meta.url));
 
-const VALID_CONTENT = `---
-QUILL: usaf_memo
----
+const VALID_CONTENT = `~~~card-yaml
+$quill: usaf_memo
+$kind: main
+~~~
 # Memo`;
 
 async function loadCatalog() {
@@ -24,7 +25,7 @@ async function loadCatalog() {
 describe('createDocument', () => {
   it('accepts double-quoted QUILL scalars', async () => {
     const { quiver, engine } = await loadCatalog();
-    const quotedContent = `---\nQUILL: "usaf_memo@1.0.0"\n---\n# Memo`;
+    const quotedContent = `~~~card-yaml\n$quill: "usaf_memo@1.0.0"\n$kind: main\n~~~\n# Memo`;
     let receivedRef;
     const strategy = {
       async handle(quill, doc) {
@@ -39,7 +40,7 @@ describe('createDocument', () => {
 
   it('accepts single-quoted QUILL scalars', async () => {
     const { quiver, engine } = await loadCatalog();
-    const quotedContent = `---\nQUILL: 'usaf_memo'\n---\n# Memo`;
+    const quotedContent = `~~~card-yaml\n$quill: 'usaf_memo'\n$kind: main\n~~~\n# Memo`;
     let receivedRef;
     const strategy = {
       async handle(quill, doc) {
@@ -81,11 +82,11 @@ describe('createDocument', () => {
       quiver,
       engine,
       strategy,
-      '---\ntitle: memo\n---\n# Memo',
+      '~~~card-yaml\n$kind: main\ntitle: memo\n~~~\n# Memo',
     );
 
     assert.equal(result.ok, false);
-    assert.match(result.message, /QUILL: is required in frontmatter/);
+    assert.match(result.message, /\$quill: <name> is required/);
   });
 
   it('returns ok:false for invalid quill ref', async () => {
@@ -100,7 +101,7 @@ describe('createDocument', () => {
       quiver,
       engine,
       strategy,
-      '---\nQUILL: not_a_real_quill\n---\n# Body',
+      '~~~card-yaml\n$quill: not_a_real_quill\n$kind: main\n~~~\n# Body',
     );
 
     assert.equal(result.ok, false);

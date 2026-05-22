@@ -258,7 +258,7 @@
     #v(6pt)
     #set text(font: config.font, size: config.quoted-body-size, fill: t.text)
     #set par(leading: 4pt)
-    #quote.at("BODY", default: "")
+    #quote.at("$body", default: [])
   ]
 }
 
@@ -318,7 +318,7 @@
         #v(config.body-margin-top)
         #set par(leading: config.body-leading, spacing: 8pt, justify: false)
         #set text(font: config.font, size: config.body-size, fill: t.text)
-        #post.at("BODY", default: "")
+        #post.at("$body", default: [])
 
         #if quote != none { quoted-tweet(quote, theme: theme) }
 

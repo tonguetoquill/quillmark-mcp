@@ -34,7 +34,7 @@
 //    Dateline leads the first paragraph in bold small-caps with em-dash.
 #columns(3, gutter: 12pt)[
   #dateline-lead(data.at("dateline", default: ""))
-  #data.BODY
+  #data.at("$body", default: [])
 
   // 5. CORRECTION (optional) — inside the column stream so it lands next to
   //    body copy as NYT typically places corrections at article end.
