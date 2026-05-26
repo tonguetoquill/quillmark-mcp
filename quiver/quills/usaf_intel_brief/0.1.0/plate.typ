@@ -35,9 +35,18 @@
   footer-descent: 6pt,
 )
 
+// Strip a leading `assets/` from a user-supplied filename so authors who
+// include the prefix don't double it. The template always prepends `assets/`.
+#let _strip-assets-prefix(name) = {
+  let s = str(name).trim()
+  if s.starts-with("assets/") { s.slice("assets/".len()) }
+  else if s.starts-with("./assets/") { s.slice("./assets/".len()) }
+  else { s }
+}
+
 // Helper: load a seal from quill-root-relative assets/ and return content.
 #let _load-seal(filename, size) = {
-  let name = str(filename).trim()
+  let name = _strip-assets-prefix(filename)
   if name == "" { return none }
   image("assets/" + name, width: size, height: size, fit: "contain")
 }
@@ -74,7 +83,7 @@
       portion: slide.at("portion", default: "U"),
       title: slide.at("title", default: ""),
       image-content: if slide.at("image_path", default: "") != "" {
-        image("assets/" + slide.image_path, width: 80%)
+        image("assets/" + _strip-assets-prefix(slide.image_path), width: 80%)
       } else { none },
       caption: slide.at("caption", default: ""),
       notional: _notional,

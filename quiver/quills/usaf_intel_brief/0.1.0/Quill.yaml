@@ -100,7 +100,7 @@ main:
       default: usaf_seal.svg
       ui:
         group: Seals
-      description: Filename under assets/. Defaults to bundled USAF seal. Author may drop unit/MAJCOM seal into assets/ and reference by filename.
+      description: "Bare filename under assets/ (do NOT include the `assets/` prefix — the template prepends it). Defaults to bundled USAF seal. Author may drop unit/MAJCOM seal into assets/ and reference by filename, e.g. `my_unit_seal.svg`."
     center_seal:
       type: string
       default: dod_seal.svg
@@ -222,6 +222,8 @@ card_kinds:
         description: Supports inline `**bold**` emphasis. Title bars are already bold; markers are stripped so literal asterisks do not render.
       image_path:
         type: string
+        description: "Bare filename of an image bundled under the quill's `assets/` directory. Do NOT include the `assets/` prefix — the template prepends it automatically. Example: `pacific_theater_map.png`, not `assets/pacific_theater_map.png`."
+        example: pacific_theater_map.png
         ui:
           group: Content
       caption:
