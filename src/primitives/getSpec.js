@@ -1,16 +1,8 @@
-const FORMAT_RULES = [
-  'Document format rules (read carefully — small LLMs frequently fail on these):',
-  '• Metadata blocks use `~~~card-yaml` as the opener and `~~~` as the closer. Do NOT use `---` YAML frontmatter.',
-  '• The closer is EXACTLY `~~~` (three tildes, no info string). Do NOT write `~~~card-yaml` as the closer.',
-  '• A blank line is required before every `~~~card-yaml` opener (except when it is the first line of the document).',
-  '• The first block is the root and MUST contain `$quill: <name>@<version>` and `$kind: main`.',
-  '• Reserved `$`-keys: `$quill`, `$kind`, `$id`, `$ext`. User fields use lowercase snake_case.',
-  '• Additional `~~~card-yaml` blocks declare composable cards via `$kind: <card_kind>`.',
-  '• Prose body is the text after a block\'s closing `~~~`, before the next opener or EOF.',
-  '• For optional fields with no value, OMIT the line entirely — do not write `field: null`.',
-  '• Respect field types: numbers unquoted (`word_count: 42`), booleans unquoted (`pinned: true`),',
-  '  strings as plain scalars or quoted. Quoting a number turns it into a string and will fail validation.',
-].join('\n');
+import { Document } from '@quillmark/wasm';
+
+// Format rules are sourced from the WASM layer so CLI / Python / MCP all
+// surface the same text. Read once; the value never changes between calls.
+const FORMAT_RULES = Document.formatRules();
 
 function availableQuillsHint(quiver) {
   try {

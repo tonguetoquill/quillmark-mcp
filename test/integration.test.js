@@ -88,7 +88,7 @@ describe('integration', () => {
       '~~~card-yaml\n$kind: main\ntitle: Memo\n~~~\nBody',
     );
     assert.equal(missingQuill.ok, false);
-    assert.match(missingQuill.message, /\$quill: <name> is required/);
+    assert.match(missingQuill.message, /must declare `\$quill: <name>`/);
 
     const unknownQuill = await createDocument(
       quiver,

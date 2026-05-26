@@ -86,7 +86,7 @@ describe('createDocument', () => {
     );
 
     assert.equal(result.ok, false);
-    assert.match(result.message, /\$quill: <name> is required/);
+    assert.match(result.message, /must declare `\$quill: <name>`/);
   });
 
   it('returns ok:false for invalid quill ref', async () => {
@@ -151,7 +151,7 @@ describe('createDocument', () => {
     assert.doesNotMatch(result.message, /Document rendering failed/);
   });
 
-  it('annotates "$quill missing" with a hint about `---` frontmatter', async () => {
+  it('surfaces an actionable hint when the root block is missing entirely', async () => {
     const { quiver, engine } = await loadCatalog();
     const strategy = { async handle() { throw new Error('unreachable'); } };
 
@@ -159,11 +159,11 @@ describe('createDocument', () => {
       quiver,
       engine,
       strategy,
-      '~~~card-yaml\n$kind: main\ntitle: memo\n~~~\n# Memo',
+      '---\nquill: usaf_memo\n---\n\n# Memo body',
     );
 
     assert.equal(result.ok, false);
-    assert.match(result.message, /\$quill: <name> is required/);
+    assert.match(result.message, /Missing required root card-yaml block/);
     assert.match(result.message, /`---` YAML frontmatter/);
   });
 
