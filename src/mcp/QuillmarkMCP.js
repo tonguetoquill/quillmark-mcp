@@ -4,7 +4,11 @@ import { createDocument, getSpec, listQuills } from '../primitives/index.js';
 import { logger } from '../logger.js';
 import { getErrorMessage } from '../errors.js';
 
-const SERVER_INSTRUCTIONS = 'Workflow: list_quills → get_spec → create_document → surface the returned URL to the user as a markdown link. Always call `get_spec` before `create_document`; it returns a ready-to-edit blueprint and the full format spec for the chosen quill.';
+const SERVER_INSTRUCTIONS = [
+  'Required workflow, in order: `list_quills` (only if you need to discover formats) → `get_spec(quill)` → `create_document(content)`.',
+  '`get_spec` is mandatory before every `create_document`. After `get_spec`, your next action MUST be `create_document` — do not respond with a text turn or any other action in between. Build `content` by editing the blueprint `get_spec` returned; do not compose from scratch.',
+  'On error: read the diagnostics (including the `hint:` field) and retry `create_document` with corrected content. On success: surface the returned URL to the user as a markdown link and stop.',
+].join(' ');
 
 function formatDiagnostic(d) {
   const parts = [`[${d.severity ?? 'error'}] ${d.message ?? ''}`];
@@ -76,7 +80,7 @@ export class QuillmarkMCP {
 
     this.server.addTool({
       name: 'get_spec',
-      description: 'Returns the format spec and a ready-to-edit blueprint for a specific quill. Always call before `create_document` and use the blueprint as the starting point for `content`.',
+      description: 'Returns the format spec and a ready-to-edit blueprint for a specific quill. Required before every `create_document`. After this call, your next action MUST be `create_document` — do not respond with a text turn or describe what you are about to do; submit the tool call directly.',
       inputSchema: {
         quill: z
           .string({
