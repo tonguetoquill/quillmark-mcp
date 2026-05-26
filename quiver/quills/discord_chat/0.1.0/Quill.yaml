@@ -25,7 +25,6 @@ main:
       description: Optional server name label, shown below the channel name.
     channel_name:
       type: string
-      required: true
       example: ops-coord
       ui:
         group: Channel
@@ -43,7 +42,6 @@ card_kinds:
     fields:
       username:
         type: string
-        required: true
         example: Capt.Reyes
         ui:
           group: Author
@@ -57,7 +55,6 @@ card_kinds:
         description: Hex color for username — typically the user's highest role color.
       avatar_initials:
         type: string
-        required: true
         example: CR
         ui:
           group: Author
@@ -86,14 +83,12 @@ card_kinds:
         description: Show a checkmark in the APP tag (verified application).
       timestamp:
         type: string
-        required: true
         example: Today at 3:45 PM
         ui:
           group: Message
         description: Freeform timestamp (Discord uses contextual phrasing like "Today at X").
       body_md:
         type: string
-        required: true
         example: Hey {@Sergeant}, the {#intel-feed} just dropped **BREAKING** ||check it now||
         ui:
           group: Message
@@ -163,7 +158,6 @@ card_kinds:
     fields:
       belongs_to_message_index:
         type: number
-        required: true
         ui:
           group: Threading
         description: Zero-based index of the message this embed is attached to (counting only `message` cards).
@@ -220,12 +214,10 @@ card_kinds:
           group: Event
       username:
         type: string
-        required: true
         ui:
           group: Event
       timestamp:
         type: string
-        required: true
         ui:
           group: Event
       target_message_preview:
