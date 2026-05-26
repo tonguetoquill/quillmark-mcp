@@ -11,7 +11,6 @@ import { parseArgs } from 'node:util';
 
 import { generateConfig, isSupported, SUPPORTED_CLIENTS } from './cli/config.js';
 import { createDefaultMCP } from './mcp/index.js';
-import { getErrorMessage } from './errors.js';
 import { RenderAndHostStrategy } from './strategies/index.js';
 
 /**
@@ -168,7 +167,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
         for (const note of snippet.notes) consoleError(`# ${note}`);
       }
     } catch (err) {
-      consoleError(getErrorMessage(err));
+      consoleError(err?.message ?? String(err));
       setExitCode(2);
     }
     return;
@@ -213,7 +212,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
-    console.error(getErrorMessage(error));
+    console.error(error?.message ?? String(error));
     process.exitCode = 1;
   });
 }

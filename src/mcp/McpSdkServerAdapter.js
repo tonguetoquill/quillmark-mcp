@@ -8,7 +8,6 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
 import { logger } from '../logger.js';
-import { getErrorMessage } from '../errors.js';
 
 const MIME_TYPES = {
   '.pdf': 'application/pdf',
@@ -159,10 +158,10 @@ export class McpSdkServerAdapter {
             res.setHeader('content-type', 'application/json');
             res.end('{"error":"internal_error"}');
           }
-          logger.error(`[mcp] request handler failed: ${getErrorMessage(err)}`);
+          logger.error(`[mcp] request handler failed: ${err?.message ?? String(err)}`);
         } finally {
           await requestServer.close().catch((closeErr) => {
-            logger.debug(`[mcp] request server close failed: ${getErrorMessage(closeErr)}`);
+            logger.debug(`[mcp] request server close failed: ${closeErr?.message ?? String(closeErr)}`);
           });
         }
       });

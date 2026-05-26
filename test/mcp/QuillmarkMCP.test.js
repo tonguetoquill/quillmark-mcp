@@ -170,8 +170,8 @@ describe('QuillmarkMCP', () => {
 
     assert.equal(result.isError, true);
     assert.match(result.content[0].text, /render exploded/);
-    assert.match(result.content[0].text, /\[error\] unknown field/);
-    assert.match(result.content[0].text, /Hint: try x/);
+    assert.match(result.content[0].text, /\[ERROR\] unknown field/);
+    assert.match(result.content[0].text, /hint: try x/);
   });
 
   it('registers exactly three tools and nothing else', () => {

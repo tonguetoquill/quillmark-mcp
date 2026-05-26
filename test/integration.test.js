@@ -169,7 +169,6 @@ describe('integration', () => {
     assert.equal(typeof primitives.createDocument, 'function');
 
     const strategies = await import('quillmark-mcp/strategies');
-    assert.equal(typeof strategies.DeliveryStrategy, 'function');
     assert.equal(typeof strategies.RenderAndHostStrategy, 'function');
 
     const mcpModule = await import('quillmark-mcp/mcp');

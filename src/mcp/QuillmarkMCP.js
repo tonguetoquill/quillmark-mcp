@@ -1,8 +1,9 @@
 import { z } from 'zod';
 
+import { Document } from '@quillmark/wasm';
+
 import { createDocument, getSpec, listQuills } from '../primitives/index.js';
 import { logger } from '../logger.js';
-import { getErrorMessage } from '../errors.js';
 
 const SERVER_INSTRUCTIONS = [
   'Required workflow, in order: `list_quills` (only if you need to discover formats) → `get_spec(quill)` → `create_document(content)`.',
@@ -10,16 +11,9 @@ const SERVER_INSTRUCTIONS = [
   'On error: read the diagnostics (including the `hint:` field) and retry `create_document` with corrected content. On success: surface the returned URL to the user as a markdown link and stop.',
 ].join(' ');
 
-function formatDiagnostic(d) {
-  const parts = [`[${d.severity ?? 'error'}] ${d.message ?? ''}`];
-  if (d.hint) parts.push(`  Hint: ${d.hint}`);
-  if (d.location) parts.push(`  At: ${d.location.file}:${d.location.line}:${d.location.column}`);
-  return parts.join('\n');
-}
-
 function errorResult(message, diagnostics) {
   const text = diagnostics && diagnostics.length > 0
-    ? [message, '', ...diagnostics.map(formatDiagnostic)].join('\n')
+    ? [message, '', ...diagnostics.map((d) => Document.formatDiagnostic(d))].join('\n')
     : message;
   return { isError: true, content: [{ type: 'text', text }] };
 }
@@ -105,8 +99,9 @@ export class QuillmarkMCP {
             structuredContent: { instruction, blueprint },
           };
         } catch (error) {
-          logger.warn(`get_spec failed (quill: ${quill}): ${getErrorMessage(error)}`);
-          return errorResult(getErrorMessage(error));
+          const message = error?.message ?? String(error);
+          logger.warn(`get_spec failed (quill: ${quill}): ${message}`);
+          return errorResult(message);
         }
       },
     });

@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { DeliveryStrategy } from './DeliveryStrategy.js';
 import { logger } from '../logger.js';
 
 function extensionFromMimeType(mimeType, fallback) {
@@ -13,10 +12,8 @@ function extensionFromMimeType(mimeType, fallback) {
   return fallback;
 }
 
-export class RenderAndHostStrategy extends DeliveryStrategy {
+export class RenderAndHostStrategy {
   constructor(options = {}) {
-    super();
-
     this.outputDir = options.outputDir ?? path.resolve(process.cwd(), '.artifacts');
     this.baseUrl = options.baseUrl ?? 'file://';
     this.format = options.format ?? 'pdf';

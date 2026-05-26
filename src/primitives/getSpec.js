@@ -29,7 +29,7 @@ export async function getSpec(quiver, engine, quill) {
 
   const blueprint = typeof resolved?.blueprint === 'string' ? resolved.blueprint : '';
   const instruction = [
-    `The blueprint below is a ready-to-edit template for the \`${quill}\` quill. Copy it verbatim, replace every \`<must-fill>\` sentinel with a real value, edit the body prose, and pass the whole string as \`content\` to \`create_document\`. Fields annotated \`; skip-ok\` carry sensible defaults — keep, edit, or delete those lines as needed.`,
+    Document.blueprintInstruction(quill),
     '',
     'Your next action must be `create_document`. Do not respond with a text turn — submit the tool call directly.',
     '',

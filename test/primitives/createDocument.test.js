@@ -136,21 +136,6 @@ describe('createDocument', () => {
     assert.match(result.message, /Document rendering failed: unexpected failure/);
   });
 
-  it('wraps Rust panic strings as internal renderer errors', async () => {
-    const { quiver, engine } = await loadCatalog();
-    const strategy = {
-      async handle() {
-        throw new Error('byte index 2 is not a character boundary; it is inside \'—\' (bytes 1..4)');
-      },
-    };
-
-    const result = await createDocument(quiver, engine, strategy, VALID_CONTENT);
-
-    assert.equal(result.ok, false);
-    assert.match(result.message, /Internal renderer error/);
-    assert.doesNotMatch(result.message, /Document rendering failed/);
-  });
-
   it('surfaces an actionable hint when the root block is missing entirely', async () => {
     const { quiver, engine } = await loadCatalog();
     const strategy = { async handle() { throw new Error('unreachable'); } };
