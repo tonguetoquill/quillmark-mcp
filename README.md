@@ -8,7 +8,7 @@ A universal MCP server that surfaces [Quillmark](https://github.com/nibsbin/quil
 ## Tools
 
 - **`list_quills`** — discover available Quill formats. `structuredContent: { quills: [{ name, version, description? }] }`.
-- **`get_spec`** — get the composing instruction and blueprint for one Quill. Takes `{ quill }` (base name or `name@version`). `structuredContent: { instruction, blueprint }`.
+- **`get_specs`** — get the composing instruction and blueprint for one Quill. Takes `{ quill }` (base name or `name@version`). `structuredContent: { instruction, blueprint }`.
 - **`create_document`** — render a document from `content` (a `~~~card-yaml` root block with `$quill: <name>@<version>` and `$kind: main`, followed by markdown body and any composable `~~~card-yaml` cards). On success, `structuredContent: { url, mimeType }` plus a markdown link and `resource_link` in `content`. On failure, returns an MCP tool-error result (`isError: true`) whose `content` text starts with a one-line message followed by formatted diagnostics (`[severity] message`, optional `Hint:` and source location).
 
 ### Shipped quills
@@ -64,7 +64,7 @@ The environment will be cleaned and Docker will ```compose down```.
 MCP client → @modelcontextprotocol/sdk → QuillmarkMCP
                                              ↓
                                          primitives
-                                   (listQuills, getSpec, createDocument)
+                                   (listQuills, getSpecs, createDocument)
                                              ↓
                                   Quiver  +  Quillmark  +  DeliveryStrategy
                                   (catalog)  (wasm engine)   ↓

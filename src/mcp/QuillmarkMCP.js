@@ -1,10 +1,14 @@
 import { z } from 'zod';
 
-import { createDocument, getSpec, listQuills } from '../primitives/index.js';
+import { createDocument, getSpecs, listQuills } from '../primitives/index.js';
 import { logger } from '../logger.js';
 import { getErrorMessage } from '../errors.js';
 
-const SERVER_INSTRUCTIONS = 'Workflow: list_quills → get_spec → create_document → surface the returned URL to the user as a markdown link. Always call `get_spec` before `create_document`; it returns a ready-to-edit blueprint and the full format spec for the chosen quill.';
+const SERVER_INSTRUCTIONS = [
+  'Required workflow, in order: list_quills → get_specs(quill) → create_document(content).',
+  'get_specs is mandatory before every create_document. After get_specs, your next action must be create_document — do not respond with a text turn in between.',
+  'On error: read the diagnostics and retry create_document with corrected content. On success: return the URL to the user as a markdown link and stop.',
+].join(' ');
 
 function formatDiagnostic(d) {
   const parts = [`[${d.severity ?? 'error'}] ${d.message ?? ''}`];
@@ -75,8 +79,8 @@ export class QuillmarkMCP {
     });
 
     this.server.addTool({
-      name: 'get_spec',
-      description: 'Returns the format spec and a ready-to-edit blueprint for a specific quill. Always call before `create_document` and use the blueprint as the starting point for `content`.',
+      name: 'get_specs',
+      description: 'Returns the format spec and ready-to-edit blueprint for a quill. Required before every `create_document`; your next action must be `create_document` (no text turn in between).',
       inputSchema: {
         quill: z
           .string({
@@ -94,14 +98,14 @@ export class QuillmarkMCP {
       },
       execute: async ({ quill }) => {
         try {
-          const { instruction, blueprint } = await getSpec(this.quiver, this.engine, quill);
+          const { instruction, blueprint } = await getSpecs(this.quiver, this.engine, quill);
           const text = blueprint ? `${instruction}\n\n${blueprint}` : instruction;
           return {
             content: [{ type: 'text', text }],
             structuredContent: { instruction, blueprint },
           };
         } catch (error) {
-          logger.warn(`get_spec failed (quill: ${quill}): ${getErrorMessage(error)}`);
+          logger.warn(`get_specs failed (quill: ${quill}): ${getErrorMessage(error)}`);
           return errorResult(getErrorMessage(error));
         }
       },
@@ -109,17 +113,17 @@ export class QuillmarkMCP {
 
     this.server.addTool({
       name: 'create_document',
-      description: 'Render a document and return a URL to the rendered artifact. Always call `list_quills` then `get_spec` first; copy the returned blueprint and edit it — do NOT compose `content` from scratch. The blueprint and its accompanying instruction are the source of truth for the document format.',
+      description: 'Render a document and return a URL. Build `content` by editing the blueprint returned by `get_specs`; do not compose from scratch. On error, read the diagnostics and retry with corrected content.',
       inputSchema: {
         content: z
           .string({
             error: (issue) =>
               issue.input === undefined
-                ? 'Missing required field `content`. Pass the full document as a single string built from the blueprint returned by `get_spec`. Call `get_spec` first if you have not already.'
-                : 'Field `content` must be a string. Build it from the blueprint returned by `get_spec`.',
+                ? 'Missing required field `content`. Pass the full document as a single string built from the blueprint returned by `get_specs`. Call `get_specs` first if you have not already.'
+                : 'Field `content` must be a string. Build it from the blueprint returned by `get_specs`.',
           })
-          .min(1, 'Field `content` must be non-empty. Call `get_spec` to get a fillable blueprint, then edit and submit it.')
-          .describe('Full quill document as a single string, built by editing the blueprint returned by `get_spec`. The blueprint includes the required `~~~card-yaml` root block, all field types, and the body template.'),
+          .min(1, 'Field `content` must be non-empty. Call `get_specs` to get a fillable blueprint, then edit and submit it.')
+          .describe('Full quill document as a single string, built by editing the blueprint returned by `get_specs`. The blueprint includes the required `~~~card-yaml` root block, all field types, and the body template.'),
       },
       execute: async ({ content }) => {
         const result = await createDocument(this.quiver, this.engine, this.strategy, content);

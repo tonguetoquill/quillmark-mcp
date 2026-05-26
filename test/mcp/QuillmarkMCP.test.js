@@ -60,7 +60,7 @@ function findTool(server, name) {
 describe('QuillmarkMCP', () => {
   it('exposes server-level instructions for the workflow chain', () => {
     assert.match(QuillmarkMCP.instructions, /list_quills/);
-    assert.match(QuillmarkMCP.instructions, /get_spec/);
+    assert.match(QuillmarkMCP.instructions, /get_specs/);
     assert.match(QuillmarkMCP.instructions, /create_document/);
   });
 
@@ -72,9 +72,9 @@ describe('QuillmarkMCP', () => {
     assert.ok(tool.outputSchema?.quills);
   });
 
-  it('registers get_spec with quill input and instruction/blueprint output', () => {
+  it('registers get_specs with quill input and instruction/blueprint output', () => {
     const { server } = make();
-    const tool = findTool(server, 'get_spec');
+    const tool = findTool(server, 'get_specs');
     assert.match(tool.description, /blueprint/);
     assert.deepStrictEqual(tool.inputSchema.quill.parse('usaf_memo'), 'usaf_memo');
     assert.throws(() => tool.inputSchema.quill.parse(''));
@@ -112,10 +112,10 @@ describe('QuillmarkMCP', () => {
     assert.match(result.content[0].text, /resume@0\.1\.0/);
   });
 
-  it('get_spec returns text (instruction + blueprint) and structuredContent', async () => {
+  it('get_specs returns text (instruction + blueprint) and structuredContent', async () => {
     const { server } = make();
 
-    const tool = findTool(server, 'get_spec');
+    const tool = findTool(server, 'get_specs');
     const result = await tool.execute({ quill: 'usaf_memo' });
 
     assert.equal(result.structuredContent.blueprint, 'Write like this.');
@@ -124,11 +124,11 @@ describe('QuillmarkMCP', () => {
     assert.match(result.content[0].text, /Write like this\./);
   });
 
-  it('get_spec returns isError result when the primitive throws', async () => {
+  it('get_specs returns isError result when the primitive throws', async () => {
     const { server, quiver } = make();
     quiver.getQuill = async () => { throw new Error('unknown_quill'); };
 
-    const tool = findTool(server, 'get_spec');
+    const tool = findTool(server, 'get_specs');
     const result = await tool.execute({ quill: 'nope' });
 
     assert.equal(result.isError, true);
@@ -177,7 +177,7 @@ describe('QuillmarkMCP', () => {
   it('registers exactly three tools and nothing else', () => {
     const { server } = make();
     const names = server.tools.map((t) => t.name).sort();
-    assert.deepStrictEqual(names, ['create_document', 'get_spec', 'list_quills']);
+    assert.deepStrictEqual(names, ['create_document', 'get_specs', 'list_quills']);
   });
 
   it('start calls quiver.warm() before the server starts', async () => {

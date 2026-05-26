@@ -26,8 +26,8 @@ const MAX_CREATE_ATTEMPTS = 5;
 
 const SYSTEM_PROMPT = [
   'You help a user generate a document using the available MCP tools.',
-  'Workflow: list_quills (if you need to discover formats) -> get_spec for the chosen quill -> create_document.',
-  'Always call get_spec before create_document so you know the required fields and YAML shape.',
+  'Workflow: list_quills (if you need to discover formats) -> get_specs for the chosen quill -> create_document.',
+  'Always call get_specs before create_document so you know the required fields and YAML shape.',
   'Pass the full document body as the `content` argument to create_document.',
   'If create_document returns an error, read the diagnostics and try again with corrected content.',
   'Stop after create_document succeeds.',
@@ -61,6 +61,7 @@ Writes: eval/results/<timestamp>.jsonl`);
     concurrency: Math.max(1, parseInt(values.concurrency, 10)),
     mock: values.mock,
     out: path.join(HERE, 'results', `${ts}.jsonl`),
+    deepOut: path.join(HERE, 'results', `${ts}.debug.jsonl`),
   };
 }
 
@@ -95,7 +96,7 @@ function categorizeError(errorText) {
   if (t.includes('quill:') && t.includes('required')) return 'missing_quill_field';
   if (t.includes('document parse failed') || t.includes('parse::')) return 'yaml_parse';
   if (t.includes('unable to resolve quill format reference')) return 'unknown_quill';
-  if (t.includes('missing required field')) return 'schema_missing_field';
+  if (t.includes('missing required field') || t.includes('must_fill_absent') || t.includes('schema declares') || t.includes('<must-fill>')) return 'schema_missing_field';
   if (t.includes('field `content`') || t.includes('field `quill`')) return 'tool_input_schema';
   if (t.includes('document rendering failed')) return 'render_failure';
   if (t.includes('template') || t.includes('typst')) return 'template_failure';
@@ -136,7 +137,7 @@ async function callOpenAICompat(model, body, signal) {
   return res.json();
 }
 
-// Minimal happy-path "mock" model: list_quills -> get_spec -> create_document
+// Minimal happy-path "mock" model: list_quills -> get_specs -> create_document
 // using each quill's shipped example.md. Lets us verify the harness wiring
 // end-to-end without any API keys.
 function makeMockResponder(promptQuill) {
@@ -174,7 +175,7 @@ function makeMockResponder(promptQuill) {
             tool_calls: [{
               id: 'c2',
               type: 'function',
-              function: { name: 'get_spec', arguments: JSON.stringify({ quill: chosenQuill }) },
+              function: { name: 'get_specs', arguments: JSON.stringify({ quill: chosenQuill }) },
             }],
           },
         }],
@@ -221,6 +222,10 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
   ];
   const toolSequence = [];
   const errors = [];
+  // Deep log: every assistant turn and every tool result, in order. Captures
+  // the model's free-text content so `model_stopped_without_success` records
+  // can be inspected. Truncated per-field to keep file size sane.
+  const turns = [];
   let createAttempts = 0;
   let success = false;
   let renderedUrl = null;
@@ -261,6 +266,19 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
       tool_calls: assistantMsg.tool_calls,
     });
     const toolCalls = assistantMsg.tool_calls ?? [];
+    turns.push({
+      kind: 'assistant',
+      content: typeof assistantMsg.content === 'string' ? assistantMsg.content : null,
+      finishReason: choice?.finish_reason ?? null,
+      toolCalls: toolCalls.map((c) => ({
+        name: c.function?.name,
+        // Raw arg string preserved — JSON.parse may fail on truncated tool calls
+        // and we want to see exactly what the model emitted.
+        arguments: typeof c.function?.arguments === 'string'
+          ? c.function.arguments.slice(0, 8000)
+          : c.function?.arguments,
+      })),
+    });
     if (toolCalls.length === 0) {
       terminationReason = success ? 'completed' : 'model_stopped_without_success';
       break;
@@ -300,6 +318,14 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
         tool_call_id: call.id,
         content: text || (isErr ? 'error' : 'ok'),
       });
+      turns.push({
+        kind: 'tool_result',
+        tool: name,
+        isError: isErr,
+        // Keep enough text to read the diagnostic; full blueprints can be huge.
+        text: text.slice(0, 6000),
+        truncated: text.length > 6000,
+      });
       if (success) break;
     }
     if (success) { terminationReason = 'completed'; break; }
@@ -311,10 +337,10 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
   const calledGetSpecsBeforeCreate = (() => {
     const i = toolSequence.indexOf('create_document');
     if (i < 0) return null;
-    return toolSequence.slice(0, i).includes('get_spec');
+    return toolSequence.slice(0, i).includes('get_specs');
   })();
 
-  return {
+  const record = {
     model: model.name,
     promptId: prompt.id,
     quill: prompt.quill ?? null,
@@ -332,6 +358,18 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
     terminationReason,
     timestamp: new Date().toISOString(),
   };
+  // Deep companion record — same identity keys + full turn-by-turn trace.
+  const deep = {
+    model: record.model,
+    promptId: record.promptId,
+    trial: record.trial,
+    timestamp: record.timestamp,
+    terminationReason: record.terminationReason,
+    success: record.success,
+    prompt: prompt.prompt,
+    turns,
+  };
+  return { record, deep };
 }
 
 // Bounds concurrency: at most `max` holders at once. release() hands the
@@ -473,8 +511,11 @@ async function main() {
       const mockResponder = task.model.mock ? makeMockResponder(task.prompt.quill) : null;
       const label = `[${idx}/${total}] ${task.model.name} :: ${task.prompt.id} trial=${task.trial}`;
       let record;
+      let deep = null;
       try {
-        record = await runOne({ model: task.model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder });
+        const out = await runOne({ model: task.model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder });
+        record = out.record;
+        deep = out.deep;
         console.error(`${label} -> ${classifyOutcome(record)} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
       } catch (err) {
         record = {
@@ -491,11 +532,13 @@ async function main() {
       }
       records.push(record);
       await appendFile(args.out, JSON.stringify(record) + '\n');
+      if (deep) await appendFile(args.deepOut, JSON.stringify(deep) + '\n');
     }
   }));
 
   await mcp.close();
-  console.error(`[eval] done. wrote ${args.out}\n`);
+  console.error(`[eval] done. wrote ${args.out}`);
+  console.error(`[eval] deep log:  ${args.deepOut}\n`);
   printReport(records);
 }
 

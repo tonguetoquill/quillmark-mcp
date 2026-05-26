@@ -57,11 +57,11 @@ maybe('Install round-trip', () => {
     assert.ok(caps?.tools !== undefined, 'tools capability missing');
   });
 
-  /** Tool inventory: must expose exactly `list_quills`, `get_spec`, `create_document`. */
+  /** Tool inventory: must expose exactly `list_quills`, `get_specs`, `create_document`. */
   it('tools/list returns exactly the three primitives', async () => {
     const { tools } = await client.listTools();
     const names = new Set(tools.map((t) => t.name));
-    assert.deepEqual(names, new Set(['list_quills', 'get_spec', 'create_document']));
+    assert.deepEqual(names, new Set(['list_quills', 'get_specs', 'create_document']));
   });
 
   /**

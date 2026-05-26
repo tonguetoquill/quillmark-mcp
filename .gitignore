@@ -1,6 +1,9 @@
 # Render harness output
 .render-out/
 
+# Claude Code per-project state (settings.local.json, scheduled_tasks.lock)
+.claude/
+
 # Logs
 logs
 *.log

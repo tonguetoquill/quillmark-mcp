@@ -22,7 +22,7 @@ function availableQuillsHint(quiver) {
   }
 }
 
-export async function getSpec(quiver, engine, quill) {
+export async function getSpecs(quiver, engine, quill) {
   if (typeof quill !== 'string' || quill.trim() === '') {
     throw new Error('Quill format reference must be a non-empty string.');
   }
@@ -37,7 +37,7 @@ export async function getSpec(quiver, engine, quill) {
 
   const blueprint = typeof resolved?.blueprint === 'string' ? resolved.blueprint : '';
   const instruction = [
-    `The blueprint below is a ready-to-edit template for the \`${quill}\` quill. Copy it verbatim, fill in every field marked \`required\`, edit the body prose, and pass the whole string as \`content\` to \`create_document\`.`,
+    `The blueprint below is a ready-to-edit template for the \`${quill}\` quill. Copy it verbatim, replace every \`<must-fill>\` sentinel with a real value (these fields have no default and validation will fail if they are absent), edit the body prose, and pass the whole string as \`content\` to \`create_document\`. Fields annotated \`; skip-ok\` carry sensible defaults — keep, edit, or delete those lines as needed.`,
     '',
     FORMAT_RULES,
   ].join('\n');

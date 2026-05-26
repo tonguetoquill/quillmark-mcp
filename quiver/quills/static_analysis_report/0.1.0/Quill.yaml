@@ -127,21 +127,18 @@ main:
       description: Optional narrative executive summary text.
     system_name:
       type: string
-      required: true
       example: RAPTOR-9X Fire Control Mission Software Package (MSP)
       ui:
         group: Header
       description: Name or designation of the weapon system or mission software baseline under assessment.
     system_identifier:
       type: string
-      required: true
       example: WS-R9X-FCS-MSP-02.04.01-BL47
       ui:
         group: Header
       description: Part number, build ID, or other unique baseline identifier for the assessed software image.
     system_version:
       type: string
-      required: true
       example: 2.4.1
       ui:
         group: Header
@@ -155,28 +152,24 @@ main:
       description: Operating environment or platform for the assessed software (for example RTOS, embedded Linux, or hypervisor partition).
     scan_date:
       type: string
-      required: true
       example: '2025-07-03'
       ui:
         group: Header
       description: Date the cybersecurity assessment or analysis was performed, in YYYY-MM-DD format.
     file_name:
       type: string
-      required: true
       example: R9X-FCS-MSP_v2.4.1-signed.bin
       ui:
         group: File Information
       description: Name of the analyzed artifact (for example signed firmware image, container, or installer).
     security_score:
       type: number
-      required: true
       example: 44
       ui:
         group: Scorecard
       description: Aggregate security score from 0 (worst) to 100 (best).
     risk_level:
       type: string
-      required: true
       enum:
       - LOW
       - MEDIUM

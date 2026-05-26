@@ -7,7 +7,7 @@ const MISSING_QUILL_MESSAGE = [
   '',
   'If you used `---` YAML frontmatter, that syntax is NOT supported. Replace the `---` fences with',
   '`~~~card-yaml` (opener) and `~~~` (closer), and put `$quill: <name>@<version>` and `$kind: main`',
-  'as the first two lines inside the block. Call `get_spec` for a ready-to-edit blueprint.',
+  'as the first two lines inside the block. Call `get_specs` for a ready-to-edit blueprint.',
 ].join('\n');
 
 // Patterns that indicate an internal renderer panic leaking through the WASM

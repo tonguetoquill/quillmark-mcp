@@ -8,7 +8,6 @@ main:
   fields:
     classification:
       type: string
-      required: true
       enum:
       - UNCLASSIFIED
       - CUI
@@ -41,7 +40,6 @@ main:
       description: Codename shown in the EXERCISE strap (only when notional=true).
     brief_title:
       type: string
-      required: true
       example: Adversary Air Order of Battle — 24-Hour Update
       ui:
         group: Title
@@ -53,26 +51,22 @@ main:
         group: Title
     briefer:
       type: string
-      required: true
       example: Capt J. Doe, 673 ABW/A2
       ui:
         group: Title
     prepared_for:
       type: string
-      required: true
       example: COMUSPACAF
       ui:
         group: Title
     dtg:
       type: string
-      required: true
       example: 151400ZAPR26
       ui:
         group: Title
       description: 'Joint DTG format: DD HHMM Z MMM YY. Always Zulu for intel products.'
     unit:
       type: string
-      required: true
       example: 673 ABW/A2
       ui:
         group: Title
@@ -156,7 +150,6 @@ card_kinds:
         description: Portion mark applied to bullets/captions that don't specify their own. Bare letters; template wraps in parens.
       title:
         type: string
-        required: true
         ui:
           group: Content
         description: Supports inline `**bold**` emphasis. Title bars are already bold; markers are stripped so literal asterisks do not render.
@@ -218,13 +211,11 @@ card_kinds:
           group: Classification
       title:
         type: string
-        required: true
         ui:
           group: Content
         description: Supports inline `**bold**` emphasis. Title bars are already bold; markers are stripped so literal asterisks do not render.
       image_path:
         type: string
-        required: true
         ui:
           group: Content
       caption:
