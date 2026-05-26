@@ -102,6 +102,55 @@ export function summarize(records) {
   return out;
 }
 
+// Per-prompt aggregate across all models. Mirrors the shape of `summarize()`
+// (per-model) so the same renderer-style table can surface "which prompts are
+// hardest, and how do retries / tokens / time pattern across them" without
+// reducing to a single number per (model, prompt) cell.
+export function summarizePromptStats(records) {
+  const byPrompt = new Map();
+  for (const r of records) {
+    if (!byPrompt.has(r.promptId)) byPrompt.set(r.promptId, []);
+    byPrompt.get(r.promptId).push(r);
+  }
+  const out = [];
+  for (const [promptId, runs] of byPrompt) {
+    const total = runs.length;
+    const successes = runs.filter((r) => r.success);
+    const infra = runs.filter((r) => classifyOutcome(r) === 'infra').length;
+    const llm = runs.filter((r) => classifyOutcome(r) === 'llm').length;
+    const attemptCounts = successes.map((r) => r.createAttempts).sort((a, b) => a - b);
+    const oneShot = successes.filter((r) => r.createAttempts === 1).length;
+    const selfCorrected = successes.filter((r) => r.createAttempts > 1).length;
+    const errorTally = new Map();
+    for (const r of runs) {
+      for (const cat of r.errorCategories ?? []) {
+        errorTally.set(cat, (errorTally.get(cat) ?? 0) + 1);
+      }
+    }
+    out.push({
+      promptId,
+      quill: runs[0].quill ?? null,
+      total,
+      modelCount: new Set(runs.map((r) => r.model)).size,
+      successRate: successes.length / total,
+      infraRate: infra / total,
+      llmRate: llm / total,
+      attemptsMean: attemptCounts.length
+        ? attemptCounts.reduce((a, b) => a + b, 0) / attemptCounts.length
+        : null,
+      attemptsMax: attemptCounts.at(-1) ?? null,
+      oneShotRate: oneShot / total,
+      selfCorrectionRate: successes.length ? selfCorrected / successes.length : null,
+      meanToolCalls: runs.reduce((a, r) => a + (r.toolCallCount ?? 0), 0) / total,
+      meanTokens: runs.reduce((a, r) => a + (r.totalTokens ?? 0), 0) / total,
+      meanDurationMs: runs.reduce((a, r) => a + (r.durationMs ?? 0), 0) / total,
+      errorCategories: Object.fromEntries([...errorTally.entries()].sort((a, b) => b[1] - a[1])),
+    });
+  }
+  out.sort((a, b) => a.promptId.localeCompare(b.promptId));
+  return out;
+}
+
 export function summarizeByPrompt(records) {
   const prompts = [...new Set(records.map((r) => r.promptId))].sort();
   const models = [...new Set(records.map((r) => r.model))];
@@ -213,6 +262,42 @@ export function renderModelTable(rows) {
       colorPct(r.llmRate, { invert: true }),
       fmtAtt(r.attemptsMean, r.attemptsMax),
       colorPct(r.specsBeforeCreateRate),
+      colorPct(r.oneShotRate),
+      fmtNum(r.meanToolCalls, 1),
+      fmtTokens(r.meanTokens),
+      fmtDur(r.meanDurationMs),
+    ], W, P));
+  }
+  lines.push(hline(W, '└', '┴', '┘'));
+  return lines;
+}
+
+export function renderPromptStatsTable(rows) {
+  const cols = [
+    { h: 'prompt',   w: 22, p: rpad },
+    { h: 'n',        w:  3, p: lpad },
+    { h: 'success',  w:  7, p: lpad },
+    { h: 'llm-err',  w:  7, p: lpad },
+    { h: 'att',      w:  6, p: lpad },
+    { h: '1-shot',   w:  6, p: lpad },
+    { h: 'tools',    w:  5, p: lpad },
+    { h: 'tokens',   w:  6, p: lpad },
+    { h: 'time',     w:  6, p: lpad },
+  ];
+  const W = cols.map((c) => c.w);
+  const P = cols.map((c) => c.p);
+  const lines = [];
+  lines.push(C.bold + 'Per-Prompt Summary' + C.reset);
+  lines.push(hline(W, '┌', '┬', '┐'));
+  lines.push(tableRow(cols.map((c) => C.bold + c.h + C.reset), W, P));
+  lines.push(hline(W, '├', '┼', '┤'));
+  for (const r of rows) {
+    lines.push(tableRow([
+      r.promptId.slice(0, W[0]),
+      r.total,
+      colorPct(r.successRate),
+      colorPct(r.llmRate, { invert: true }),
+      fmtAtt(r.attemptsMean, r.attemptsMax),
       colorPct(r.oneShotRate),
       fmtNum(r.meanToolCalls, 1),
       fmtTokens(r.meanTokens),
@@ -364,9 +449,12 @@ export function printReport(records) {
 
   const modelRows = summarize(records);
   const promptData = summarizeByPrompt(records);
+  const promptStats = summarizePromptStats(records);
 
   console.log('');
   for (const line of renderPromptTable(promptData)) console.log(line);
+  console.log('');
+  for (const line of renderPromptStatsTable(promptStats)) console.log(line);
   console.log('');
   for (const line of renderModelTable(modelRows)) console.log(line);
   console.log('');
@@ -378,7 +466,11 @@ function main() {
   const { files, json } = parseCli();
   const records = files.flatMap(loadJsonl);
   if (json) {
-    process.stdout.write(JSON.stringify({ byModel: summarize(records), byPrompt: summarizeByPrompt(records) }, null, 2) + '\n');
+    process.stdout.write(JSON.stringify({
+      byModel: summarize(records),
+      byPrompt: summarizeByPrompt(records),
+      promptStats: summarizePromptStats(records),
+    }, null, 2) + '\n');
     return;
   }
   printReport(records);
