@@ -136,7 +136,11 @@ describe('createDocument', () => {
     assert.match(result.message, /Document rendering failed: unexpected failure/);
   });
 
-  it('surfaces an actionable hint when the root block is missing entirely', async () => {
+  it('surfaces a MissingQuill error when a `---` root block omits $quill', async () => {
+    // `---` … `---` is now accepted for the root block, so the bad-fence
+    // hint no longer fires here. The block parses, but `quill:` (without the
+    // `$`) is a user field — `$quill` is still missing, so the standard
+    // MissingQuill error surfaces.
     const { quiver, engine } = await loadCatalog();
     const strategy = { async handle() { throw new Error('unreachable'); } };
 
@@ -148,8 +152,8 @@ describe('createDocument', () => {
     );
 
     assert.equal(result.ok, false);
-    assert.match(result.message, /Missing required root card-yaml block/);
-    assert.match(result.message, /`---` YAML frontmatter/);
+    assert.match(result.message, /must declare `\$quill: <name>`/);
+    assert.doesNotMatch(result.message, /`---` YAML frontmatter/);
   });
 
   it('annotates unclosed `~~~card-yaml` parse errors with a fix hint', async () => {
