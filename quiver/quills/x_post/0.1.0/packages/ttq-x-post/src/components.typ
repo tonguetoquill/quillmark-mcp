@@ -248,7 +248,7 @@
       ),
       [
         #text(font: config.font, size: config.quoted-body-size, weight: "bold", fill: t.text, quote.at("display_name", default: ""))
-        #if is-true(quote.at("verified", default: "false")) {
+        #if quote.at("verified", default: false) {
           h(3pt)
           verified-badge(kind: quote.at("verified_type", default: "blue"), theme: theme, size: 13pt)
         }
@@ -287,7 +287,7 @@
     inset: (x: config.card-padding-x, y: config.card-padding-y),
     stroke: (bottom: 1pt + t.border),
   )[
-    #if is-true(post.at("pinned", default: "false")) and not is-reply {
+    #if post.at("pinned", default: false) and not is-reply {
       pad(left: av-size + config.avatar-gutter, pinned-indicator(theme: theme))
       v(4pt)
     }
@@ -306,7 +306,7 @@
         #identity-row(
           display-name: post.at("display_name", default: ""),
           handle: post.at("handle", default: ""),
-          verified: is-true(post.at("verified", default: "false")),
+          verified: post.at("verified", default: false),
           verified-type: post.at("verified_type", default: "blue"),
           timestamp: post.at("timestamp", default: ""),
           theme: theme,

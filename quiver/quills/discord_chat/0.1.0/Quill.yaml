@@ -64,23 +64,17 @@ card_kinds:
         ui:
           group: Author
       is_bot:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Author
-        description: Show the APP (or BOT in legacy theme) tag next to the username.
+        description: When true, shows the APP (or BOT in legacy theme) tag next to the username.
       is_verified_app:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Author
-        description: Show a checkmark in the APP tag (verified application).
+        description: When true, shows a checkmark in the APP tag (verified application).
       timestamp:
         type: string
         example: Today at 3:45 PM
@@ -128,31 +122,22 @@ card_kinds:
           group: Engagement
         description: Comma-separated emoji:count pairs. Trailing * marks viewer's own reaction.
       edited:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Message
-        description: Show (edited) after the message body.
+        description: When true, shows (edited) after the message body.
       pinned:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Message
       group_with_previous:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Message
-        description: Hide avatar and username (same author as previous message within ~7 min).
+        description: When true, hides avatar and username (same author as previous message within ~7 min).
   embed:
     description: Rich embed shown below a specific message.
     fields:

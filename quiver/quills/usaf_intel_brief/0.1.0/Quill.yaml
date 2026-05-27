@@ -26,21 +26,18 @@ main:
         group: Classification
       description: CAPCO caveats, separated by //. Template enforces canonical ordering (NOFORN > REL TO > RELIDO > ORCON > PROPIN > FISA). Unknown caveats kept in author order.
     notional:
-      type: string
-      default: 'false'
-      enum:
-      - 'true'
-      - 'false'
+      type: boolean
+      default: false
       ui:
         group: Classification
-      description: Opt-in. "true" adds EXERCISE — EXERCISE — EXERCISE strap above and below banners and a diagonal NOTIONAL watermark on every slide. Leave "false" for real products.
+      description: Opt-in. When true, adds EXERCISE — EXERCISE — EXERCISE strap above and below banners and a diagonal NOTIONAL watermark on every slide. Leave false for real products.
     exercise_name:
       type: string
       default: ''
       example: EXERCISE TANAGER FORGE 26-01
       ui:
         group: Classification
-      description: Codename shown in the EXERCISE strap (only when notional=true).
+      description: Codename shown in the EXERCISE strap (only when notional is true).
     brief_title:
       type: string
       example: Adversary Air Order of Battle — 24-Hour Update
@@ -118,11 +115,8 @@ main:
       ui:
         group: Seals
     show_wordmark:
-      type: string
-      default: 'true'
-      enum:
-      - 'true'
-      - 'false'
+      type: boolean
+      default: true
       ui:
         group: Seals
 card_kinds:

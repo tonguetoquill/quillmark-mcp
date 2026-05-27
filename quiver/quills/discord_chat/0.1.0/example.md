@@ -41,8 +41,8 @@ avatar_initials: "SP"
 avatar_color: "#3BA55D"
 timestamp: "3:47 PM"
 body_md: "Maintenance is already on it, ETA 2 hours. Will update."
-group_with_previous: "true"
-edited: "true"
+group_with_previous: true
+edited: true
 ~~~
 
 ~~~card-yaml
@@ -51,8 +51,8 @@ username: "IntelBot"
 user_color: "#5865F2"
 avatar_initials: "IB"
 avatar_color: "#5865F2"
-is_bot: "true"
-is_verified_app: "true"
+is_bot: true
+is_verified_app: true
 timestamp: "Today at 3:52 PM"
 body_md: "New intel report ingested — tagged **PRIORITY**. Preview below."
 ~~~

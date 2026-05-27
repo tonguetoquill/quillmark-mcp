@@ -368,7 +368,7 @@
 
 #let message-row(msg, embed: none, theme: "dark", legacy: false) = {
   let t = theme-of(theme)
-  let grouped = is-true(msg.at("group_with_previous", default: "false"))
+  let grouped = msg.at("group_with_previous", default: false)
 
   if msg.at("replying_to_user", default: "") != "" {
     reply-reference(
@@ -400,10 +400,10 @@
           username-line(
             username: msg.at("username", default: ""),
             user-color: msg.at("user_color", default: "#F2F3F5"),
-            is-bot: is-true(msg.at("is_bot", default: "false")),
-            is-verified-app: is-true(msg.at("is_verified_app", default: "false")),
+            is-bot: msg.at("is_bot", default: false),
+            is-verified-app: msg.at("is_verified_app", default: false),
             timestamp: msg.at("timestamp", default: ""),
-            pinned: is-true(msg.at("pinned", default: "false")),
+            pinned: msg.at("pinned", default: false),
             legacy: legacy,
             theme: theme,
           )
@@ -412,7 +412,7 @@
         #set text(font: config.font, size: config.body-size, fill: t.text)
         #set par(leading: 0.6em, spacing: 4pt)
         #message-body(msg.at("body_md", default: ""), theme: theme)
-        #if is-true(msg.at("edited", default: "false")) {
+        #if msg.at("edited", default: false) {
           text(size: 6.5pt, fill: t.timestamp, " (edited)")
         }
         #if embed != none { embed-card(embed, theme: theme) }

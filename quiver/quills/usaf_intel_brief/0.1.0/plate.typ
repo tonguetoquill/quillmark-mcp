@@ -10,7 +10,7 @@
   panic("Invalid CAPCO banner: " + _val.reason)
 }
 
-#let _notional = is-true(data.at("notional", default: "false"))
+#let _notional = data.at("notional", default: false)
 #let _exercise = data.at("exercise_name", default: "")
 #let _unit = data.at("unit", default: "")
 #let _dtg = data.at("dtg", default: "")
@@ -63,7 +63,7 @@
   center-seal: _load-seal(data.at("center_seal", default: ""), 1.8in),
   right-seal: _load-seal(data.at("right_seal", default: ""), 1.6in),
   wordmark: _load-seal(data.at("wordmark", default: ""), 1.4in),
-  show-wordmark: is-true(data.at("show_wordmark", default: "true")),
+  show-wordmark: data.at("show_wordmark", default: true),
   classified-by: data.at("classified_by", default: ""),
   derived-from: data.at("derived_from", default: ""),
   declassify-on: data.at("declassify_on", default: ""),

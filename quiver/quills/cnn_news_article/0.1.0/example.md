@@ -9,7 +9,7 @@ dateline: "Washington, DC"
 category: National Security
 publication_date: "2026-04-12"
 updated_date: "2026-04-13"
-breaking_news: "true"
+breaking_news: true
 summary: "NATO naval forces participating in Exercise Northern Resolve detected an unidentified submarine operating near the exercise area in the Baltic Sea, prompting allied navies to redirect anti-submarine warfare assets."
 editors_note: "CNN is withholding certain operational details at the request of NATO military authorities. This is a developing story and will be updated."
 tags:
