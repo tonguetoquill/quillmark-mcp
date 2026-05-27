@@ -94,26 +94,49 @@ main:
       description: For original classification decisions only (cites EO 13526 §1.4 categories). Leave empty for derivative.
     left_seal:
       type: string
+      enum:
+      - usaf_seal.svg
+      - dod_seal.svg
+      - ussf_seal.svg
+      - usaf_wordmark.svg
       default: usaf_seal.svg
       ui:
         group: Seals
-      description: "Bare filename under assets/ (do NOT include the `assets/` prefix — the template prepends it). Defaults to bundled USAF seal. Author may drop unit/MAJCOM seal into assets/ and reference by filename, e.g. `my_unit_seal.svg`."
+      description: Seal shown in the left position of the title slide. Choose from the bundled set.
     center_seal:
       type: string
+      enum:
+      - usaf_seal.svg
+      - dod_seal.svg
+      - ussf_seal.svg
+      - usaf_wordmark.svg
       default: dod_seal.svg
       ui:
         group: Seals
+      description: Seal shown in the center position of the title slide. Choose from the bundled set.
     right_seal:
       type: string
+      enum:
+      - ''
+      - usaf_seal.svg
+      - dod_seal.svg
+      - ussf_seal.svg
+      - usaf_wordmark.svg
       default: ''
       ui:
         group: Seals
-      description: Optional. Use ussf_seal.svg for Space Force briefs, or a command emblem.
+      description: Optional seal shown in the right position. Pick ussf_seal.svg for Space Force briefs, or leave empty for none.
     wordmark:
       type: string
+      enum:
+      - usaf_wordmark.svg
+      - usaf_seal.svg
+      - dod_seal.svg
+      - ussf_seal.svg
       default: usaf_wordmark.svg
       ui:
         group: Seals
+      description: Wordmark/banner image shown below the seals. Choose from the bundled set.
     show_wordmark:
       type: boolean
       default: true
@@ -216,10 +239,16 @@ card_kinds:
         description: Supports inline `**bold**` emphasis. Title bars are already bold; markers are stripped so literal asterisks do not render.
       image_path:
         type: string
-        description: "Bare filename of an image bundled under the quill's `assets/` directory. Do NOT include the `assets/` prefix — the template prepends it automatically. Example: `pacific_theater_map.png`, not `assets/pacific_theater_map.png`."
-        example: pacific_theater_map.png
+        enum:
+        - ''
+        - usaf_seal.svg
+        - dod_seal.svg
+        - ussf_seal.svg
+        - usaf_wordmark.svg
+        default: ''
         ui:
           group: Content
+        description: Image shown on this slide. Choose from the bundled set, or leave empty for a text-only image slide. No other images are available.
       caption:
         type: string
         default: ''
