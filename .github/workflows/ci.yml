@@ -14,10 +14,54 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout quillmark-mcp
+        uses: actions/checkout@v6
+
+      # quillmark-mcp depends on @quillmark/wasm features that ship together
+      # with co-evolving MCP work in the sprint branch. Build the matching
+      # quillmark branch from source and `npm link` it rather than pulling
+      # whatever happens to be on the registry — matches local dev flow per
+      # quillmark/scripts/build-wasm.sh.
+      #
+      # QUILLMARK_REF controls which ref to build. Defaults to the sprint
+      # branch; flip to a tag/main once the companion PR merges and a new
+      # @quillmark/wasm publishes.
+      - name: Checkout quillmark
+        uses: actions/checkout@v6
+        with:
+          repository: quillmark-org/quillmark
+          ref: ${{ vars.QUILLMARK_REF || 'auto-refine-3' }}
+          path: quillmark
+
+      - name: Setup Rust toolchain (wasm32)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: quillmark
+
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --version 0.2.118
+
+      - name: Build @quillmark/wasm
+        working-directory: quillmark
+        run: scripts/build-wasm.sh --ci
+
+      - name: Link @quillmark/wasm
+        working-directory: quillmark/pkg
+        run: npm link
+
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
+
       - run: npm ci
+
+      - name: Link in @quillmark/wasm
+        run: npm link @quillmark/wasm
+
       - run: npm test
