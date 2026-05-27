@@ -33,6 +33,14 @@ jobs:
           ref: ${{ vars.QUILLMARK_REF || 'auto-refine-3' }}
           path: quillmark
 
+      # Setup node BEFORE anything that uses npm — including the global
+      # `npm link` from quillmark/pkg below — so the npm prefix is stable
+      # across every npm invocation.
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
       - name: Setup Rust toolchain (wasm32)
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -50,18 +58,18 @@ jobs:
         working-directory: quillmark
         run: scripts/build-wasm.sh --ci
 
-      - name: Link @quillmark/wasm
+      - run: npm ci
+
+      - name: Link @quillmark/wasm (global)
         working-directory: quillmark/pkg
         run: npm link
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - run: npm ci
-
-      - name: Link in @quillmark/wasm
+      - name: Link @quillmark/wasm into quillmark-mcp
         run: npm link @quillmark/wasm
+
+      - name: Verify link resolved to the in-tree build
+        run: |
+          set -e
+          node -e "import('@quillmark/wasm').then(m => { if (typeof m.Document.formatRules !== 'function') { console.error('formatRules missing — link did not take'); process.exit(1); } console.log('linked OK'); })"
 
       - run: npm test

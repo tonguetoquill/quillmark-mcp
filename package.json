@@ -17,7 +17,7 @@
     "quiver/"
   ],
   "scripts": {
-    "test": "node --test",
+    "test": "node --test test/",
     "test:docker": "./scripts/docker-test.sh",
     "test:install": "./scripts/test-mcp-install.sh",
     "start": "QUILLMARK_BIND=127.0.0.1:8080 node src/bin.js",
