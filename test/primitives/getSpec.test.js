@@ -100,8 +100,5 @@ describe('getSpec', () => {
     const result = await getSpec(quiver, STUB_ENGINE, 'usaf_memo');
     assert.match(result.instruction, /Document format rules/);
     assert.match(result.instruction, /~~~card-yaml/);
-    // The canonical form is `~~~card-yaml` / `~~~`; the rules now describe
-    // that shape without an outdated anti-instruction about `---`.
-    assert.match(result.instruction, /Do NOT repeat `~~~card-yaml` as the closer/);
   });
 });

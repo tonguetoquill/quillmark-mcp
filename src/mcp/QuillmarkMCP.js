@@ -11,9 +11,24 @@ const SERVER_INSTRUCTIONS = [
   'On error: read the diagnostics (including the `hint:` field) and retry `create_document` with corrected content. On success: surface the returned URL to the user as a markdown link and stop.',
 ].join(' ');
 
+// `formatDiagnostic(d)` ships in @quillmark/wasm > 0.84; until that publishes,
+// fall back to a JS formatter matching the Rust canonical layout. Remove once
+// the dep is bumped past the cutover.
+const formatDiagnostic = typeof Document.formatDiagnostic === 'function'
+  ? (d) => Document.formatDiagnostic(d)
+  : (d) => {
+      const sev = (d.severity ?? 'error').toUpperCase();
+      const parts = [`[${sev}] ${d.message ?? ''}`];
+      if (d.code) parts[0] += ` (${d.code})`;
+      if (d.location) parts.push(`  --> ${d.location.file}:${d.location.line}:${d.location.column}`);
+      if (d.path) parts.push(`  at ${d.path}`);
+      if (d.hint) parts.push(`  hint: ${d.hint}`);
+      return parts.join('\n');
+    };
+
 function errorResult(message, diagnostics) {
   const text = diagnostics && diagnostics.length > 0
-    ? [message, '', ...diagnostics.map((d) => Document.formatDiagnostic(d))].join('\n')
+    ? [message, '', ...diagnostics.map(formatDiagnostic)].join('\n')
     : message;
   return { isError: true, content: [{ type: 'text', text }] };
 }

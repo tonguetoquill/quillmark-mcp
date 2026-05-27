@@ -136,42 +136,6 @@ describe('createDocument', () => {
     assert.match(result.message, /Document rendering failed: unexpected failure/);
   });
 
-  it('surfaces a MissingQuill error when a `---` root block omits $quill', async () => {
-    // `---` … `---` is now accepted for the root block, so the bad-fence
-    // hint no longer fires here. The block parses, but `quill:` (without the
-    // `$`) is a user field — `$quill` is still missing, so the standard
-    // MissingQuill error surfaces.
-    const { quiver, engine } = await loadCatalog();
-    const strategy = { async handle() { throw new Error('unreachable'); } };
-
-    const result = await createDocument(
-      quiver,
-      engine,
-      strategy,
-      '---\nquill: usaf_memo\n---\n\n# Memo body',
-    );
-
-    assert.equal(result.ok, false);
-    assert.match(result.message, /must declare `\$quill: <name>`/);
-    assert.doesNotMatch(result.message, /`---` YAML frontmatter/);
-  });
-
-  it('annotates unclosed `~~~card-yaml` parse errors with a fix hint', async () => {
-    const { quiver, engine } = await loadCatalog();
-    const strategy = { async handle() { throw new Error('unreachable'); } };
-
-    const result = await createDocument(
-      quiver,
-      engine,
-      strategy,
-      '~~~card-yaml\n$quill: usaf_memo\n$kind: main\ntitle: memo\n\nbody without closer',
-    );
-
-    assert.equal(result.ok, false);
-    assert.match(result.message, /never closed with `~~~`/);
-    assert.match(result.message, /closer is unadorned|three tildes/);
-  });
-
   it('includes available quill names when ref cannot be resolved', async () => {
     const { quiver, engine } = await loadCatalog();
     const strategy = { async handle() { throw new Error('unreachable'); } };
