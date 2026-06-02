@@ -1,5 +1,5 @@
 ~~~card-yaml
-$quill: x_post@0.1.0
+$quill: x_post@0.2.0
 $kind: main
 theme: dim
 feed_header: "For you"

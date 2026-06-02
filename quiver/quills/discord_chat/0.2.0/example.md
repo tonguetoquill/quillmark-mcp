@@ -1,5 +1,5 @@
 ~~~card-yaml
-$quill: discord_chat@0.1.0
+$quill: discord_chat@0.2.0
 $kind: main
 theme: dark
 server_name: "Joint Task Force 26"

@@ -1,5 +1,5 @@
 ~~~card-yaml
-$quill: nyt_news_article@0.1.0
+$quill: nyt_news_article@0.2.0
 $kind: main
 headline: "U.S. and Allied Forces Begin Major Naval Exercise in Western Pacific"
 subheadline: "The exercise, involving 12 nations, is the largest joint maritime operation in the region since 2019"

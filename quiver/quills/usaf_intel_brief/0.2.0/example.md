@@ -1,5 +1,5 @@
 ~~~card-yaml
-$quill: usaf_intel_brief@0.1.0
+$quill: usaf_intel_brief@0.2.0
 $kind: main
 classification: "SECRET"
 classification_caveats: "NOFORN"
