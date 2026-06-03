@@ -1,6 +1,6 @@
 quill:
   name: nyt_news_article
-  version: 0.1.0
+  version: 0.2.0
   backend: typst
   plate_file: plate.typ
   description: NYT-style news article for wargaming exercise injects
@@ -8,7 +8,6 @@ main:
   fields:
     headline:
       type: string
-      required: true
       example: U.S. and Allied Forces Begin Major Naval Exercise in Western Pacific
       ui:
         group: Article
@@ -21,7 +20,6 @@ main:
       description: Optional secondary headline displayed below the main headline in italic.
     byline:
       type: string
-      required: true
       example: By Jennifer A. Collins
       ui:
         group: Article
@@ -51,7 +49,6 @@ main:
       description: Section of the newspaper this article appears in.
     publication_date:
       type: string
-      required: true
       example: '2026-04-13'
       ui:
         group: Metadata
@@ -65,6 +62,8 @@ main:
     tags:
       type: array
       default: []
+      items:
+        type: string
       example:
       - Military
       - Pacific
@@ -75,6 +74,8 @@ main:
     persons:
       type: array
       default: []
+      items:
+        type: string
       example:
       - Adm. James T. Hargrove
       - Secretary of Defense Maria Chen
@@ -84,6 +85,8 @@ main:
     locations:
       type: array
       default: []
+      items:
+        type: string
       example:
       - Western Pacific
       - Okinawa, Japan
@@ -93,6 +96,8 @@ main:
     organizations:
       type: array
       default: []
+      items:
+        type: string
       example:
       - U.S. Pacific Fleet
       - Japan Maritime Self-Defense Force

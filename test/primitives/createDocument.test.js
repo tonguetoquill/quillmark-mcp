@@ -167,7 +167,7 @@ describe('createDocument', () => {
     assert.match(result.message, /`---` YAML frontmatter/);
   });
 
-  it('annotates unclosed `~~~card-yaml` parse errors with a fix hint', async () => {
+  it('returns missing-quill hint when root card-yaml block is unclosed', async () => {
     const { quiver, engine } = await loadCatalog();
     const strategy = { async handle() { throw new Error('unreachable'); } };
 
@@ -179,8 +179,7 @@ describe('createDocument', () => {
     );
 
     assert.equal(result.ok, false);
-    assert.match(result.message, /never closed with `~~~`/);
-    assert.match(result.message, /closer is unadorned|three tildes/);
+    assert.match(result.message, /\$quill: <name> is required/);
   });
 
   it('includes available quill names when ref cannot be resolved', async () => {

@@ -1,6 +1,6 @@
 quill:
   name: x_post
-  version: 0.1.0
+  version: 0.2.0
   backend: typst
   plate_file: plate.typ
   description: X (Twitter) feed mockup — multiple posts, replies, quoted tweets, Community Notes. For wargaming/exercise injects and training materials.
@@ -35,14 +35,12 @@ card_kinds:
     fields:
       display_name:
         type: string
-        required: true
         example: Pentagon Press Secretary
         ui:
           group: Author
         description: Author's display name (shown in bold).
       handle:
         type: string
-        required: true
         example: PentagonPresSec
         ui:
           group: Author
@@ -68,7 +66,6 @@ card_kinds:
         description: Checkmark color. blue = individual, gold = business/organization, gray = government/multilateral.
       avatar_initials:
         type: string
-        required: true
         example: PP
         ui:
           group: Author
@@ -82,7 +79,6 @@ card_kinds:
         description: Hex color for the avatar circle background.
       timestamp:
         type: string
-        required: true
         example: 4:12 PM · Apr 15, 2026
         ui:
           group: Post
@@ -151,7 +147,6 @@ card_kinds:
     fields:
       belongs_to_post_index:
         type: number
-        required: true
         example: 0
         ui:
           group: Threading
@@ -165,13 +160,11 @@ card_kinds:
         description: Comma-separated handles (no @). Renders as "Replying to @a, @b and @c".
       display_name:
         type: string
-        required: true
         ui:
           group: Author
         description: Reply author display name.
       handle:
         type: string
-        required: true
         ui:
           group: Author
       verified:
@@ -193,7 +186,6 @@ card_kinds:
           group: Author
       avatar_initials:
         type: string
-        required: true
         ui:
           group: Author
       avatar_color:
@@ -203,7 +195,6 @@ card_kinds:
           group: Author
       timestamp:
         type: string
-        required: true
         ui:
           group: Post
       reply_count:
@@ -250,18 +241,15 @@ card_kinds:
         description: Whether this quote appears inside a top-level post or a reply.
       belongs_to_post_index:
         type: number
-        required: true
         ui:
           group: Threading
         description: Zero-based index of the parent post (if attached_to=post) or reply (if attached_to=reply).
       display_name:
         type: string
-        required: true
         ui:
           group: Author
       handle:
         type: string
-        required: true
         ui:
           group: Author
       verified:
@@ -283,7 +271,6 @@ card_kinds:
           group: Author
       avatar_initials:
         type: string
-        required: true
         ui:
           group: Author
       avatar_color:
@@ -293,6 +280,5 @@ card_kinds:
           group: Author
       timestamp:
         type: string
-        required: true
         ui:
           group: Post

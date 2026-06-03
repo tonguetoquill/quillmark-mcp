@@ -1,6 +1,6 @@
 quill:
   name: cnn_news_article
-  version: 0.1.0
+  version: 0.2.0
   backend: typst
   plate_file: plate.typ
   description: CNN-style web news article for wargaming exercise injects
@@ -8,7 +8,6 @@ main:
   fields:
     headline:
       type: string
-      required: true
       example: NATO allies scramble as tensions escalate near Baltic corridor
       ui:
         group: Article
@@ -21,7 +20,6 @@ main:
       description: Optional secondary headline or summary line.
     author:
       type: string
-      required: true
       example: Marcus J. Reed
       ui:
         group: Article
@@ -42,7 +40,6 @@ main:
       description: Location where the story was filed.
     category:
       type: string
-      required: true
       enum:
       - Politics
       - World
@@ -60,7 +57,6 @@ main:
       description: CNN section or category for this article.
     publication_date:
       type: string
-      required: true
       example: '2026-04-13'
       ui:
         group: Metadata
@@ -95,6 +91,8 @@ main:
     tags:
       type: array
       default: []
+      items:
+        type: string
       example:
       - NATO
       - Baltic
@@ -108,7 +106,6 @@ card_kinds:
     fields:
       timestamp:
         type: string
-        required: true
         example: 2026-04-13 14:30 ET
         ui:
           group: Update
@@ -124,7 +121,6 @@ card_kinds:
     fields:
       story_headline:
         type: string
-        required: true
         example: Pentagon moves additional assets to Eastern Europe
         ui:
           group: Related

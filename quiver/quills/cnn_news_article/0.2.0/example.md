@@ -1,5 +1,5 @@
 ~~~card-yaml
-$quill: cnn_news_article@0.1.0
+$quill: cnn_news_article@0.2.0
 $kind: main
 headline: "NATO allies scramble as unidentified submarine detected near Baltic exercise zone"
 subheadline: "Multiple NATO warships have been redirected to track the contact, sources say"

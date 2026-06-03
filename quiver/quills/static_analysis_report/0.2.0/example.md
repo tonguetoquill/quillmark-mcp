@@ -1,5 +1,5 @@
 ~~~card-yaml
-$quill: static_analysis_report@0.1
+$quill: static_analysis_report@0.2.0
 $kind: main
 report_title: RAPTOR-9X Fire Control — Cybersecurity Assessment Report
 report_type: "WEAPON SYSTEM CYBERSECURITY ASSESSMENT REPORT"

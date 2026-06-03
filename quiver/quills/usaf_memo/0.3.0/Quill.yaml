@@ -1,6 +1,6 @@
 quill:
   name: usaf_memo
-  version: 0.2.0
+  version: 0.3.0
   backend: typst
   plate_file: plate.typ
   description: U.S. Air Force and Space Force Official Memorandum
@@ -14,7 +14,8 @@ main:
   fields:
     memo_for:
       type: array
-      required: true
+      items:
+        type: string
       example:
         - ORG1/SYMBOL
         - ORG2/SYMBOL
@@ -24,7 +25,8 @@ main:
 
     memo_from:
       type: array
-      required: true
+      items:
+        type: string
       example:
         - ORG/SYMBOL
         - Organization Name
@@ -36,7 +38,6 @@ main:
 
     subject:
       type: string
-      required: true
       example: Subject of the Memorandum
       ui:
         group: Addressing
@@ -44,7 +45,8 @@ main:
 
     signature_block:
       type: array
-      required: true
+      items:
+        type: string
       example:
         - "FIRST M. LAST, Rank, USSF"
         - Duty Title
@@ -63,6 +65,8 @@ main:
       type: array
       default:
         - HEADQUARTERS [UNIT NAME]
+      items:
+        type: string
       ui:
         group: Letterhead
       description: The full organization name of your unit.
@@ -96,6 +100,8 @@ main:
     references:
       type: array
       default: []
+      items:
+        type: string
       example:
         - "AFM 33-326, 31 July 2019, Preparing Official Communications"
       ui:
@@ -105,6 +111,8 @@ main:
     cc:
       type: array
       default: []
+      items:
+        type: string
       example:
         - Rank and Name, ORG/SYMBOL
       ui:
@@ -114,6 +122,8 @@ main:
     distribution:
       type: array
       default: []
+      items:
+        type: string
       example:
         - ORG1/SYMBOL
         - ORG2/SYMBOL
@@ -124,6 +134,8 @@ main:
     attachments:
       type: array
       default: []
+      items:
+        type: string
       example:
         - Attachment description, YYYY MMM DD
       ui:
@@ -151,7 +163,7 @@ main:
       description: Font size for the memo text (pt). Decimal values (e.g. 11.5) are supported.
 
     date:
-      type: date
+      type: datetime
       default: ""
       ui:
         group: Additional
@@ -201,10 +213,11 @@ card_kinds:
         description: Office symbol or organization receiving the endorsed memo.
       signature_block:
         type: array
-        required: true
         default:
           - "FIRST M. LAST, Rank, USAF"
           - Duty Title
+        items:
+          type: string
         example:
           - "FIRST M. LAST, Rank, USAF"
           - Duty Title
@@ -234,16 +247,23 @@ card_kinds:
         description: "Action taken by the endorser. Leave blank to hide the Approve/Disapprove line entirely, 'undecided' to display the line with neither option circled, 'approve' or 'disapprove' to circle the selected option."
       attachments:
         type: array
+        default: []
+        items:
+          type: string
         ui:
           group: Additional
         description: List of attachments specific to this endorsement.
       cc:
         type: array
+        default: []
+        items:
+          type: string
         ui:
           group: Additional
         description: List of office symbols to receive copies of this endorsement.
       date:
-        type: date
+        type: datetime
+        default: ""
         ui:
           group: Additional
         description: "YYYY-MM-DD. Date the endorser signs/forwards the memo (per AFH 33-337 Ch. 14, this is distinct from the originating memo's date). Leave blank to use today's date."

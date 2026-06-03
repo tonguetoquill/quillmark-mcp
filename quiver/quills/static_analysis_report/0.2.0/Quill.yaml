@@ -1,6 +1,6 @@
 quill:
   name: static_analysis_report
-  version: 0.1.0
+  version: 0.2.0
   backend: typst
   plate_file: plate.typ
   description: Cybersecurity assessment report template for weapon system and mission software baselines
@@ -127,21 +127,18 @@ main:
       description: Optional narrative executive summary text.
     system_name:
       type: string
-      required: true
       example: RAPTOR-9X Fire Control Mission Software Package (MSP)
       ui:
         group: Header
       description: Name or designation of the weapon system or mission software baseline under assessment.
     system_identifier:
       type: string
-      required: true
       example: WS-R9X-FCS-MSP-02.04.01-BL47
       ui:
         group: Header
       description: Part number, build ID, or other unique baseline identifier for the assessed software image.
     system_version:
       type: string
-      required: true
       example: 2.4.1
       ui:
         group: Header
@@ -155,28 +152,24 @@ main:
       description: Operating environment or platform for the assessed software (for example RTOS, embedded Linux, or hypervisor partition).
     scan_date:
       type: string
-      required: true
       example: '2025-07-03'
       ui:
         group: Header
       description: Date the cybersecurity assessment or analysis was performed, in YYYY-MM-DD format.
     file_name:
       type: string
-      required: true
       example: R9X-FCS-MSP_v2.4.1-signed.bin
       ui:
         group: File Information
       description: Name of the analyzed artifact (for example signed firmware image, container, or installer).
     security_score:
       type: number
-      required: true
       example: 44
       ui:
         group: Scorecard
       description: Aggregate security score from 0 (worst) to 100 (best).
     risk_level:
       type: string
-      required: true
       enum:
       - LOW
       - MEDIUM
@@ -316,6 +309,17 @@ main:
     binary_findings:
       type: array
       default: []
+      items:
+        type: object
+        properties:
+          issue:
+            type: string
+          severity:
+            type: string
+          standards:
+            type: string
+          description:
+            type: string
       ui:
         group: Findings
       description: 'Array of binary code analysis findings. Each item is a YAML mapping with keys: issue (string), severity (high|warning|info|secure), standards (e.g. CWE-330), description (string).'
@@ -327,6 +331,17 @@ main:
     security_features:
       type: array
       default: []
+      items:
+        type: object
+        properties:
+          protection:
+            type: string
+          status:
+            type: string
+          severity:
+            type: string
+          description:
+            type: string
       ui:
         group: Findings
       description: 'Array of binary security feature checks. Each item is a YAML mapping with keys: protection (string), status (True/False string), severity (high|warning|info|secure), description (string).'
@@ -338,6 +353,23 @@ main:
     dependencies:
       type: array
       default: []
+      items:
+        type: object
+        properties:
+          path:
+            type: string
+          nx:
+            type: string
+          stack_canary:
+            type: string
+          arc:
+            type: string
+          rpath:
+            type: string
+          code_signature:
+            type: string
+          encrypted:
+            type: string
       ui:
         group: Dependencies
       description: 'Array of dependency analysis results. Each item is a YAML mapping with keys: path (string), nx, stack_canary, arc, rpath, code_signature, encrypted. Security-check values are severity levels: high, warning, info, secure.'
@@ -352,6 +384,19 @@ main:
     domains:
       type: array
       default: []
+      items:
+        type: object
+        properties:
+          url:
+            type: string
+          status:
+            type: string
+          ip:
+            type: string
+          country:
+            type: string
+          city:
+            type: string
       ui:
         group: Network
       description: 'Array of domain check results. Each item is a YAML mapping with keys: url (string), status (string), ip (string), country (string), city (string).'
@@ -364,6 +409,13 @@ main:
     emails_found:
       type: array
       default: []
+      items:
+        type: object
+        properties:
+          value:
+            type: string
+          source:
+            type: string
       ui:
         group: Reconnaissance
       description: 'Array of discovered email addresses. Each item is a YAML mapping with keys: value (string), source (string).'
@@ -373,6 +425,13 @@ main:
     urls_found:
       type: array
       default: []
+      items:
+        type: object
+        properties:
+          value:
+            type: string
+          source:
+            type: string
       ui:
         group: Reconnaissance
       description: 'Array of discovered URLs. Each item is a YAML mapping with keys: value (string), source (string).'
@@ -382,6 +441,13 @@ main:
     secrets_found:
       type: array
       default: []
+      items:
+        type: object
+        properties:
+          value:
+            type: string
+          source:
+            type: string
       ui:
         group: Reconnaissance
       description: 'Array of discovered secrets. Each item is a YAML mapping with keys: value (string), source (string).'
@@ -391,6 +457,15 @@ main:
     scan_logs:
       type: array
       default: []
+      items:
+        type: object
+        properties:
+          timestamp:
+            type: string
+          event:
+            type: string
+          status:
+            type: string
       ui:
         group: Logs
       description: 'Array of scan log entries. Each item is a YAML mapping with keys: timestamp (string), event (string), status (string, typically "OK" or error text).'
@@ -401,6 +476,15 @@ main:
     recommendations:
       type: array
       default: []
+      items:
+        type: object
+        properties:
+          priority:
+            type: string
+          finding_reference:
+            type: string
+          recommended_action:
+            type: string
       ui:
         group: Findings
       description: Array of recommendation records. Each item can include priority, finding_reference, and recommended_action (or action/recommendation aliases).
@@ -411,6 +495,13 @@ main:
     acronyms:
       type: array
       default: []
+      items:
+        type: object
+        properties:
+          acronym:
+            type: string
+          expansion:
+            type: string
       ui:
         group: Footer
       description: Array of acronym records for Appendix A. Each item can include acronym/expansion (or term/definition aliases).
@@ -420,6 +511,8 @@ main:
     references:
       type: array
       default: []
+      items:
+        type: string
       ui:
         group: Footer
       description: Array of reference strings or records for Appendix B.
