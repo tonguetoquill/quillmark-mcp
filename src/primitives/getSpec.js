@@ -29,7 +29,7 @@ export async function getSpec(quiver, engine, quill) {
 
   let resolved;
   try {
-    resolved = await quiver.getQuill(quill, { engine });
+    resolved = await quiver.getQuill(quill);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Unable to resolve Quill format reference "${quill}": ${message}.${availableQuillsHint(quiver)}`, { cause: error });

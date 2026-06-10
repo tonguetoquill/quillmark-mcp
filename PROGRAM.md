@@ -8,7 +8,7 @@ quillmark-mcp is the foundation. Separate repos extend it for specific domains �
 
 - Node.js ≥ 24
 - `@modelcontextprotocol/sdk` — Streamable HTTP + stdio
-- `@quillmark/wasm` — Quillmark document rendering engine (`Quillmark`, `Document`, `Quill`)
+- `@quillmark/wasm` — Quillmark document rendering engine (`Engine`, `Document`, `Quill`)
 - `@quillmark/quiver` — Source Quiver loading + selector resolution + per-quill caching
 
 ## Primitives
@@ -32,20 +32,20 @@ We own tool guidance. Quills own content guidance.
 
 ```
 Document.fromMarkdown(content)
-  → quiver.getQuill(doc.quillRef, { engine })
-  → strategy.handle(quill, doc)
+  → quiver.getQuill(doc.quillRef)
+  → strategy.handle(quill, doc, engine)
   → { status, url?, errors? }
 ```
 
 Parsing throws on malformed frontmatter (missing `QUILL:`, malformed
 YAML, etc.) — `createDocument` catches and converts to a structured
 error result. Quiver resolves the selector ref to a canonical version
-and materialises a render-ready `Quill` handle (cached per
-`(engine, canonical-ref)`). The strategy decides what happens next —
-render, pass through, or delegate.
+and materialises an engine-free `Quill` handle (cached per canonical
+ref). The strategy decides what happens next — render, pass through,
+or delegate.
 
-The default `RenderAndHostStrategy` calls `quill.render(doc)` and
-writes the artifact to disk; constructor injection is the only
+The default `RenderAndHostStrategy` calls `engine.render(quill, doc)`
+and writes the artifact to disk; constructor injection is the only
 extension point.
 
 ## Quiver layout

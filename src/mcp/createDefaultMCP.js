@@ -1,4 +1,4 @@
-import { Quillmark, init } from '@quillmark/wasm';
+import { Engine, init } from '@quillmark/wasm';
 import { Quiver } from '@quillmark/quiver/node';
 
 import { logger } from '../logger.js';
@@ -8,7 +8,7 @@ import { QuillmarkMCP } from './QuillmarkMCP.js';
 export async function createDefaultMCP({ quiverDir, strategy }) {
   init();
 
-  const engine = new Quillmark();
+  const engine = new Engine();
   const quiver = await Quiver.fromDir(quiverDir);
   logger.debug(`Quiver loaded (name: ${quiver.name}, quills: ${quiver.quillNames().join(', ')})`);
 

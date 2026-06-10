@@ -14,9 +14,8 @@ function makeQuiver(getQuillImpl, quillNames) {
 describe('getSpec', () => {
   it('returns instruction and blueprint for a valid ref', async () => {
     const expectedBlueprint = 'Write a formal memo. Use concise language.';
-    const quiver = makeQuiver(async (ref, opts) => {
+    const quiver = makeQuiver(async (ref) => {
       assert.strictEqual(ref, 'usaf_memo');
-      assert.strictEqual(opts.engine, STUB_ENGINE);
       return {
         schema: { main: { fields: { title: { type: 'string' } } } },
         blueprint: expectedBlueprint,

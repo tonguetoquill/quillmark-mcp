@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 
-import { Quillmark, init } from '@quillmark/wasm';
+import { Engine, init } from '@quillmark/wasm';
 import { Quiver } from '@quillmark/quiver/node';
 
 import { createDefaultMCP } from '../src/index.js';
@@ -28,7 +28,7 @@ const SHIPPED_QUILLS = [
 
 async function createFixtureCatalog() {
   init();
-  const engine = new Quillmark();
+  const engine = new Engine();
   const quiver = await Quiver.fromDir(FIXTURE_QUIVER_DIR);
   return { quiver, engine };
 }
@@ -111,7 +111,7 @@ describe('integration', () => {
     assert.ok(mcp instanceof QuillmarkMCP);
     assert.equal(mcp.strategy, strategy);
     assert.ok(typeof mcp.quiver.getQuill === 'function');
-    assert.ok(typeof mcp.engine.quill === 'function');
+    assert.ok(typeof mcp.engine.render === 'function');
   });
 
   describe('shipped quills render end-to-end', () => {
@@ -122,7 +122,7 @@ describe('integration', () => {
     before(async () => {
       outputDir = await mkdtemp(path.join(tmpdir(), 'quillmark-integration-'));
       init();
-      engine = new Quillmark();
+      engine = new Engine();
       quiver = await Quiver.fromDir(REAL_QUIVER_DIR);
     });
 

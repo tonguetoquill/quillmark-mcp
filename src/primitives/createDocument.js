@@ -84,7 +84,7 @@ export async function createDocument(quiver, engine, strategy, content) {
 
   let quill;
   try {
-    quill = await quiver.getQuill(quillRef, { engine });
+    quill = await quiver.getQuill(quillRef);
   } catch (error) {
     return {
       ok: false,
@@ -93,7 +93,7 @@ export async function createDocument(quiver, engine, strategy, content) {
   }
 
   try {
-    const { url, mimeType } = await strategy.handle(quill, doc);
+    const { url, mimeType } = await strategy.handle(quill, doc, engine);
     return { ok: true, url, mimeType };
   } catch (error) {
     const raw = getErrorMessage(error);
