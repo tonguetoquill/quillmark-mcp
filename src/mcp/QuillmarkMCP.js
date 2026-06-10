@@ -30,8 +30,8 @@ export class QuillmarkMCP {
       throw new TypeError('QuillmarkMCP requires a quiver with getQuill() and quillNames() methods.');
     }
 
-    if (!engine || typeof engine.quill !== 'function') {
-      throw new TypeError('QuillmarkMCP requires an engine with a quill() method.');
+    if (!engine || typeof engine.render !== 'function') {
+      throw new TypeError('QuillmarkMCP requires an engine with a render() method.');
     }
 
     if (!strategy || typeof strategy.handle !== 'function') {

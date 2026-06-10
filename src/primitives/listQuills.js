@@ -9,7 +9,7 @@ export async function listQuills(quiver, engine) {
   return Promise.all(
     names.map(async (name) => {
       try {
-        const quill = await quiver.getQuill(name, { engine });
+        const quill = await quiver.getQuill(name);
         const version = typeof quill?.metadata?.version === 'string'
           ? quill.metadata.version
           : '';

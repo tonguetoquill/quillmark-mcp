@@ -12,6 +12,7 @@ Quillmark engine upgrade and source-layout reorganisation. Breaking changes for 
 
 ### Engine
 
+- **Bumped `@quillmark/wasm` 0.87.1 → 0.90.0** and `@quillmark/quiver` 0.12.0 → 0.15.0. The 0.90 wasm API is **engine-free**: `Quill` is now portable, backend-free data, and rendering moved onto the engine. The `Quillmark` export is renamed `Engine`, the `engine.quill(tree)` / `quill.render(doc)` factory pair is gone, and rendering is `await engine.render(quill, doc, opts?)` (now async). Quiver 0.15 materialises quills via `Quill.fromTree(tree)` — `getQuill(ref)` no longer takes an `{ engine }` option. `RenderAndHostStrategy.handle` now takes a third `engine` argument; custom strategies must accept it. Quiver's wasm peer range (`>=0.86.0`) admits 0.90 but its 0.12 line still calls the removed `engine.quill`, so the wasm bump forces the quiver bump too.
 - **Bumped `@quillmark/wasm` 0.77.0 → 0.80.0**. The wasm engine moved from a per-instance quill registry to a stateless factory: `engine.quill(tree) → Quill`, with rendering on `quill.render(doc, opts?)` and parsing on `Document.fromMarkdown(content)`. Engine-level `registerQuill`, `dryRun`, `parseMarkdown`, `getQuillInfo`, and `getQuillSchema` are gone.
 - **Replaced `@quillmark/registry` with `@quillmark/quiver` (^0.5.1)**. Quiver owns quill selection, version resolution, and per-`(engine, canonical-ref)` caching. The pre-render `engine.dryRun` validation step is folded into the parse + render path.
 - **Dropped the `js-yaml` dependency**. `quill.metadata.schema` is now a plain JS object straight from the engine; the YAML round-trip is unnecessary.
@@ -23,6 +24,7 @@ Quillmark engine upgrade and source-layout reorganisation. Breaking changes for 
 - `example_file` is no longer a valid key in the `quill:` section; removed from all shipped quills.
 - All seven shipped quills + the test fixture migrated. Authors of custom quills must apply the same renames; the engine does not accept the legacy keys.
 - Quill-level `description:` (under `quill:`) now surfaces at `metadata.description` — independent of `metadata.schema.main.description` (the schema description of the entry-point card).
+- **Reverted `usaf_memo` to the authoritative `0.2.0`** sourced from `tonguetoquill/airmark-quiver`, replacing the divergent local `0.3.0`. The `0.2.0` schema is the upstream source of truth (adds `markdown`-typed fields, `freedom250`, and the `cui_*` classification fields). Renders clean under wasm 0.90.
 
 ### Source layout
 

@@ -39,7 +39,7 @@ class FakeQuiver {
   async warm() { this.warmCalls += 1; }
 }
 
-const FAKE_ENGINE = { quill() { /* unused */ } };
+const FAKE_ENGINE = { render() { /* unused */ } };
 
 function make() {
   const quiver = new FakeQuiver();

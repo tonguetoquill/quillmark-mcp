@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Quillmark, init } from '@quillmark/wasm';
+import { Engine, init } from '@quillmark/wasm';
 import { Quiver } from '@quillmark/quiver/node';
 import { fileURLToPath } from 'node:url';
 
@@ -17,7 +17,7 @@ $kind: main
 
 async function loadCatalog() {
   init();
-  const engine = new Quillmark();
+  const engine = new Engine();
   const quiver = await Quiver.fromDir(FIXTURE_QUIVER_DIR);
   return { quiver, engine };
 }

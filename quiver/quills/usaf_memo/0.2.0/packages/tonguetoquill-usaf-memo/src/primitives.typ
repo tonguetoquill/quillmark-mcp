@@ -20,12 +20,24 @@
   font,
   letterhead-seal: none,
   letterhead-seal-subtitle: none,
+  letterhead-emblem: none, // optional image placed opposite the seal (right side)
+  letterhead-emblem-height: 1in, // emblem fit-box height; reduce for shorter emblems
 ) = {
   font = ensure-array(font)
   title = ensure-string(title)
   caption = ensure-string(caption)
   title = upper(title)
   caption = upper(caption)
+
+  // Letterhead corner geometry. The seal (left) and emblem (right) share one
+  // reference band so the corners stay in parity: both bleed `corner-overhang`
+  // past the page margin and center on the same axis (`band-center`). The
+  // emblem may be shorter than the band but stays centered on that axis.
+  let corner-overhang = 0.5in
+  let corner-width = 2in
+  let band-height = 1in // seal height; also the emblem's reference band
+  let band-top = -band-height / 2 // puts the band center at dy 0
+  let band-center = band-top + band-height / 2
 
   place(
     dy: 0.625in - spacing.margin,
@@ -39,6 +51,7 @@
           align(center)[
             #set text(12pt, font: font, fill: LETTERHEAD_COLOR, weight: "bold")
             #title\
+            #v(1pt)
             #text(10.5pt)[#caption]
           ],
         )
@@ -49,7 +62,7 @@
   if letterhead-seal != none {
     let seal-body = if falsey(letterhead-seal-subtitle) {
       block[
-        #fit-box(width: 2in, height: 1in)[#letterhead-seal]
+        #fit-box(width: corner-width, height: band-height)[#letterhead-seal]
       ]
     } else {
       // Isolate seal column from document `font_size`: stack `em` spacing and subtitle
@@ -61,16 +74,30 @@
         // Spacing applies between positional stack children only, not one `[…]` body.
         #stack(
           spacing: 0.5em,
-          fit-box(width: 2in, height: 1in)[#letterhead-seal],
+          fit-box(width: corner-width, height: band-height)[#letterhead-seal],
           box(upper(ensure-string(letterhead-seal-subtitle))),
         )
       ]
     }
     place(
       left + top,
-      dx: -0.5in,
-      dy: -.5in,
+      dx: -corner-overhang,
+      dy: band-top,
       seal-body,
+    )
+  }
+
+  if letterhead-emblem != none {
+    // Mirror the seal: same overhang and width, centered on the seal's band
+    // axis. Placing the emblem's top at `band-center - height/2` keeps its
+    // center on `band-center` for any (possibly shorter) emblem height.
+    place(
+      right + top,
+      dx: corner-overhang,
+      dy: band-center - letterhead-emblem-height / 2,
+      block[
+        #fit-box(width: corner-width, height: letterhead-emblem-height, alignment: right + horizon)[#letterhead-emblem]
+      ],
     )
   }
 }
@@ -98,9 +125,9 @@
     "  ",
     align(left)[
       #if type(recipients) == array {
-        create-auto-grid(recipients, column-gutter: spacing.tab, cols: cols)
+        create-auto-grid(recipients.map(upper), column-gutter: spacing.tab, cols: cols)
       } else {
-        recipients
+        upper(recipients)
       }
     ],
   )
@@ -120,19 +147,28 @@
 
 // AFH 33-337 "SUBJECT:": "In all uppercase letters place 'SUBJECT:', flush with the
 // left margin, on the second line below the last line of the FROM element"
-#let render-subject-section(subject-text) = {
+#let render-subject-section(subject-text, inline-reference: none) = {
   blank-line()
+  let content = if inline-reference != none {
+    [#subject-text (#box(inline-reference))]
+  } else {
+    [#subject-text]
+  }
   grid(
     columns: (auto, auto, 1fr),
-    "SUBJECT:", "  ", [#subject-text],
+    "SUBJECT:", "  ", content,
   )
 }
 
+// AFH 33-337: only render References block for two or more references.
+// A single reference is rendered inline after the SUBJECT text instead.
 #let render-references-section(references) = {
-  if not falsey(references) {
+  if type(references) == array and references.len() >= 2 {
     blank-line()
     grid(
       columns: (auto, auto, 1fr),
+      // Each entry is markdown-converted content; spread them as enum items
+      // lettered "(a) (b) (c)" per AFH 33-337.
       "References:", "  ", enum(..references, numbering: "(a) ", body-indent: 0pt),
     )
   }
@@ -353,7 +389,9 @@
       (if attachment-count == 1 { "Attachment" } else { str(attachment-count) + " Attachments" })
         + " (listed on next page):"
     )
-    render-backmatter-section(attachments, section-label, numbering-style: "1.", continuation-label: continuation-label)
+    // AFH 33-337: a single attachment is not numbered; numbering applies to two or more.
+    let numbering-style = if attachment-count == 1 { none } else { "1." }
+    render-backmatter-section(attachments, section-label, numbering-style: numbering-style, continuation-label: continuation-label)
   }
 
   if cc != none and cc.len() > 0 {

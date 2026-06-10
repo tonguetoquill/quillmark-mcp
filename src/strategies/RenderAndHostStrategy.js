@@ -22,10 +22,10 @@ export class RenderAndHostStrategy extends DeliveryStrategy {
     this.format = options.format ?? 'pdf';
   }
 
-  async handle(quill, doc) {
+  async handle(quill, doc, engine) {
     const quillName = quill?.metadata?.name ?? doc?.quillRef ?? 'document';
 
-    const renderResult = quill.render(doc, { format: this.format });
+    const renderResult = await engine.render(quill, doc, { format: this.format });
 
     const artifact = renderResult?.artifacts?.[0];
     if (!artifact || !artifact.bytes) {

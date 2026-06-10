@@ -15,14 +15,22 @@
     }
   ),
 
+  // Optional Freedom 250 emblem, placed opposite the seal
+  ..if data.at("freedom250", default: false) {
+    (
+      letterhead_emblem: image("assets/Freedom250_USAF.png"),
+      letterhead_emblem_height: 0.58in,
+    )
+  },
+
   // Date
   date: data.at("date", default: none),
 
   // Receiver information
   memo_for: data.memo_for,
 
-  // Sender information
-  memo_from: data.memo_from,
+  // Sender information (omitted for Memorandum for Record)
+  ..if data.at("memo_from", default: ()).len() > 0 { (memo_from: data.memo_from) },
 
   // Subject line
   subject: data.subject,
@@ -38,6 +46,12 @@
 
   ..if "dissemination" in data { (dissemination: data.dissemination) },
 
+  // CUI designation indicator block fields (DoDM 5200.48)
+  ..if "cui_controlled_by" in data { (cui_controlled_by: data.cui_controlled_by) },
+  ..if "cui_category" in data { (cui_category: data.cui_category) },
+  ..if "cui_limited_dissemination" in data { (cui_limited_dissemination: data.cui_limited_dissemination) },
+  ..if "cui_poc" in data { (cui_poc: data.cui_poc) },
+
   // USAF vs DAF memorandum style (date format, body indentation)
   memo_style: data.at("memo_style", default: "usaf"),
 
@@ -50,7 +64,7 @@
 
 // Mainmatter configuration
 #mainmatter[
-  #data.at("$body", default: [])
+  #data.at("$body")
 ]
 
 // Backmatter
@@ -69,9 +83,9 @@
   ..if "attachments" in data { (attachments: data.attachments) },
 )
 
-// Indorsements - iterate through $cards array and filter by $kind
-#for (i, card) in data.at("$cards", default: ()).enumerate() {
-  if card.at("$kind", default: "") == "indorsement" {
+// Indorsements - iterate through CARDS array and filter by CARD tag
+#for (i, card) in data.at("$cards").enumerate() {
+  if card.at("$kind") == "indorsement" {
     // The quillmark helper leaves an unset/whitespace-only markdown body as
     // the empty string `""`; only non-empty bodies are eval'd into content.
     // Pass truly empty content (`[]`) in the empty case so indorsement can
@@ -92,8 +106,6 @@
       to: card.at("for", default: ""),
       signature_block: card.signature_block,
       signing_field: signature-field("Ind_" + str(i) + "_Signature"),
-      ..if "attachments" in card { (attachments: card.attachments) },
-      ..if "cc" in card { (cc: card.cc) },
       format: card.at("format", default: "standard"),
       date: resolved_date,
       ..if "action" in card { (action: card.action) },
