@@ -1,10 +1,9 @@
 {
-  "_comment": "Eval fleet for the requested open-source models. Each entry hits an OpenAI-compatible /chat/completions endpoint. Slugs verified against the OpenRouter catalog on 2026-06-10. `mode` documents the model's behavior (standard | reasoning | multimodal) and drives reasoning-aware preflight/budget handling. `toolMode: \"prompted\"` is for models with NO native function calling (the Phi-4 family): the harness omits `tools`/`tool_choice` and drives the flow via a JSON protocol in the system prompt instead.",
+  "_comment": "Eval fleet for the requested open-source models. Each entry hits an OpenAI-compatible /chat/completions endpoint. Slugs verified against the OpenRouter catalog on 2026-06-10. `mode` documents the model's behavior (standard | reasoning | multimodal) and drives reasoning-aware preflight/budget handling. All listed models support native tool calling.",
   "_modes": {
     "standard": "native tool-calling instruct model (default)",
     "reasoning": "emits hidden reasoning tokens; gets a larger token budget, lenient preflight, and reasoning passthrough",
-    "multimodal": "accepts images natively; we only send text, so the text path is what's exercised",
-    "toolMode=prompted": "no native tools; tool schemas go in the system prompt and calls are parsed from text"
+    "multimodal": "accepts images natively; we only send text, so the text path is what's exercised"
   },
   "models": [
     {
@@ -40,38 +39,6 @@
       "baseUrl": "https://openrouter.ai/api/v1",
       "apiKeyEnv": "OPENROUTER_API_KEY",
       "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
-      "temperature": 0,
-      "maxTokens": 4096
-    },
-    {
-      "_comment": "Phi-4 has NO native tool calling (OpenRouter supported_parameters omits tools). Driven via the prompted JSON protocol.",
-      "name": "microsoft/phi-4",
-      "mode": "standard",
-      "toolMode": "prompted",
-      "baseUrl": "https://openrouter.ai/api/v1",
-      "apiKeyEnv": "OPENROUTER_API_KEY",
-      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
-      "temperature": 0,
-      "maxTokens": 4096
-    },
-    {
-      "_comment": "Phi-4 Reasoning is NOT on OpenRouter. Point baseUrl at any OpenAI-compatible endpoint that serves it (Azure AI Foundry / self-hosted vLLM) and set PHI4_API_KEY. Until then preflight skips it and the rest of the fleet still runs. Reasoning is intrinsic (emits <think> in content), so no `reasoning` extraBody — `mode` alone grants the budget/preflight handling.",
-      "name": "microsoft/phi-4-reasoning",
-      "mode": "reasoning",
-      "toolMode": "prompted",
-      "baseUrl": "https://YOUR-PHI4-ENDPOINT/v1",
-      "apiKeyEnv": "PHI4_API_KEY",
-      "temperature": 0,
-      "maxTokens": 8192,
-      "preflightMaxTokens": 2048
-    },
-    {
-      "_comment": "Phi-4 Multimodal Instruct is NOT on OpenRouter. Same setup as phi-4-reasoning — supply an endpoint + PHI4_API_KEY. No native tools, so prompted mode. We send text only.",
-      "name": "microsoft/phi-4-multimodal-instruct",
-      "mode": "multimodal",
-      "toolMode": "prompted",
-      "baseUrl": "https://YOUR-PHI4-ENDPOINT/v1",
-      "apiKeyEnv": "PHI4_API_KEY",
       "temperature": 0,
       "maxTokens": 4096
     },

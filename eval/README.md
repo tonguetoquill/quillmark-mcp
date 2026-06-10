@@ -99,9 +99,12 @@ harness adapts instead of failing mid-run:
 | Field | Values | Effect |
 |---|---|---|
 | `mode` | `standard` (default), `reasoning`, `multimodal` | `reasoning` grants a bigger preflight budget, a lenient crib check (a healthy 200 counts even if the literal echo is buried/truncated by thinking), and preserves `reasoning`/`reasoning_content` across tool turns. `multimodal` is documentation — we only send text. |
-| `toolMode` | `native` (default), `prompted` | `prompted` is for models with **no native function calling** (the Phi-4 family). The harness omits `tools`/`tool_choice` (which such providers reject) and instead lists the tools in the system prompt, parsing calls back out of the model's text as `{"tool": "...", "arguments": {...}}`. |
 | `preflightMaxTokens` | integer | Override the crib-probe token budget (reasoning models default to 1024, others 64). |
 | `extraBody` | object | Merged into the request body, e.g. `{ "reasoning": { "effort": "low" } }` for OpenRouter reasoning control. |
+
+> Note: every model in this harness must support **native tool calling** —
+> the loop is built on OpenAI `tools`/`tool_choice`. Models without it (e.g. the
+> Phi-4 family on OpenRouter) can't be driven here and are intentionally excluded.
 
 **Preflight is now best-effort:** an unreachable / misconfigured model (bad
 slug, missing key, dead endpoint) is logged and **skipped**, and the rest of the

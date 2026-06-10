@@ -99,60 +99,6 @@ function toolResultText(result) {
 // plain instruct model.
 const isReasoning = (model) => model.mode === 'reasoning' || Boolean(model.extraBody?.reasoning);
 
-// A model is in "prompted" tool mode when it has no native function calling
-// (e.g. microsoft/phi-4). We can't send `tools`/`tool_choice` — the provider
-// rejects the request — so we describe the tools in the system prompt and parse
-// the call back out of the model's text. See buildPromptedSystemPrompt / parsePromptedToolCall.
-const isPrompted = (model) => model.toolMode === 'prompted';
-
-// Build a system prompt that teaches a non-tool model the JSON call protocol.
-export function buildPromptedSystemPrompt(openaiTools) {
-  const lines = [
-    SYSTEM_PROMPT,
-    '',
-    'You do NOT have native tool calling. These tools are available to you:',
-  ];
-  for (const t of openaiTools) {
-    lines.push(`- ${t.function.name}: ${t.function.description}`);
-    lines.push(`  parameters (JSON Schema): ${JSON.stringify(t.function.parameters)}`);
-  }
-  lines.push('');
-  lines.push('To call a tool, reply with ONLY a single JSON object and nothing else:');
-  lines.push('{"tool": "<tool_name>", "arguments": { ... }}');
-  lines.push('Call one tool at a time; you will receive its result as the next message.');
-  lines.push('When create_document has succeeded, reply with a brief plain-text confirmation and NO JSON.');
-  return lines.join('\n');
-}
-
-// Pull the first parseable JSON object out of arbitrary text. Shrinks the
-// candidate window from both ends so trailing prose after the object is tolerated.
-function firstJsonObject(text) {
-  for (let i = text.indexOf('{'); i >= 0; i = text.indexOf('{', i + 1)) {
-    for (let j = text.lastIndexOf('}'); j > i; j = text.lastIndexOf('}', j - 1)) {
-      try { return JSON.parse(text.slice(i, j + 1)); } catch { /* shrink and retry */ }
-    }
-  }
-  return null;
-}
-
-// Parse a prompted model's text into a normalized tool call, or null if it
-// emitted no JSON (i.e. it answered in prose / declared itself done).
-export function parsePromptedToolCall(content) {
-  if (!content || typeof content !== 'string') return null;
-  const candidates = [];
-  const fence = /```(?:json)?\s*([\s\S]*?)```/gi;
-  let m;
-  while ((m = fence.exec(content))) candidates.push(m[1]);
-  candidates.push(content);
-  for (const c of candidates) {
-    const obj = firstJsonObject(c);
-    if (obj && typeof obj.tool === 'string') {
-      return { name: obj.tool, arguments: obj.arguments ?? obj.args ?? {} };
-    }
-  }
-  return null;
-}
-
 function categorizeError(errorText) {
   if (!errorText) return 'unknown';
   const t = errorText.toLowerCase();
@@ -279,9 +225,8 @@ function makeMockResponder(promptQuill) {
 }
 
 export async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResponder }) {
-  const prompted = isPrompted(model);
   const messages = [
-    { role: 'system', content: prompted ? buildPromptedSystemPrompt(openaiTools) : SYSTEM_PROMPT },
+    { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content: prompt.prompt },
   ];
   const toolSequence = [];
@@ -298,9 +243,8 @@ export async function runOne({ model, prompt, trial, mcp, openaiTools, limits, m
     const body = {
       model: model.name,
       messages,
-      // Prompted (no-native-tools) models reject `tools`/`tool_choice`; they get
-      // the tool schemas in the system prompt instead.
-      ...(prompted ? {} : { tools: openaiTools, tool_choice: 'auto' }),
+      tools: openaiTools,
+      tool_choice: 'auto',
       ...temperatureField(model),
       ...maxTokensField(model, model.maxTokens ?? 2048),
     };
@@ -324,24 +268,20 @@ export async function runOne({ model, prompt, trial, mcp, openaiTools, limits, m
     // Preserve reasoning traces: some providers reject a follow-up turn that
     // drops the assistant's `reasoning`/`reasoning_content` after a tool call.
     // Harmless for non-reasoning models.
-    const assistantEntry = { role: 'assistant', content: assistantMsg.content ?? null };
-    if (!prompted) assistantEntry.tool_calls = assistantMsg.tool_calls;
+    const assistantEntry = {
+      role: 'assistant',
+      content: assistantMsg.content ?? null,
+      tool_calls: assistantMsg.tool_calls,
+    };
     if (assistantMsg.reasoning != null) assistantEntry.reasoning = assistantMsg.reasoning;
     if (assistantMsg.reasoning_content != null) assistantEntry.reasoning_content = assistantMsg.reasoning_content;
     messages.push(assistantEntry);
 
-    // Normalize native tool_calls and prompted JSON calls into one shape.
-    let calls;
-    if (prompted) {
-      const pc = parsePromptedToolCall(assistantMsg.content);
-      calls = pc ? [{ id: `p${toolCallCount + 1}`, name: pc.name, args: pc.arguments ?? {} }] : [];
-    } else {
-      calls = (assistantMsg.tool_calls ?? []).map((c) => {
-        let args = {};
-        try { args = JSON.parse(c.function?.arguments || '{}'); } catch { args = { __parseError: c.function?.arguments }; }
-        return { id: c.id, name: c.function?.name, args };
-      });
-    }
+    const calls = (assistantMsg.tool_calls ?? []).map((c) => {
+      let args = {};
+      try { args = JSON.parse(c.function?.arguments || '{}'); } catch { args = { __parseError: c.function?.arguments }; }
+      return { id: c.id, name: c.function?.name, args };
+    });
 
     if (calls.length === 0) {
       // A reasoning/long model that hit the token cap before emitting a call is
@@ -379,12 +319,11 @@ export async function runOne({ model, prompt, trial, mcp, openaiTools, limits, m
           if (sc?.url) renderedUrl = sc.url;
         } catch { /* ignore */ }
       }
-      const resultText = text || (isErr ? 'error' : 'ok');
-      // Native models get a `tool` message keyed by call id; prompted models
-      // have no tool-call id to key on, so the result comes back as a user turn.
-      messages.push(prompted
-        ? { role: 'user', content: `Tool result for ${name}:\n${resultText}` }
-        : { role: 'tool', tool_call_id: call.id, content: resultText });
+      messages.push({
+        role: 'tool',
+        tool_call_id: call.id,
+        content: text || (isErr ? 'error' : 'ok'),
+      });
       if (success) break;
     }
     if (success) { terminationReason = 'completed'; break; }
@@ -602,7 +541,7 @@ async function main() {
 }
 
 // Only run the eval when invoked directly (`node eval/run.js`); stay quiet when
-// imported (tests pull in runOne / the prompted-mode helpers).
+// imported (tests pull in runOne directly).
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((err) => {
     console.error('[eval] fatal:', err);
