@@ -1,50 +1,10 @@
 {
-  "_comment": "Model config for eval. Each entry hits an OpenAI-compatible /chat/completions endpoint. `name` is sent as the model id in the request body. `apiKeyEnv` names the env var holding the bearer token.",
+  "_comment": "Flight-check config: 1 OpenAI model + 1 OpenRouter model. Anthropic excluded.",
   "models": [
     {
-      "name": "claude-haiku-4-5",
-      "baseUrl": "https://api.anthropic.com/v1",
-      "apiKeyEnv": "ANTHROPIC_API_KEY",
-      "extraHeaders": { "anthropic-version": "2023-06-01" },
-      "temperature": 0,
-      "maxTokens": 4096
-    },
-    {
-      "name": "gpt-5.4-nano",
+      "name": "gpt-4o-mini",
       "baseUrl": "https://api.openai.com/v1",
       "apiKeyEnv": "OPENAI_API_KEY",
-      "maxTokensParam": "max_completion_tokens",
-      "maxTokens": 4096
-    },
-    {
-      "name": "gpt-5.4-mini",
-      "baseUrl": "https://api.openai.com/v1",
-      "apiKeyEnv": "OPENAI_API_KEY",
-      "maxTokensParam": "max_completion_tokens",
-      "maxTokens": 4096
-    },
-    {
-      "name": "google/gemma-4-26b-a4b-it",
-      "baseUrl": "https://openrouter.ai/api/v1",
-      "apiKeyEnv": "OPENROUTER_API_KEY",
-      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
-      "temperature": 0,
-      "maxTokens": 4096
-    },
-    {
-      "name": "openai/gpt-oss-120b",
-      "baseUrl": "https://openrouter.ai/api/v1",
-      "apiKeyEnv": "OPENROUTER_API_KEY",
-      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
-      "temperature": 0,
-      "maxTokens": 4096
-    },
-    {
-      "name": "nvidia/nemotron-3-nano-30b-a3b",
-      "baseUrl": "https://openrouter.ai/api/v1",
-      "apiKeyEnv": "OPENROUTER_API_KEY",
-      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
-      "extraBody": { "reasoning": { "effort": "none" } },
       "temperature": 0,
       "maxTokens": 4096
     },
@@ -52,7 +12,10 @@
       "name": "meta-llama/llama-3.1-8b-instruct",
       "baseUrl": "https://openrouter.ai/api/v1",
       "apiKeyEnv": "OPENROUTER_API_KEY",
-      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
+      "extraHeaders": {
+        "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp",
+        "X-Title": "quillmark-mcp eval"
+      },
       "temperature": 0,
       "maxTokens": 4096
     }
