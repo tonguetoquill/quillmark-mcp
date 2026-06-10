@@ -36,6 +36,7 @@ const SYSTEM_PROMPT = [
 function parseCli() {
   const { values } = parseArgs({
     options: {
+      model: { type: 'string' },
       trials: { type: 'string', default: '3' },
       concurrency: { type: 'string', default: '2' },
       mock: { type: 'boolean', default: false },
@@ -45,28 +46,38 @@ function parseCli() {
     strict: true,
   });
   if (values.help) {
-    console.log(`Usage: node eval/run.js [--mock] [--preflight-only] [--trials N] [--concurrency N]
+    console.log(`Usage: node eval/run.js --model <name> [--preflight-only] [--trials N] [--concurrency N]
+       node eval/run.js --mock
 
+  Runs ONE model (resolved from eval/config.json by --model) over every prompt.
+  Fan-out across the fleet lives in the wrapper: eval/run-all.sh.
+
+  --model <name>   Config model to run (exact \`name\`). Required unless --mock.
   --mock           Skip config; run one built-in happy-path responder
-  --preflight-only Probe every model's reachability/crib, then exit (cheap;
-                   no prompts, no tool loops) — validates slugs/keys/modes
-  --trials N       Trials per (model, prompt) [default: 3]
-  --concurrency N  Max concurrent calls per provider (base URL) [default: 2]
+  --preflight-only Probe the model's reachability/crib, then exit (cheap; no
+                   prompts, no tool loops) — validates slug/key/mode
+  --trials N       Trials per prompt [default: 3]
+  --concurrency N  Max concurrent in-flight requests to the model [default: 2]
 
 Reads:  eval/config.json (or eval/config.example.json if absent)
         eval/prompts.json
-Writes: eval/results/<timestamp>.jsonl`);
+Writes: eval/results/<timestamp>__<model>.jsonl
+
+Aggregate across runs: node eval/report.js eval/results/*.jsonl`);
     process.exit(0);
   }
-  const ts = new Date().toISOString().replace(/[:.]/g, '-');
   return {
+    model: values.model,
     trials: parseInt(values.trials, 10),
     concurrency: Math.max(1, parseInt(values.concurrency, 10)),
     mock: values.mock,
     preflightOnly: values['preflight-only'],
-    out: path.join(HERE, 'results', `${ts}.jsonl`),
+    ts: new Date().toISOString().replace(/[:.]/g, '-'),
   };
 }
+
+// Turn a model name (which may contain slashes) into a safe filename fragment.
+const fileSlug = (s) => s.replace(/[^a-zA-Z0-9._-]/g, '-');
 
 function loadJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'));
@@ -377,98 +388,76 @@ class Semaphore {
   }
 }
 
-const providerKey = (model) => (model.mock ? 'mock' : model.baseUrl);
-
-// One Semaphore per provider (keyed by base URL) capping concurrent calls.
-function providerSemaphores(models, perProvider) {
-  const sems = new Map();
-  for (const m of models) {
-    const key = providerKey(m);
-    if (!sems.has(key)) sems.set(key, new Semaphore(perProvider));
-  }
-  return sems;
-}
-
 const PREFLIGHT_CRIB = 'hello world';
 const PREFLIGHT_TIMEOUT_MS = 30000;
 
-// Probe each model with a trivial known-answer ("crib") query before the run.
+// Probe the model with a trivial known-answer ("crib") query before the run.
 // This verifies the provider is actually reachable and the key is valid — not
 // just that the env var is set — so a misconfigured provider surfaces as one
-// clear line instead of N identical provider_error records. Unhealthy models are
-// dropped from the run (best-effort across a heterogeneous fleet); we only abort
-// if every model fails. Returns the subset of `models` that passed.
-async function preflightProbe(models, perProvider) {
-  const targets = models.filter((m) => !m.mock);
-  if (targets.length === 0) return models;
-  console.error(`[eval] preflight: probing ${targets.length} model(s) with a crib query...`);
+// clear line instead of N identical provider_error records. Returns true if the
+// model is healthy; the caller aborts the run when it isn't.
+async function preflightProbe(model) {
+  if (model.mock) return true;
+  console.error(`[eval] preflight: probing ${model.name} with a crib query...`);
 
-  const sems = providerSemaphores(targets, perProvider);
-  const results = [];
-  await Promise.all(targets.map(async (model) => {
-    const sem = sems.get(providerKey(model));
-    await sem.acquire();
-    const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), PREFLIGHT_TIMEOUT_MS);
-    const reasoning = isReasoning(model);
-    // Reasoning models spend the budget on hidden thinking; a 64-token cap leaves
-    // no room to echo the crib. Give them headroom (configurable per model).
-    const cribBudget = model.preflightMaxTokens ?? (reasoning ? 1024 : 64);
-    try {
-      const resp = await callOpenAICompat(model, {
-        model: model.name,
-        messages: [{ role: 'user', content: `Reply with exactly this and nothing else: ${PREFLIGHT_CRIB}` }],
-        ...temperatureField(model),
-        ...maxTokensField(model, cribBudget),
-      }, ac.signal);
-      const msg = resp.choices?.[0]?.message;
-      const out = msg?.content ?? '';
-      const echoed = out.toLowerCase().includes(PREFLIGHT_CRIB);
-      // A reasoning model may bury or truncate the literal echo even though the
-      // provider is healthy — a parsed 200 already proves reachability + auth.
-      const ok = echoed || (reasoning && Boolean(msg));
-      results.push({
-        model: model.name,
-        ok,
-        detail: echoed ? '' : (ok ? 'reachable; crib not echoed (reasoning model)' : `crib not echoed (got: ${JSON.stringify(out.slice(0, 80))})`),
-      });
-    } catch (err) {
-      results.push({ model: model.name, ok: false, detail: err.message });
-    } finally {
-      clearTimeout(timer);
-      sem.release();
-    }
-  }));
-
-  for (const r of results) {
-    console.error(`[eval] ${r.ok ? 'ok  ' : 'FAIL'} ${r.model}${r.detail ? ' — ' + r.detail : ''}`);
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), PREFLIGHT_TIMEOUT_MS);
+  const reasoning = isReasoning(model);
+  // Reasoning models spend the budget on hidden thinking; a 64-token cap leaves
+  // no room to echo the crib. Give them headroom (configurable per model).
+  const cribBudget = model.preflightMaxTokens ?? (reasoning ? 1024 : 64);
+  try {
+    const resp = await callOpenAICompat(model, {
+      model: model.name,
+      messages: [{ role: 'user', content: `Reply with exactly this and nothing else: ${PREFLIGHT_CRIB}` }],
+      ...temperatureField(model),
+      ...maxTokensField(model, cribBudget),
+    }, ac.signal);
+    const msg = resp.choices?.[0]?.message;
+    const out = msg?.content ?? '';
+    const echoed = out.toLowerCase().includes(PREFLIGHT_CRIB);
+    // A reasoning model may bury or truncate the literal echo even though the
+    // provider is healthy — a parsed 200 already proves reachability + auth.
+    const ok = echoed || (reasoning && Boolean(msg));
+    const detail = echoed ? '' : (ok ? 'reachable; crib not echoed (reasoning model)' : `crib not echoed (got: ${JSON.stringify(out.slice(0, 80))})`);
+    console.error(`[eval] ${ok ? 'ok  ' : 'FAIL'} ${model.name}${detail ? ' — ' + detail : ''}`);
+    return ok;
+  } catch (err) {
+    console.error(`[eval] FAIL ${model.name} — ${err.message}`);
+    return false;
+  } finally {
+    clearTimeout(timer);
   }
-  const failedNames = new Set(results.filter((r) => !r.ok).map((r) => r.model));
-  if (failedNames.size === targets.length) {
-    throw new Error(`preflight failed for all ${targets.length} model(s): ${[...failedNames].join(', ')}`);
-  }
-  if (failedNames.size > 0) {
-    console.error(`[eval] preflight: skipping ${failedNames.size} unhealthy model(s): ${[...failedNames].join(', ')}`);
-  }
-  return models.filter((m) => m.mock || !failedNames.has(m.name));
 }
 
 async function main() {
   const args = parseCli();
-  await mkdir(path.dirname(args.out), { recursive: true });
 
   const prompts = loadJson(PROMPTS_PATH);
   if (prompts.length === 0) throw new Error(`No prompts in ${PROMPTS_PATH}`);
 
-  let models = args.mock
-    ? [{ name: 'mock://happy-path', mock: true }]
-    : (loadJson(CONFIG_PATH).models ?? []);
-  if (models.length === 0) throw new Error(`No models in ${CONFIG_PATH}`);
+  let model;
+  if (args.mock) {
+    model = { name: 'mock://happy-path', mock: true };
+  } else {
+    if (!args.model) {
+      throw new Error('Missing --model <name>. Run --help, or use eval/run-all.sh to sweep the fleet.');
+    }
+    const all = loadJson(CONFIG_PATH).models ?? [];
+    model = all.find((m) => m.name === args.model);
+    if (!model) {
+      throw new Error(`Model not found: ${args.model}\nAvailable: ${all.map((m) => m.name).join(', ')}`);
+    }
+  }
 
-  if (!args.mock) models = await preflightProbe(models, args.concurrency);
+  const out = path.join(HERE, 'results', `${args.ts}__${fileSlug(args.mock ? 'mock' : model.name)}.jsonl`);
+  await mkdir(path.dirname(out), { recursive: true });
 
+  if (!(await preflightProbe(model))) {
+    throw new Error(`preflight failed for ${model.name}`);
+  }
   if (args.preflightOnly) {
-    console.error(`[eval] preflight-only: ${models.length} model(s) healthy. Exiting before any prompts run.`);
+    console.error(`[eval] preflight-only: ${model.name} healthy. Exiting before any prompts run.`);
     return;
   }
 
@@ -486,57 +475,47 @@ async function main() {
   const tasks = [];
   for (let trial = 1; trial <= args.trials; trial += 1) {
     for (const prompt of prompts) {
-      for (const model of models) {
-        tasks.push({ model, prompt, trial });
-      }
+      tasks.push({ prompt, trial });
     }
   }
   const total = tasks.length;
   const records = [];
   let done = 0;
 
-  // One worker per model => at most 1 run per model in flight. Each run also
-  // acquires its provider's semaphore => at most --concurrency per provider.
-  const sems = providerSemaphores(models, args.concurrency);
-  const byModel = new Map();
-  for (const task of tasks) {
-    if (!byModel.has(task.model.name)) byModel.set(task.model.name, []);
-    byModel.get(task.model.name).push(task);
-  }
+  // Single model => a single semaphore caps how many requests are in flight to
+  // this one provider. Fan-out across models is the wrapper's job (run-all.sh).
+  const sem = new Semaphore(args.concurrency);
+  const mockResponderFor = (prompt) => (model.mock ? makeMockResponder(prompt.quill) : null);
 
-  console.error(`[eval] models=${models.length} prompts=${prompts.length} trials=${args.trials} providers=${sems.size} perProvider=${args.concurrency} out=${args.out}`);
+  console.error(`[eval] model=${model.name} prompts=${prompts.length} trials=${args.trials} concurrency=${args.concurrency} out=${out}`);
 
-  await Promise.all([...byModel.values()].map(async (queue) => {
-    const sem = sems.get(providerKey(queue[0].model));
-    for (const task of queue) {
-      await sem.acquire();
-      const idx = ++done;
-      const mockResponder = task.model.mock ? makeMockResponder(task.prompt.quill) : null;
-      const label = `[${idx}/${total}] ${task.model.name} :: ${task.prompt.id} trial=${task.trial}`;
-      let record;
-      try {
-        record = await runOne({ model: task.model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder });
-        console.error(`${label} -> ${classifyOutcome(record)} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
-      } catch (err) {
-        record = {
-          model: task.model.name,
-          promptId: task.prompt.id,
-          trial: task.trial,
-          success: false,
-          harnessError: err.message,
-          timestamp: new Date().toISOString(),
-        };
-        console.error(`${label} -> ${classifyOutcome(record)} harnessError: ${err.message}`);
-      } finally {
-        sem.release();
-      }
-      records.push(record);
-      await appendFile(args.out, JSON.stringify(record) + '\n');
+  await Promise.all(tasks.map(async (task) => {
+    await sem.acquire();
+    let record;
+    try {
+      record = await runOne({ model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder: mockResponderFor(task.prompt) });
+    } catch (err) {
+      record = {
+        model: model.name,
+        promptId: task.prompt.id,
+        trial: task.trial,
+        success: false,
+        harnessError: err.message,
+        timestamp: new Date().toISOString(),
+      };
+    } finally {
+      sem.release();
     }
+    const idx = ++done;
+    const label = `[${idx}/${total}] ${model.name} :: ${task.prompt.id} trial=${task.trial}`;
+    if (record.harnessError) console.error(`${label} -> ${classifyOutcome(record)} harnessError: ${record.harnessError}`);
+    else console.error(`${label} -> ${classifyOutcome(record)} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
+    records.push(record);
+    await appendFile(out, JSON.stringify(record) + '\n');
   }));
 
   await mcp.close();
-  console.error(`[eval] done. wrote ${args.out}\n`);
+  console.error(`[eval] done. wrote ${out}\n`);
   printReport(records);
 }
 

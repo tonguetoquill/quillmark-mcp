@@ -30,47 +30,66 @@ export ANTHROPIC_API_KEY=...
 export OPENROUTER_API_KEY=...
 # ...whichever providers your config references
 
-node eval/run.js --trials 3
-node eval/report.js eval/results/<timestamp>.jsonl
+# One model:
+node eval/run.js --model qwen/qwen3.6-flash --trials 3
+
+# The whole fleet (wrapper loops run.js over every model in config.json):
+eval/run-all.sh --trials 3
+
+# Reconstruct the cross-model matrix from all the per-model result files:
+node eval/report.js eval/results/*.jsonl
 ```
 
-Flags:
+`run.js` is **strictly single-model** — it runs one model (resolved from
+`config.json` by `--model <name>`) over every prompt. Fan-out across the fleet
+lives in the wrapper, `run-all.sh`. This keeps each run isolated, resumable, and
+independently costed; the full matrix (including systematic-failure detection) is
+rebuilt afterwards by pointing `report.js` at the results dir.
+
+`run.js` flags:
 
 | Flag | Default | Purpose |
 |---|---|---|
+| `--model <name>` | — | Config model to run (exact `name`). Required unless `--mock`. |
 | `--mock` | off | Skip config; use built-in mock |
-| `--preflight-only` | off | Probe every model (crib query) and exit — cheap slug/key/mode check before committing to a full run |
-| `--trials N` | `3` | Trials per (model, prompt) |
-| `--concurrency N` | `2` | Concurrent runs across the matrix |
+| `--preflight-only` | off | Probe the model (crib query) and exit — cheap slug/key/mode check before committing to a full run |
+| `--trials N` | `3` | Trials per prompt |
+| `--concurrency N` | `2` | Concurrent in-flight requests to the model |
+
+`run-all.sh` flags:
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `-j, --jobs N` | `1` | Models to run in parallel (default sequential) |
+| *(any run.js flag)* | — | Forwarded verbatim to each per-model run |
 
 Everything else is hard-coded for KISS:
 
 - Config: `eval/config.json` (falls back to `eval/config.example.json`)
 - Prompts: `eval/prompts.json`
-- Output: `eval/results/<timestamp>.jsonl`
+- Output: `eval/results/<timestamp>__<model>.jsonl` (one file per run)
 - Caps: 12 tool calls and 5 `create_document` attempts per run
 
 Edit those files or the constants at the top of `run.js` to change behavior.
-A summary table prints to stdout at the end of the run — no separate
-`report.js` invocation needed unless you're combining multiple files.
+A single-model summary table prints to stdout at the end of each run; use
+`node eval/report.js eval/results/*.jsonl` to combine runs into the full matrix.
 
 ## Concurrency
 
-Most wall-clock time is spent waiting on the LLM provider's HTTP response,
-so a small worker pool gives a big speedup with minimal complexity.
-`--concurrency N` runs N tasks from the (model, prompt, trial) matrix in
-parallel. Default is 2 — gentle on rate limits, ~2x faster than serial.
+Most wall-clock time is spent waiting on the LLM provider's HTTP response, so
+two levels of parallelism keep things quick without much complexity:
 
-Tasks are ordered `trial -> prompt -> model` so adjacent tasks differ in
-model: with 2 workers across multiple providers, the pair tends to hit
-distinct providers rather than hammering one. The single MCP client is
-shared across workers (JSON-RPC ids match responses to requests, so
-concurrent `callTool`s are safe).
+- **Within a model** — `--concurrency N` (run.js) caps how many of that model's
+  `prompts × trials` requests are in flight at once. Default 2: gentle on rate
+  limits, ~2x faster than serial. The single MCP client is shared across these
+  (JSON-RPC ids match responses to requests, so concurrent `callTool`s are safe).
+- **Across models** — `-j N` (run-all.sh) runs up to N models' processes at
+  once. Default 1 (sequential) for clean, non-interleaved logs.
 
-Dial it up if your providers can take it (`--concurrency 4` or `8`),
-or down to `1` for fully serial behavior — useful when chasing a flaky
-provider or diffing against a baseline run. If you see runs failing with
-`provider_error` due to HTTP 429s, lower concurrency.
+Dial either up if your providers can take it, or down to `1` when chasing a
+flaky provider or diffing against a baseline. If you see runs failing with
+`provider_error` due to HTTP 429s, lower whichever knob is hammering that
+provider.
 
 ## Config schema
 
@@ -130,15 +149,11 @@ The example config ships with a representative low-end set —
 `qwen-2.5-7b-instruct`, `gemini-2.0-flash`, `llama-3.1-8b-instant`
 (Groq) — so a one-line edit is usually enough.
 
-To try just one model without touching the file, point the harness at a
-one-off config:
+To try just one model, you don't need to touch the config at all — pass its
+`name` to `--model`:
 
 ```sh
-node -e "
-  const c = require('./eval/config.example.json');
-  console.log(JSON.stringify({ models: c.models.filter(m => m.name === 'meta-llama/llama-3.1-8b-instruct') }, null, 2));
-" > eval/config.json
-node eval/run.js --trials 3
+node eval/run.js --model meta-llama/llama-4-scout --trials 3
 ```
 
 ## API keys
@@ -162,8 +177,8 @@ export OPENAI_API_KEY=sk-...
 ```
 
 You only need keys for the providers actually referenced in your
-`eval/config.json`. If a referenced env var is unset, the run for that
-model fails fast with a clear error and other models continue.
+`eval/config.json`. If the selected model's env var is unset, the run fails
+fast with a clear error; under `run-all.sh` the remaining models still run.
 
 For convenience, dotenv-style loading is **not** built in — keep it KISS.
 Two common patterns:
@@ -173,7 +188,7 @@ Two common patterns:
 source ~/.config/quillmark-eval.env
 
 # Per-invocation:
-env $(cat .env | xargs) node eval/run.js
+env $(cat .env | xargs) eval/run-all.sh
 ```
 
 Never commit `eval/config.json` if you bake keys into it (you shouldn't —
@@ -198,7 +213,7 @@ that's interesting later.
 
 ## JSONL record shape
 
-One record per run, written to `eval/results/<ts>.jsonl`:
+One record per run, written to `eval/results/<ts>__<model>.jsonl`:
 
 ```json
 {
