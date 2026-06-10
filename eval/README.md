@@ -146,10 +146,28 @@ Suggested workflow:
 2. Open `eval/config.json` and delete every model you don't want to run.
 3. Add new models by appending objects matching the schema above.
 
-See `eval/config.example.json` for the current shipped fleet (open-weight
-instruct/reasoning models on OpenRouter — Gemma, Ministral, Qwen, Nemotron,
-Llama 4). Run `node eval/run.js --list-models` to print the names your
-`config.json` will actually sweep.
+### Current fleet
+
+The shipped `config.json` holds 9 open-weight models on OpenRouter, each
+confirmed reliably evaluable — they support native tool calling and pass the
+live `--preflight-only` crib probe (reachable + valid key + mode wired):
+
+| Model | Mode | Notes |
+|---|---|---|
+| `google/gemma-4-26b-a4b-it` | standard | |
+| `mistralai/ministral-14b-2512` | standard | |
+| `mistralai/ministral-8b-2512` | standard | |
+| `mistralai/ministral-3b-2512` | standard | weakest in spot runs (~25% success) |
+| `qwen/qwen3.6-flash` | reasoning | larger token budget + lenient crib |
+| `nvidia/nemotron-3-nano-30b-a3b` | reasoning | |
+| `nvidia/nemotron-3-super-120b-a12b` | reasoning | |
+| `meta-llama/llama-4-scout` | standard | |
+| `meta-llama/llama-4-maverick` | standard | |
+
+"Reliably evaluable" means the harness can drive it, not that it scores well —
+preflight only proves reachability. Run `node eval/run.js --list-models` to
+print the names your `config.json` will actually sweep, or `eval/run-all.sh
+--preflight-only` to re-verify the whole fleet cheaply.
 
 To try just one model, you don't need to touch the config at all — pass its
 `name` to `--model`:
