@@ -48,6 +48,7 @@ export function classifyOutcome(record) {
   if (record.harnessError) return 'infra';
   if (record.terminationReason === 'provider_error') return 'infra';
   if (record.terminationReason === 'no_assistant_message') return 'infra';
+  if (record.terminationReason === 'output_truncated') return 'infra';
   return 'llm';
 }
 

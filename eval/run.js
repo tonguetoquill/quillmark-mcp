@@ -6,7 +6,7 @@
 import { mkdir, appendFile } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -36,33 +36,52 @@ const SYSTEM_PROMPT = [
 function parseCli() {
   const { values } = parseArgs({
     options: {
+      model: { type: 'string' },
       trials: { type: 'string', default: '3' },
       concurrency: { type: 'string', default: '2' },
       mock: { type: 'boolean', default: false },
+      'preflight-only': { type: 'boolean', default: false },
+      'list-models': { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
     },
     strict: true,
   });
   if (values.help) {
-    console.log(`Usage: node eval/run.js [--mock] [--trials N] [--concurrency N]
+    console.log(`Usage: node eval/run.js --model <name> [--preflight-only] [--trials N] [--concurrency N]
+       node eval/run.js --mock
 
+  Runs ONE model (resolved from eval/config.json by --model) over every prompt.
+  Fan-out across the fleet lives in the wrapper: eval/run-all.sh.
+
+  --model <name>   Config model to run (exact \`name\`). Required unless --mock.
   --mock           Skip config; run one built-in happy-path responder
-  --trials N       Trials per (model, prompt) [default: 3]
-  --concurrency N  Max concurrent calls per provider (base URL) [default: 2]
+  --preflight-only Probe the model's reachability/crib, then exit (cheap; no
+                   prompts, no tool loops) — validates slug/key/mode
+  --trials N       Trials per prompt [default: 3]
+  --concurrency N  Max concurrent in-flight requests to the model [default: 2]
+  --list-models    Print every config model name (one per line) and exit;
+                   the source of truth run-all.sh sweeps over
 
 Reads:  eval/config.json (or eval/config.example.json if absent)
         eval/prompts.json
-Writes: eval/results/<timestamp>.jsonl`);
+Writes: eval/results/<timestamp>__<model>.jsonl
+
+Aggregate across runs: node eval/report.js eval/results/*.jsonl`);
     process.exit(0);
   }
-  const ts = new Date().toISOString().replace(/[:.]/g, '-');
   return {
+    model: values.model,
     trials: parseInt(values.trials, 10),
     concurrency: Math.max(1, parseInt(values.concurrency, 10)),
     mock: values.mock,
-    out: path.join(HERE, 'results', `${ts}.jsonl`),
+    preflightOnly: values['preflight-only'],
+    listModels: values['list-models'],
+    ts: new Date().toISOString().replace(/[:.]/g, '-'),
   };
 }
+
+// Turn a model name (which may contain slashes) into a safe filename fragment.
+const fileSlug = (s) => s.replace(/[^a-zA-Z0-9._-]/g, '-');
 
 function loadJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'));
@@ -88,6 +107,12 @@ function toolResultText(result) {
     .map((c) => c.text)
     .join('\n');
 }
+
+// A model is in "reasoning mode" if its config says so or it ships a `reasoning`
+// extraBody. Reasoning models spend hidden tokens before producing visible
+// output, so they need a bigger budget and looser preflight handling than a
+// plain instruct model.
+const isReasoning = (model) => model.mode === 'reasoning' || Boolean(model.extraBody?.reasoning);
 
 function categorizeError(errorText) {
   if (!errorText) return 'unknown';
@@ -214,7 +239,7 @@ function makeMockResponder(promptQuill) {
   };
 }
 
-async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResponder }) {
+export async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResponder }) {
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content: prompt.prompt },
@@ -255,21 +280,35 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
       terminationReason = 'no_assistant_message';
       break;
     }
-    messages.push({
+    // Preserve reasoning traces: some providers reject a follow-up turn that
+    // drops the assistant's `reasoning`/`reasoning_content` after a tool call.
+    // Harmless for non-reasoning models.
+    const assistantEntry = {
       role: 'assistant',
       content: assistantMsg.content ?? null,
       tool_calls: assistantMsg.tool_calls,
+    };
+    if (assistantMsg.reasoning != null) assistantEntry.reasoning = assistantMsg.reasoning;
+    if (assistantMsg.reasoning_content != null) assistantEntry.reasoning_content = assistantMsg.reasoning_content;
+    messages.push(assistantEntry);
+
+    const calls = (assistantMsg.tool_calls ?? []).map((c) => {
+      let args = {};
+      try { args = JSON.parse(c.function?.arguments || '{}'); } catch { args = { __parseError: c.function?.arguments }; }
+      return { id: c.id, name: c.function?.name, args };
     });
-    const toolCalls = assistantMsg.tool_calls ?? [];
-    if (toolCalls.length === 0) {
-      terminationReason = success ? 'completed' : 'model_stopped_without_success';
+
+    if (calls.length === 0) {
+      // A reasoning/long model that hit the token cap before emitting a call is
+      // a budget problem (infra), not the model declining the task.
+      if (!success && choice?.finish_reason === 'length') terminationReason = 'output_truncated';
+      else terminationReason = success ? 'completed' : 'model_stopped_without_success';
       break;
     }
-    for (const call of toolCalls) {
+    for (const call of calls) {
       toolCallCount += 1;
-      const name = call.function?.name;
-      let args = {};
-      try { args = JSON.parse(call.function?.arguments || '{}'); } catch { args = { __parseError: call.function?.arguments }; }
+      const name = call.name;
+      const args = call.args ?? {};
       toolSequence.push(name);
       if (name === 'create_document') createAttempts += 1;
       let result;
@@ -334,102 +373,85 @@ async function runOne({ model, prompt, trial, mcp, openaiTools, limits, mockResp
   };
 }
 
-// Bounds concurrency: at most `max` holders at once. release() hands the
-// permit straight to the next waiter, so the live count never exceeds `max`.
-class Semaphore {
-  constructor(max) {
-    this.max = max;
-    this.held = 0;
-    this.waiters = [];
-  }
-  async acquire() {
-    if (this.held < this.max) { this.held += 1; return; }
-    await new Promise((resolve) => this.waiters.push(resolve));
-  }
-  release() {
-    const next = this.waiters.shift();
-    if (next) next();
-    else this.held -= 1;
-  }
-}
-
-const providerKey = (model) => (model.mock ? 'mock' : model.baseUrl);
-
-// One Semaphore per provider (keyed by base URL) capping concurrent calls.
-function providerSemaphores(models, perProvider) {
-  const sems = new Map();
-  for (const m of models) {
-    const key = providerKey(m);
-    if (!sems.has(key)) sems.set(key, new Semaphore(perProvider));
-  }
-  return sems;
-}
 
 const PREFLIGHT_CRIB = 'hello world';
 const PREFLIGHT_TIMEOUT_MS = 30000;
 
-// Probe each model with a trivial known-answer ("crib") query before the run.
+// Probe the model with a trivial known-answer ("crib") query before the run.
 // This verifies the provider is actually reachable and the key is valid — not
 // just that the env var is set — so a misconfigured provider surfaces as one
-// clear line instead of N identical provider_error records. Aborts the run if
-// any model fails its crib so we never burn a full eval on a broken provider.
-async function preflightProbe(models, perProvider) {
-  const targets = models.filter((m) => !m.mock);
-  if (targets.length === 0) return;
-  console.error(`[eval] preflight: probing ${targets.length} model(s) with a crib query...`);
+// clear line instead of N identical provider_error records. Returns true if the
+// model is healthy; the caller aborts the run when it isn't.
+async function preflightProbe(model) {
+  if (model.mock) return true;
+  console.error(`[eval] preflight: probing ${model.name} with a crib query...`);
 
-  const sems = providerSemaphores(targets, perProvider);
-  const results = [];
-  await Promise.all(targets.map(async (model) => {
-    const sem = sems.get(providerKey(model));
-    await sem.acquire();
-    const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), PREFLIGHT_TIMEOUT_MS);
-    try {
-      const resp = await callOpenAICompat(model, {
-        model: model.name,
-        messages: [{ role: 'user', content: `Reply with exactly this and nothing else: ${PREFLIGHT_CRIB}` }],
-        ...temperatureField(model),
-        ...maxTokensField(model, 64),
-      }, ac.signal);
-      const out = resp.choices?.[0]?.message?.content ?? '';
-      const ok = out.toLowerCase().includes(PREFLIGHT_CRIB);
-      results.push({
-        model: model.name,
-        ok,
-        detail: ok ? '' : `crib not echoed (got: ${JSON.stringify(out.slice(0, 80))})`,
-      });
-    } catch (err) {
-      results.push({ model: model.name, ok: false, detail: err.message });
-    } finally {
-      clearTimeout(timer);
-      sem.release();
-    }
-  }));
-
-  for (const r of results) {
-    console.error(`[eval] ${r.ok ? 'ok  ' : 'FAIL'} ${r.model}${r.detail ? ' — ' + r.detail : ''}`);
-  }
-  const failed = results.filter((r) => !r.ok);
-  if (failed.length > 0) {
-    const names = failed.map((r) => r.model).join(', ');
-    throw new Error(`preflight failed for ${failed.length}/${targets.length} model(s): ${names}`);
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), PREFLIGHT_TIMEOUT_MS);
+  const reasoning = isReasoning(model);
+  // Reasoning models spend the budget on hidden thinking; a 64-token cap leaves
+  // no room to echo the crib. Give them headroom (configurable per model).
+  const cribBudget = model.preflightMaxTokens ?? (reasoning ? 1024 : 64);
+  try {
+    const resp = await callOpenAICompat(model, {
+      model: model.name,
+      messages: [{ role: 'user', content: `Reply with exactly this and nothing else: ${PREFLIGHT_CRIB}` }],
+      ...temperatureField(model),
+      ...maxTokensField(model, cribBudget),
+    }, ac.signal);
+    const msg = resp.choices?.[0]?.message;
+    const out = msg?.content ?? '';
+    const echoed = out.toLowerCase().includes(PREFLIGHT_CRIB);
+    // A reasoning model may bury or truncate the literal echo even though the
+    // provider is healthy — a parsed 200 already proves reachability + auth.
+    const ok = echoed || (reasoning && Boolean(msg));
+    const detail = echoed ? '' : (ok ? 'reachable; crib not echoed (reasoning model)' : `crib not echoed (got: ${JSON.stringify(out.slice(0, 80))})`);
+    console.error(`[eval] ${ok ? 'ok  ' : 'FAIL'} ${model.name}${detail ? ' — ' + detail : ''}`);
+    return ok;
+  } catch (err) {
+    console.error(`[eval] FAIL ${model.name} — ${err.message}`);
+    return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
 async function main() {
   const args = parseCli();
-  await mkdir(path.dirname(args.out), { recursive: true });
+
+  // Single source of truth for "what models exist" — run-all.sh sweeps this.
+  if (args.listModels) {
+    for (const m of loadJson(CONFIG_PATH).models ?? []) console.log(m.name);
+    return;
+  }
 
   const prompts = loadJson(PROMPTS_PATH);
   if (prompts.length === 0) throw new Error(`No prompts in ${PROMPTS_PATH}`);
 
-  const models = args.mock
-    ? [{ name: 'mock://happy-path', mock: true }]
-    : (loadJson(CONFIG_PATH).models ?? []);
-  if (models.length === 0) throw new Error(`No models in ${CONFIG_PATH}`);
+  let model;
+  if (args.mock) {
+    model = { name: 'mock://happy-path', mock: true };
+  } else {
+    if (!args.model) {
+      throw new Error('Missing --model <name>. Run --help, or use eval/run-all.sh to sweep the fleet.');
+    }
+    const all = loadJson(CONFIG_PATH).models ?? [];
+    model = all.find((m) => m.name === args.model);
+    if (!model) {
+      throw new Error(`Model not found: ${args.model}\nAvailable: ${all.map((m) => m.name).join(', ')}`);
+    }
+  }
 
-  if (!args.mock) await preflightProbe(models, args.concurrency);
+  const out = path.join(HERE, 'results', `${args.ts}__${fileSlug(args.mock ? 'mock' : model.name)}.jsonl`);
+  await mkdir(path.dirname(out), { recursive: true });
+
+  if (!(await preflightProbe(model))) {
+    throw new Error(`preflight failed for ${model.name}`);
+  }
+  if (args.preflightOnly) {
+    console.error(`[eval] preflight-only: ${model.name} healthy. Exiting before any prompts run.`);
+    return;
+  }
 
   const transport = new StdioClientTransport({
     command: process.execPath,
@@ -445,61 +467,54 @@ async function main() {
   const tasks = [];
   for (let trial = 1; trial <= args.trials; trial += 1) {
     for (const prompt of prompts) {
-      for (const model of models) {
-        tasks.push({ model, prompt, trial });
-      }
+      tasks.push({ prompt, trial });
     }
   }
   const total = tasks.length;
   const records = [];
-  let done = 0;
 
-  // One worker per model => at most 1 run per model in flight. Each run also
-  // acquires its provider's semaphore => at most --concurrency per provider.
-  const sems = providerSemaphores(models, args.concurrency);
-  const byModel = new Map();
-  for (const task of tasks) {
-    if (!byModel.has(task.model.name)) byModel.set(task.model.name, []);
-    byModel.get(task.model.name).push(task);
-  }
+  console.error(`[eval] model=${model.name} prompts=${prompts.length} trials=${args.trials} concurrency=${args.concurrency} out=${out}`);
 
-  console.error(`[eval] models=${models.length} prompts=${prompts.length} trials=${args.trials} providers=${sems.size} perProvider=${args.concurrency} out=${args.out}`);
-
-  await Promise.all([...byModel.values()].map(async (queue) => {
-    const sem = sems.get(providerKey(queue[0].model));
+  // Single model => a fixed pool of `concurrency` workers drains a shared task
+  // iterator, capping in-flight requests to this one provider. Fan-out across
+  // models is the wrapper's job (run-all.sh).
+  let started = 0;
+  const queue = tasks[Symbol.iterator]();
+  const worker = async () => {
     for (const task of queue) {
-      await sem.acquire();
-      const idx = ++done;
-      const mockResponder = task.model.mock ? makeMockResponder(task.prompt.quill) : null;
-      const label = `[${idx}/${total}] ${task.model.name} :: ${task.prompt.id} trial=${task.trial}`;
+      const idx = ++started;
       let record;
       try {
-        record = await runOne({ model: task.model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder });
-        console.error(`${label} -> ${classifyOutcome(record)} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
+        record = await runOne({ model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder: model.mock ? makeMockResponder(task.prompt.quill) : null });
       } catch (err) {
         record = {
-          model: task.model.name,
+          model: model.name,
           promptId: task.prompt.id,
           trial: task.trial,
           success: false,
           harnessError: err.message,
           timestamp: new Date().toISOString(),
         };
-        console.error(`${label} -> ${classifyOutcome(record)} harnessError: ${err.message}`);
-      } finally {
-        sem.release();
       }
+      const label = `[${idx}/${total}] ${model.name} :: ${task.prompt.id} trial=${task.trial}`;
+      if (record.harnessError) console.error(`${label} -> ${classifyOutcome(record)} harnessError: ${record.harnessError}`);
+      else console.error(`${label} -> ${classifyOutcome(record)} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
       records.push(record);
-      await appendFile(args.out, JSON.stringify(record) + '\n');
+      await appendFile(out, JSON.stringify(record) + '\n');
     }
-  }));
+  };
+  await Promise.all(Array.from({ length: args.concurrency }, worker));
 
   await mcp.close();
-  console.error(`[eval] done. wrote ${args.out}\n`);
+  console.error(`[eval] done. wrote ${out}\n`);
   printReport(records);
 }
 
-main().catch((err) => {
-  console.error('[eval] fatal:', err);
-  process.exit(1);
-});
+// Only run the eval when invoked directly (`node eval/run.js`); stay quiet when
+// imported (tests pull in runOne directly).
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error('[eval] fatal:', err);
+    process.exit(1);
+  });
+}
