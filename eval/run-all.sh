@@ -34,8 +34,8 @@ EOF
   esac
 done
 
-mapfile -t MODELS < <(node -e 'const c=require(process.argv[1]); for (const m of (c.models||[])) console.log(m.name)' "$CONFIG")
-[ "${#MODELS[@]}" -gt 0 ] || { echo "[run-all] no models in $CONFIG" >&2; exit 1; }
+mapfile -t MODELS < <(node "$RUN" --list-models)
+[ "${#MODELS[@]}" -gt 0 ] || { echo "[run-all] no models found (node $RUN --list-models)" >&2; exit 1; }
 
 echo "[run-all] ${#MODELS[@]} model(s), jobs=$JOBS, flags: ${ARGS[*]:-(none)}" >&2
 

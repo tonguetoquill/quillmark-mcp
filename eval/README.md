@@ -125,11 +125,13 @@ harness adapts instead of failing mid-run:
 > the loop is built on OpenAI `tools`/`tool_choice`. Models without it (e.g. the
 > Phi-4 family on OpenRouter) can't be driven here and are intentionally excluded.
 
-**Preflight is now best-effort:** an unreachable / misconfigured model (bad
-slug, missing key, dead endpoint) is logged and **skipped**, and the rest of the
-fleet still runs. The probe only aborts if *every* model fails. Use
-`--preflight-only` to validate the whole fleet for a few hundred tokens before
-committing to the full matrix.
+**Preflight is per-model:** before any prompts run, the model gets one crib
+query to prove its slug, key, and endpoint actually work. A failed probe aborts
+*that* model's run (no tokens wasted on the full matrix). Under `run-all.sh` the
+remaining models still run — each is its own process, so one failure just yields
+a non-zero exit. Use `--preflight-only` (optionally via `run-all.sh
+--preflight-only`) to validate the whole fleet for a few hundred tokens before
+committing to a real run.
 
 ## Selecting models
 
@@ -144,10 +146,10 @@ Suggested workflow:
 2. Open `eval/config.json` and delete every model you don't want to run.
 3. Add new models by appending objects matching the schema above.
 
-The example config ships with a representative low-end set —
-`claude-haiku-4-5`, `gpt-4o-mini`, `llama-3.1-8b-instruct`,
-`qwen-2.5-7b-instruct`, `gemini-2.0-flash`, `llama-3.1-8b-instant`
-(Groq) — so a one-line edit is usually enough.
+See `eval/config.example.json` for the current shipped fleet (open-weight
+instruct/reasoning models on OpenRouter — Gemma, Ministral, Qwen, Nemotron,
+Llama 4). Run `node eval/run.js --list-models` to print the names your
+`config.json` will actually sweep.
 
 To try just one model, you don't need to touch the config at all — pass its
 `name` to `--model`:

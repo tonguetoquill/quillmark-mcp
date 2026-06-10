@@ -41,6 +41,7 @@ function parseCli() {
       concurrency: { type: 'string', default: '2' },
       mock: { type: 'boolean', default: false },
       'preflight-only': { type: 'boolean', default: false },
+      'list-models': { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
     },
     strict: true,
@@ -58,6 +59,8 @@ function parseCli() {
                    prompts, no tool loops) — validates slug/key/mode
   --trials N       Trials per prompt [default: 3]
   --concurrency N  Max concurrent in-flight requests to the model [default: 2]
+  --list-models    Print every config model name (one per line) and exit;
+                   the source of truth run-all.sh sweeps over
 
 Reads:  eval/config.json (or eval/config.example.json if absent)
         eval/prompts.json
@@ -72,6 +75,7 @@ Aggregate across runs: node eval/report.js eval/results/*.jsonl`);
     concurrency: Math.max(1, parseInt(values.concurrency, 10)),
     mock: values.mock,
     preflightOnly: values['preflight-only'],
+    listModels: values['list-models'],
     ts: new Date().toISOString().replace(/[:.]/g, '-'),
   };
 }
@@ -369,24 +373,6 @@ export async function runOne({ model, prompt, trial, mcp, openaiTools, limits, m
   };
 }
 
-// Bounds concurrency: at most `max` holders at once. release() hands the
-// permit straight to the next waiter, so the live count never exceeds `max`.
-class Semaphore {
-  constructor(max) {
-    this.max = max;
-    this.held = 0;
-    this.waiters = [];
-  }
-  async acquire() {
-    if (this.held < this.max) { this.held += 1; return; }
-    await new Promise((resolve) => this.waiters.push(resolve));
-  }
-  release() {
-    const next = this.waiters.shift();
-    if (next) next();
-    else this.held -= 1;
-  }
-}
 
 const PREFLIGHT_CRIB = 'hello world';
 const PREFLIGHT_TIMEOUT_MS = 30000;
@@ -432,6 +418,12 @@ async function preflightProbe(model) {
 
 async function main() {
   const args = parseCli();
+
+  // Single source of truth for "what models exist" — run-all.sh sweeps this.
+  if (args.listModels) {
+    for (const m of loadJson(CONFIG_PATH).models ?? []) console.log(m.name);
+    return;
+  }
 
   const prompts = loadJson(PROMPTS_PATH);
   if (prompts.length === 0) throw new Error(`No prompts in ${PROMPTS_PATH}`);
@@ -480,39 +472,38 @@ async function main() {
   }
   const total = tasks.length;
   const records = [];
-  let done = 0;
-
-  // Single model => a single semaphore caps how many requests are in flight to
-  // this one provider. Fan-out across models is the wrapper's job (run-all.sh).
-  const sem = new Semaphore(args.concurrency);
-  const mockResponderFor = (prompt) => (model.mock ? makeMockResponder(prompt.quill) : null);
 
   console.error(`[eval] model=${model.name} prompts=${prompts.length} trials=${args.trials} concurrency=${args.concurrency} out=${out}`);
 
-  await Promise.all(tasks.map(async (task) => {
-    await sem.acquire();
-    let record;
-    try {
-      record = await runOne({ model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder: mockResponderFor(task.prompt) });
-    } catch (err) {
-      record = {
-        model: model.name,
-        promptId: task.prompt.id,
-        trial: task.trial,
-        success: false,
-        harnessError: err.message,
-        timestamp: new Date().toISOString(),
-      };
-    } finally {
-      sem.release();
+  // Single model => a fixed pool of `concurrency` workers drains a shared task
+  // iterator, capping in-flight requests to this one provider. Fan-out across
+  // models is the wrapper's job (run-all.sh).
+  let started = 0;
+  const queue = tasks[Symbol.iterator]();
+  const worker = async () => {
+    for (const task of queue) {
+      const idx = ++started;
+      let record;
+      try {
+        record = await runOne({ model, prompt: task.prompt, trial: task.trial, mcp, openaiTools, limits, mockResponder: model.mock ? makeMockResponder(task.prompt.quill) : null });
+      } catch (err) {
+        record = {
+          model: model.name,
+          promptId: task.prompt.id,
+          trial: task.trial,
+          success: false,
+          harnessError: err.message,
+          timestamp: new Date().toISOString(),
+        };
+      }
+      const label = `[${idx}/${total}] ${model.name} :: ${task.prompt.id} trial=${task.trial}`;
+      if (record.harnessError) console.error(`${label} -> ${classifyOutcome(record)} harnessError: ${record.harnessError}`);
+      else console.error(`${label} -> ${classifyOutcome(record)} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
+      records.push(record);
+      await appendFile(out, JSON.stringify(record) + '\n');
     }
-    const idx = ++done;
-    const label = `[${idx}/${total}] ${model.name} :: ${task.prompt.id} trial=${task.trial}`;
-    if (record.harnessError) console.error(`${label} -> ${classifyOutcome(record)} harnessError: ${record.harnessError}`);
-    else console.error(`${label} -> ${classifyOutcome(record)} attempts=${record.createAttempts} tools=${record.toolCallCount} reason=${record.terminationReason}`);
-    records.push(record);
-    await appendFile(out, JSON.stringify(record) + '\n');
-  }));
+  };
+  await Promise.all(Array.from({ length: args.concurrency }, worker));
 
   await mcp.close();
   console.error(`[eval] done. wrote ${out}\n`);
