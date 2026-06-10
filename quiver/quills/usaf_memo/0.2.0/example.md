@@ -1,5 +1,5 @@
 ~~~card-yaml
-$quill: usaf_memo@0.3.0
+$quill: usaf_memo@0.2.0
 $kind: main
 # Essential 
 #===========

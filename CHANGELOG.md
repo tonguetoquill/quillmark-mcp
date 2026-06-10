@@ -24,6 +24,7 @@ Quillmark engine upgrade and source-layout reorganisation. Breaking changes for 
 - `example_file` is no longer a valid key in the `quill:` section; removed from all shipped quills.
 - All seven shipped quills + the test fixture migrated. Authors of custom quills must apply the same renames; the engine does not accept the legacy keys.
 - Quill-level `description:` (under `quill:`) now surfaces at `metadata.description` — independent of `metadata.schema.main.description` (the schema description of the entry-point card).
+- **Reverted `usaf_memo` to the authoritative `0.2.0`** sourced from `tonguetoquill/airmark-quiver`, replacing the divergent local `0.3.0`. The `0.2.0` schema is the upstream source of truth (adds `markdown`-typed fields, `freedom250`, and the `cui_*` classification fields). Renders clean under wasm 0.90.
 
 ### Source layout
 

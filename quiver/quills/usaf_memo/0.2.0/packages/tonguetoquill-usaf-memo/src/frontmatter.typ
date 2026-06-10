@@ -19,19 +19,24 @@
   letterhead_caption: "[YOUR SQUADRON/UNIT NAME]",
   letterhead_seal: none,
   letterhead_seal_subtitle: none, // optional line under seal (9pt bold caps); ignored if no seal
+  letterhead_emblem: none, // optional image placed opposite the seal (right side)
+  letterhead_emblem_height: 1in, // emblem fit-box height; reduce for shorter emblems
   letterhead_font: DEFAULT_LETTERHEAD_FONTS,
   body_font: DEFAULT_BODY_FONTS,
   font_size: 12pt,
   memo_for_cols: 3,
   classification_level: none,
   dissemination: none,
+  cui_controlled_by: none,
+  cui_category: none,
+  cui_limited_dissemination: none,
+  cui_poc: none,
   footer_tag_line: none,
   memo_style: "usaf",
   it,
 ) = {
   assert(subject != none, message: "subject is required")
   assert(memo_for != none, message: "memo_for is required")
-  assert(memo_from != none, message: "memo_from is required")
   assert(
     memo_style in ("usaf", "daf"),
     message: "memo_style must be \"usaf\" or \"daf\"",
@@ -60,10 +65,38 @@
   }
   let classification_color = get-classification-level-color(classification_level)
 
+  // Build the CUI designation indicator block (DoDM 5200.48, Table 1).
+  // Rendered in the footer of page 1 only when classification is CUI and at
+  // least one indicator field is provided.
+  let cui_indicator = if (
+    classification_level != none
+    and type(classification_level) == str
+    and classification_level.trim().starts-with("CUI")
+  ) {
+    let lines = ()
+    if cui_controlled_by != none and type(cui_controlled_by) == str and cui_controlled_by.trim() != "" {
+      lines.push([#strong[Controlled By:] #cui_controlled_by.trim()])
+    }
+    if cui_category != none and type(cui_category) == str and cui_category.trim() != "" {
+      lines.push([#strong[CUI Category:] #cui_category.trim()])
+    }
+    let ldc = if cui_limited_dissemination != none and type(cui_limited_dissemination) == str { cui_limited_dissemination.trim() } else { "" }
+    if ldc != "" {
+      lines.push([#strong[LDC:] #upper(ldc)])
+    }
+    if cui_poc != none and type(cui_poc) == str and cui_poc.trim() != "" {
+      lines.push([#strong[POC:] #cui_poc.trim()])
+    }
+    if lines.len() > 0 { lines.join(linebreak()) } else { none }
+  } else {
+    none
+  }
+
   // Document-wide typography settings (inlined from configure())
   set par(leading: spacing.line, spacing: spacing.line, justify: false)
   set block(above: spacing.line, below: 0em, spacing: 0em)
   set text(font: body_font, size: font_size, fallback: true)
+  show raw: set text(font: DEFAULT_MONO_FONTS)  // Static monospace face for inline code and code blocks
 
   set page(
     paper: "us-letter",
@@ -105,6 +138,25 @@
         )
       }
 
+      // DoDM 5200.48 §3: CUI designation indicator block — first page only,
+      // bottom-right corner, above the classification banner.
+      // dy: -0.85in clears the tag line (at -0.625in) and the CUI banner (at -0.375in).
+      // dx: -0.5in pulls it away from the right margin edge for visual breathing room.
+      context if counter(page).get().first() == 1 and cui_indicator != none {
+        place(
+          bottom + right,
+          dy: -0.85in,
+          block(
+            inset: 0pt,
+            {
+              set text(font: DEFAULT_BODY_FONTS, size: 10pt)
+              set par(leading: 0.4em, spacing: 0pt)
+              cui_indicator
+            }
+          )
+        )
+      }
+
       if not falsey(footer_tag_line) {
         place(
           bottom + center,
@@ -123,6 +175,8 @@
     letterhead_font,
     letterhead-seal: letterhead_seal,
     letterhead-seal-subtitle: letterhead_seal_subtitle,
+    letterhead-emblem: letterhead_emblem,
+    letterhead-emblem-height: letterhead_emblem_height,
   )
 
   // AFH 33-337 "Date": "Place the date 1 inch from the right edge, 1.75 inches from the top"
@@ -147,8 +201,13 @@
 
   render-date-section(actual_date, memo-style: memo_style)
   render-for-section(memo_for, memo_for_cols)
-  render-from-section(memo_from)
-  render-subject-section(subject)
+  if not falsey(memo_from) { render-from-section(memo_from) }
+  let single-ref = if type(references) == array and references.len() == 1 {
+    references.at(0)
+  } else {
+    none
+  }
+  render-subject-section(subject, inline-reference: single-ref)
   render-references-section(references)
 
   // AFH 33-337: "Begin text on second line below subject/references".

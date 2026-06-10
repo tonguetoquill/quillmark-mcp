@@ -19,8 +19,6 @@
   signature_block: none,
   signature_blank_lines: 4,
   signing_field: none,
-  attachments: none,
-  cc: none,
   date: none,
   // Format of indorsement: "standard" (same page), "informal" (no header), or "separate_page" (starts on new page)
   format: "standard",
@@ -46,7 +44,7 @@
   let ind_from = first-or-value(from)
   let ind_for = to
 
-  // An empty body (e.g. a CARD with only an action selected and no markdown
+  // An empty body (e.g. a KIND with only an action selected and no markdown
   // body) collapses to zero rendered layout via render-body's filter. To
   // make the "empty body takes no layout space" guarantee end-to-end, also
   // suppress the spacing the surrounding code reserves *for* the body:
@@ -128,6 +126,4 @@
   }
 
   render-signature-block(signature_block, signature-blank-lines: signature_blank_lines, signing-field: signing_field)
-
-  render-backmatter-sections(attachments: attachments, cc: cc)
 }
