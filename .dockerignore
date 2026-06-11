@@ -14,14 +14,12 @@ Dockerfile
 docker-compose.yml
 docker-compose.*.yml
 
-README.md
-CONTRIBUTING.md
-PROGRAM.md
-LICENSE
-CHANGELOG.md
 *.md
+LICENSE
 
-test/docker
+test
+eval
+scripts
 
 .env
 .env.*

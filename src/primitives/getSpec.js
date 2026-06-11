@@ -1,3 +1,5 @@
+import { availableQuillsHint } from './availableQuillsHint.js';
+
 const FORMAT_RULES = [
   'Document format rules (read carefully — small LLMs frequently fail on these):',
   '• Metadata blocks use `~~~card-yaml` as the opener and `~~~` as the closer. Do NOT use `---` YAML frontmatter.',
@@ -11,16 +13,6 @@ const FORMAT_RULES = [
   '• Respect field types: numbers unquoted (`word_count: 42`), booleans unquoted (`pinned: true`),',
   '  strings as plain scalars or quoted. Quoting a number turns it into a string and will fail validation.',
 ].join('\n');
-
-function availableQuillsHint(quiver) {
-  try {
-    const names = typeof quiver?.quillNames === 'function' ? quiver.quillNames() : [];
-    if (!Array.isArray(names) || names.length === 0) return '';
-    return ` Available quills: ${names.join(', ')}. Drop the @version suffix to bind to the latest available version.`;
-  } catch {
-    return '';
-  }
-}
 
 export async function getSpec(quiver, engine, quill) {
   if (typeof quill !== 'string' || quill.trim() === '') {

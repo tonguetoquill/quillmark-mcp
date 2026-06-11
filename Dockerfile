@@ -7,15 +7,6 @@ COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev --ignore-scripts
 
-FROM node:${NODE_VERSION}-slim AS test
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
-COPY src/ ./src/
-COPY test/ ./test/
-COPY quiver/ ./quiver/
-RUN node --test test/
-
 FROM node:${NODE_VERSION}-slim AS runtime
 RUN apt-get update \
  && apt-get install -y --no-install-recommends tini \

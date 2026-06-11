@@ -1,7 +1,7 @@
 {
   "name": "quillmark-mcp",
   "version": "0.2.0",
-  "description": "",
+  "description": "An MCP server that surfaces Quillmark document rendering (Typst-based templates) as three tools: list_quills, get_spec, and create_document.",
   "main": "./src/index.js",
   "bin": {
     "quillmark-mcp": "./src/bin.js"
@@ -18,33 +18,31 @@
   ],
   "scripts": {
     "test": "node --test",
-    "test:docker": "./scripts/docker-test.sh",
-    "test:install": "./scripts/test-mcp-install.sh",
     "start": "QUILLMARK_BIND=127.0.0.1:8080 node src/bin.js",
     "install:mcp": "./scripts/install-mcp.sh",
     "uninstall:mcp": "./scripts/uninstall-mcp.sh",
-    "claude:reset": "./scripts/claude-reset.sh",
     "docker:build": "docker build -t quillmark-mcp:dev .",
-    "docker:run": "docker run --rm -it --user 10001:10001 --read-only --tmpfs /tmp --cap-drop=ALL --security-opt=no-new-privileges:true -p 127.0.0.1:8080:8080 -v quillmark-artifacts:/data/artifacts quillmark-mcp:dev",
-    "preversion": "npm test",
-    "postversion": "git push --follow-tags",
-    "release:patch": "npm version patch",
-    "release:minor": "npm version minor",
-    "release:major": "npm version major",
-    "prerelease": "npm version prerelease --preid beta && npm publish --tag beta"
+    "docker:run": "docker run --rm -it --user 10001:10001 --read-only --tmpfs /tmp --cap-drop=ALL --security-opt=no-new-privileges:true -p 127.0.0.1:8080:8080 -v quillmark-artifacts:/data/artifacts quillmark-mcp:dev"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nibsbin/quillmark-mcp.git"
+    "url": "git+https://github.com/tonguetoquill/quillmark-mcp.git"
   },
-  "keywords": [],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "quillmark",
+    "typst",
+    "pdf",
+    "document-rendering"
+  ],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/nibsbin/quillmark-mcp/issues"
+    "url": "https://github.com/tonguetoquill/quillmark-mcp/issues"
   },
-  "homepage": "https://github.com/nibsbin/quillmark-mcp#readme",
+  "homepage": "https://github.com/tonguetoquill/quillmark-mcp#readme",
   "engines": {
     "node": ">=24.0.0"
   },

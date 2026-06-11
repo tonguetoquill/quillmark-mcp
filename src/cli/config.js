@@ -47,7 +47,6 @@ export function isSupported(client, mode) {
  * @param {string} [opts.url]
  * @param {string} [opts.artifactsDir]
  * @param {string} [opts.image]
- * @param {string} [opts.authToken]
  * @returns {ConfigSnippet}
  */
 export function generateConfig(opts = {}) {
@@ -58,7 +57,6 @@ export function generateConfig(opts = {}) {
     url = DEFAULTS.url,
     artifactsDir = DEFAULTS.artifactsDir,
     image = DEFAULTS.image,
-    authToken,
   } = opts;
 
   if (!SUPPORTED[client]) {
@@ -71,13 +69,8 @@ export function generateConfig(opts = {}) {
     );
   }
 
-  const ctx = { name, url, artifactsDir, image, authToken };
-
-  switch (client) {
-    case 'claude-code': return claudeCode(mode, ctx);
-    case 'codex':       return codex(mode, ctx);
-    default:            throw new Error(`unreachable: ${client}`);
-  }
+  const ctx = { name, url, artifactsDir, image };
+  return client === 'claude-code' ? claudeCode(mode, ctx) : codex(mode, ctx);
 }
 
 function dockerRunArgs({ artifactsDir, image }) {
@@ -98,13 +91,10 @@ function dockerRunArgs({ artifactsDir, image }) {
 
 function claudeCode(mode, ctx) {
   if (mode === 'http') {
-    const headerArgs = ctx.authToken
-      ? ` --header "Authorization: Bearer ${ctx.authToken}"`
-      : '';
     return {
       format: 'shell',
       suggestedPath: null,
-      content: `claude mcp add --transport http ${ctx.name}${headerArgs} ${ctx.url}\n`,
+      content: `claude mcp add --transport http ${ctx.name} ${ctx.url}\n`,
       notes: [`Verify: claude mcp list | grep ${ctx.name}`],
     };
   }
@@ -119,21 +109,11 @@ function claudeCode(mode, ctx) {
 
 function codex(mode, ctx) {
   if (mode === 'http') {
-    const lines = [
-      `[mcp_servers.${ctx.name}]`,
-      `url = "${ctx.url}"`,
-    ];
-    if (ctx.authToken) {
-      lines.push('bearer_token_env_var = "QUILLMARK_TOKEN"');
-    }
     return {
       format: 'toml',
       suggestedPath: '~/.codex/config.toml (user)  |  .codex/config.toml (project)',
-      content: lines.join('\n') + '\n',
-      notes: [
-        `Alternative: codex mcp add ${ctx.name} ${ctx.url}`,
-        ctx.authToken ? 'Set $QUILLMARK_TOKEN in your shell env before running Codex.' : '',
-      ].filter(Boolean),
+      content: `[mcp_servers.${ctx.name}]\nurl = "${ctx.url}"\n`,
+      notes: [`Alternative: codex mcp add ${ctx.name} ${ctx.url}`],
     };
   }
   const args = dockerRunArgs(ctx);

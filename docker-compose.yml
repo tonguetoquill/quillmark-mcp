@@ -1,12 +1,6 @@
 # quillmark-mcp compose stack
-# ------------------------------------------------------------------
-# One-command bring-up:   ./scripts/install-mcp.sh  (or: docker compose up -d)
-# One-command takedown:   ./scripts/uninstall-mcp.sh (or: docker compose down)
-#
-# Forward-compat: to add a sidecar (worker, reverse proxy, DB, queue) later,
-# drop a new `services:` block below `quillmark-mcp:` with its own build/image
-# and wire it to the existing stack via `depends_on` + a user-defined network.
-# The install command stays the same: docker compose up -d.
+# Bring-up:  ./scripts/install-mcp.sh   (or: docker compose up -d)
+# Takedown:  ./scripts/uninstall-mcp.sh (or: docker compose down)
 services:
   quillmark-mcp:
     build:
@@ -41,17 +35,6 @@ services:
       # routable from clients — we hand out 127.0.0.1 instead).
       QUILLMARK_BASE_URL: http://127.0.0.1:8080/artifacts
     restart: unless-stopped
-
-  # --- future services go here ---
-  # Example (commented):
-  # worker:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/worker.Dockerfile
-  #   depends_on:
-  #     - quillmark-mcp
-  #   environment:
-  #     QUILLMARK_MCP_URL: http://quillmark-mcp:8080/mcp
 
 volumes:
   quillmark-artifacts:

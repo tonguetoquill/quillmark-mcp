@@ -13,6 +13,7 @@ import { getErrorMessage } from '../errors.js';
 const MIME_TYPES = {
   '.pdf': 'application/pdf',
   '.svg': 'image/svg+xml',
+  '.png': 'image/png',
   '.txt': 'text/plain',
 };
 
@@ -108,7 +109,6 @@ export class McpSdkServerAdapter {
       const host = startOptions.httpStream?.host ?? 'localhost';
       const port = startOptions.httpStream?.port ?? 8080;
       const endpoint = normalizePath(startOptions.httpStream?.endpoint ?? '/mcp');
-      const authToken = startOptions.httpStream?.authToken;
       const artifactsDir = startOptions.httpStream?.artifactsDir
         ? path.resolve(startOptions.httpStream.artifactsDir)
         : null;
@@ -131,16 +131,6 @@ export class McpSdkServerAdapter {
           res.setHeader('content-type', 'application/json');
           res.end('{"error":"not_found"}');
           return;
-        }
-
-        if (authToken) {
-          const authHeader = req.headers['authorization'] ?? '';
-          const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-          if (token !== authToken) {
-            res.statusCode = 401;
-            res.end('Unauthorized');
-            return;
-          }
         }
 
         // SDK forbids reusing a stateless transport across requests; build fresh per request.

@@ -1,6 +1,7 @@
 import { Document } from '@quillmark/wasm';
 
 import { getErrorMessage } from '../errors.js';
+import { availableQuillsHint } from './availableQuillsHint.js';
 
 const MISSING_QUILL_MESSAGE = [
   '$quill: <name> is required in the root card-yaml block to select the Quill format.',
@@ -46,16 +47,6 @@ function annotateParseError(message) {
     ].join('\n');
   }
   return message;
-}
-
-function availableQuillsHint(quiver) {
-  try {
-    const names = typeof quiver?.quillNames === 'function' ? quiver.quillNames() : [];
-    if (!Array.isArray(names) || names.length === 0) return '';
-    return ` Available quills: ${names.join(', ')}. Drop the @version suffix to bind to the latest available version.`;
-  } catch {
-    return '';
-  }
 }
 
 export async function createDocument(quiver, engine, strategy, content) {

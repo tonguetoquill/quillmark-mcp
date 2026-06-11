@@ -1,6 +1,6 @@
 # quillmark-mcp
 
-[![CI](https://github.com/nibsbin/quillmark-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/nibsbin/quillmark-mcp/actions/workflows/ci.yml)
+[![CI](https://github.com/tonguetoquill/quillmark-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/tonguetoquill/quillmark-mcp/actions/workflows/ci.yml)
 [![Node 24+](https://img.shields.io/badge/node-%3E%3D24-brightgreen)](./.nvmrc)
 
 A universal MCP server that surfaces [Quillmark](https://github.com/nibsbin/quillmark) document rendering as three tools. Drop a Quill template into `quiver/quills/` and any MCP client can list it, inspect its schema, and render documents from it.
@@ -51,13 +51,11 @@ stdio: docker run -i --rm quillmark-mcp:dev --stdio
 ```
 ## Uninstall
 
-Simply run:
-
 ```sh
 ./scripts/uninstall-mcp.sh --yes --purge
 ```
 
-The environment will be cleaned and Docker will ```compose down```.
+This runs `docker compose down`, removes the `quillmark-mcp:dev` image and the generated `.mcp.json`, and (with `--purge`) drops the artifacts volume and host artifacts directory. No MCP client config is touched, since install only printed snippets — remove the entry yourself (e.g. `claude mcp remove quillmark`).
 ## Architecture
 
 ```
@@ -103,8 +101,7 @@ Primitives are also exported from `quillmark-mcp/primitives` for non-MCP use.
 
 ```sh
 npm install
-npm test                                # unit + integration
-DOCKER_TEST=1 npm run test:docker       # Docker black-box (opt-in)
+npm test    # unit + integration
 ```
 
 Node ≥ 24.
