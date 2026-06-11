@@ -49,13 +49,15 @@ The server implements the MCP standard over HTTP (Streamable) and stdio. Any con
 HTTP:  http://127.0.0.1:8080/mcp
 stdio: docker run -i --rm quillmark-mcp:dev --stdio
 ```
+
 ## Uninstall
 
 ```sh
 ./scripts/uninstall-mcp.sh --yes --purge
 ```
 
-This runs `docker compose down`, removes the `quillmark-mcp:dev` image and the generated `.mcp.json`, and (with `--purge`) drops the artifacts volume and host artifacts directory. No MCP client config is touched, since install only printed snippets — remove the entry yourself (e.g. `claude mcp remove quillmark`).
+This runs `docker compose down`, removes the `quillmark-mcp:dev` image and the generated `.mcp.json`, and (with `--purge`) drops the artifacts volume and host artifacts directory. No MCP client config is touched — install only printed snippets, so remove the entry yourself (e.g. `claude mcp remove quillmark`).
+
 ## Architecture
 
 ```

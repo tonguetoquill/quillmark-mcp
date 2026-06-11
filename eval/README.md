@@ -148,7 +148,7 @@ Suggested workflow:
 
 ### Current fleet
 
-The shipped `config.json` holds 9 open-weight models on OpenRouter, each
+The shipped `config.json` holds 10 open-weight models on OpenRouter, each
 confirmed reliably evaluable — they support native tool calling and pass the
 live `--preflight-only` crib probe (reachable + valid key + mode wired):
 
@@ -161,8 +161,9 @@ live `--preflight-only` crib probe (reachable + valid key + mode wired):
 | `qwen/qwen3.6-flash` | reasoning | larger token budget + lenient crib |
 | `nvidia/nemotron-3-nano-30b-a3b` | reasoning | |
 | `nvidia/nemotron-3-super-120b-a12b` | reasoning | |
-| `meta-llama/llama-4-scout` | standard | |
-| `meta-llama/llama-4-maverick` | standard | |
+| `meta-llama/llama-4-scout` | multimodal | text path only |
+| `meta-llama/llama-4-maverick` | multimodal | text path only |
+| `openai/gpt-oss-120b` | reasoning | larger token budget + lenient crib |
 
 "Reliably evaluable" means the harness can drive it, not that it scores well —
 preflight only proves reachability. Run `node eval/run.js --list-models` to

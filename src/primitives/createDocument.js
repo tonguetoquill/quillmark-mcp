@@ -68,6 +68,8 @@ export async function createDocument(quiver, engine, strategy, content) {
     };
   }
 
+  // The parse::missing_quill diagnostic check above doesn't catch everything:
+  // the parser can succeed yet still yield an empty quillRef, so re-check here.
   const quillRef = doc.quillRef;
   if (typeof quillRef !== 'string' || quillRef.trim() === '') {
     return { ok: false, message: MISSING_QUILL_MESSAGE };

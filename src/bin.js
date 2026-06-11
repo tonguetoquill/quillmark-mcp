@@ -62,18 +62,14 @@ function pick(cliValue, envValue, fallback) {
 }
 
 /**
- * Main CLI entry point with two paths:
+ * Main CLI entry point. Two paths:
  *
  * 1. `config <client>` — print a Claude Code / Codex config snippet (no side effects).
  * 2. Server start (default) — resolve the Quiver dir, build a `RenderAndHostStrategy`,
  *    and start the MCP server over stdio or streamable HTTP.
  *
- * Settings come from CLI flags first, then env vars, then defaults (see `pick`).
- * Server flags: `--quiver-dir`, `--output-dir`, `--base-url`, `--bind`, `--endpoint`,
- * `--stdio`. Their env fallbacks: `QUILLMARK_QUIVER_DIR` (`./quiver`),
- * `QUILLMARK_OUTPUT_DIR` (`.artifacts`), `QUILLMARK_BASE_URL` (auto), `QUILLMARK_BIND`
- * (`localhost:8080`), `QUILLMARK_ENDPOINT` (`/mcp`), `QUILLMARK_STDIO` (`1` forces stdio).
- * Config-subcommand flags: `--mode`, `--name`, `--url`, `--artifacts-dir`.
+ * Settings resolve as CLI flag > env var > default (see `pick`). The env fallbacks
+ * are the `QUILLMARK_*` vars documented in README's env-var table.
  *
  * `deps` injects every side-effectful dependency so `bin.test.js` can drive `main`
  * in-process without spawning a subprocess or touching the real filesystem.
