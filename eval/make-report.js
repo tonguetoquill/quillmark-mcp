@@ -45,7 +45,12 @@ function gridCell(cell) {
 }
 
 function build(records, dateStamp) {
-  const models = summarize(records).sort((a, b) => b.successRate - a.successRate);
+  // Rank by success, then break ties by cleaner success (more one-shot, fewer
+  // attempts) so a 4-way 100% tie still has a meaningful order.
+  const models = summarize(records).sort((a, b) =>
+    b.successRate - a.successRate
+    || b.oneShotRate - a.oneShotRate
+    || (a.attemptsMean ?? 99) - (b.attemptsMean ?? 99));
   const grid = summarizeByPrompt(records);
   const sysFail = systematicFailures(records);
 
@@ -148,11 +153,17 @@ function build(records, dateStamp) {
   L.push('');
   const best = models[0];
   const worst = models[models.length - 1];
+  const leaders = best ? models.filter((m) => m.successRate === best.successRate) : [];
   const meanSpecs = models.filter((m) => m.specsBeforeCreateRate != null);
   const avgSpecs = meanSpecs.length ? meanSpecs.reduce((a, m) => a + m.specsBeforeCreateRate, 0) / meanSpecs.length : null;
-  if (best) L.push(`- **Top model:** \`${best.model}\` at ${pct(best.successRate)} success (${pct(best.oneShotRate)} one-shot).`);
-  if (worst && worst !== best) L.push(`- **Weakest model:** \`${worst.model}\` at ${pct(worst.successRate)} success.`);
-  L.push(`- **Spec-before-create discipline:** fleet average ${pct(avgSpecs)} — ${avgSpecs >= 0.8 ? 'most models follow the prescribed flow' : 'a meaningful share skip get_spec and pay for it in retries'}.`);
+  if (best && leaders.length > 1) {
+    const names = leaders.map((m) => `\`${m.model}\``).join(', ');
+    L.push(`- **Top models:** ${leaders.length} tied at ${pct(best.successRate)} success — ${names}. Cleanest is \`${best.model}\` (${pct(best.oneShotRate)} one-shot, ${num(best.attemptsMean)} mean attempts).`);
+  } else if (best) {
+    L.push(`- **Top model:** \`${best.model}\` at ${pct(best.successRate)} success (${pct(best.oneShotRate)} one-shot).`);
+  }
+  if (worst && worst !== best) L.push(`- **Weakest model:** \`${worst.model}\` at ${pct(worst.successRate)} success (${worst.infraRate >= 0.5 ? 'mostly infra/truncation, not task failure' : 'genuine task failures'}).`);
+  L.push(`- **Spec-before-create discipline:** fleet average ${pct(avgSpecs)} — ${avgSpecs >= 0.999 ? 'every model calls get_spec before create_document' : avgSpecs >= 0.8 ? 'most models follow the prescribed flow' : 'a meaningful share skip get_spec and pay for it in retries'}.`);
   L.push(`- **Infra noise:** ${pct(infra / totalRuns)} of runs died outside the model's control (provider/harness); ${infra > 0 ? 'discount those when reading model scores' : 'the grid is clean'}.`);
   if (sysFail.length) L.push(`- **Spec attention needed:** ${sysFail.length} prompt(s) failed across model families — see Systematic failures.`);
   L.push('');
