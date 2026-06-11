@@ -1,6 +1,7 @@
 import { Document } from '@quillmark/wasm';
 
 import { getErrorMessage } from '../errors.js';
+import { availableQuillsHint } from './availableQuillsHint.js';
 
 const MISSING_QUILL_MESSAGE = [
   '$quill: <name> is required in the root card-yaml block to select the Quill format.',
@@ -48,16 +49,6 @@ function annotateParseError(message) {
   return message;
 }
 
-function availableQuillsHint(quiver) {
-  try {
-    const names = typeof quiver?.quillNames === 'function' ? quiver.quillNames() : [];
-    if (!Array.isArray(names) || names.length === 0) return '';
-    return ` Available quills: ${names.join(', ')}. Drop the @version suffix to bind to the latest available version.`;
-  } catch {
-    return '';
-  }
-}
-
 export async function createDocument(quiver, engine, strategy, content) {
   if (typeof content !== 'string' || content.trim() === '') {
     return { ok: false, message: 'Content must be a non-empty string.' };
@@ -77,6 +68,8 @@ export async function createDocument(quiver, engine, strategy, content) {
     };
   }
 
+  // The parse::missing_quill diagnostic check above doesn't catch everything:
+  // the parser can succeed yet still yield an empty quillRef, so re-check here.
   const quillRef = doc.quillRef;
   if (typeof quillRef !== 'string' || quillRef.trim() === '') {
     return { ok: false, message: MISSING_QUILL_MESSAGE };

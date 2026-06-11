@@ -1,3 +1,0 @@
-[mcp_servers.quillmark]
-command = "docker"
-args = ["run", "-i", "--rm", "--user", "10001:10001", "--read-only", "--tmpfs", "/tmp", "--cap-drop=ALL", "--security-opt=no-new-privileges:true", "-v", "$HOME/.quillmark/artifacts:$HOME/.quillmark/artifacts", "-e", "QUILLMARK_OUTPUT_DIR=$HOME/.quillmark/artifacts", "-e", "QUILLMARK_BASE_URL=file://", "-e", "QUILLMARK_STDIO=1", "quillmark-mcp:dev", "--stdio"]
