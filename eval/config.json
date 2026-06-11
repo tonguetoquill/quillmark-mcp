@@ -92,6 +92,17 @@
       "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
       "temperature": 0,
       "maxTokens": 4096
+    },
+    {
+      "name": "openai/gpt-oss-120b",
+      "mode": "reasoning",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKeyEnv": "OPENROUTER_API_KEY",
+      "extraHeaders": { "HTTP-Referer": "https://github.com/tonguetoquill/quillmark-mcp", "X-Title": "quillmark-mcp eval" },
+      "extraBody": { "reasoning": { "effort": "low" } },
+      "temperature": 0,
+      "maxTokens": 8192,
+      "preflightMaxTokens": 2048
     }
   ]
 }

@@ -225,11 +225,17 @@ use env vars). The `eval/.gitignore` already excludes `config.json` and
 }
 ```
 
-All shipped prompts name the target quill explicitly. We're testing
-**flow ergonomics** — whether the model can correctly call the tools and
-recover from errors — not whether it picks the right quill from
-`list_quills` given a vague request. Add discovery prompts separately if
-that's interesting later.
+All shipped prompts are **explicit**: each opens with "Using the quillmark
+tools, render … with the `<quill>` quill" and names the target quill. We're
+testing **flow ergonomics** — whether the model can correctly drive
+`list_quills → get_spec → create_document` and recover from errors — not
+whether it spontaneously decides to use the system, nor whether it picks the
+right quill from `list_quills` given a vague request. A model that answers in
+prose instead of calling `create_document` is failing the stated task, not
+being probed on tool-volunteering; the shared system prompt in `run.js` also
+states plainly that calling `create_document` is the only way to complete the
+task. Add discovery / vague-request prompts separately if that's interesting
+later.
 
 ## JSONL record shape
 

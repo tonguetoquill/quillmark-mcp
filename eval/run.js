@@ -25,7 +25,10 @@ const MAX_TOOL_CALLS = 12;
 const MAX_CREATE_ATTEMPTS = 5;
 
 const SYSTEM_PROMPT = [
-  'You help a user generate a document using the available MCP tools.',
+  'You render documents using the available MCP tools (a system called Quillmark).',
+  'The ONLY way to complete the task is to call create_document — never reply with the',
+  'document as plain text. Writing the document in your message instead of calling the',
+  'tool is a failure.',
   'Workflow: list_quills (if you need to discover formats) -> get_spec for the chosen quill -> create_document.',
   'Always call get_spec before create_document so you know the required fields and YAML shape.',
   'Pass the full document body as the `content` argument to create_document.',

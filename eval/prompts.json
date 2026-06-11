@@ -2,41 +2,41 @@
   {
     "id": "memo",
     "quill": "usaf_memo",
-    "prompt": "Use the usaf_memo quill to render an Air Force memorandum from ACC/A3 to all wing commanders announcing a safety stand-down day on 4 July 2026. Sign as Col J. Smith, Director of Operations. Include one short paragraph explaining the reason (recent mishap trend) and one paragraph with required actions (commanders' calls and safety briefings by EOD)."
+    "prompt": "Using the quillmark tools, render an official Air Force memorandum with the usaf_memo quill. From ACC/A3 to all wing commanders, announcing a safety stand-down day on 4 July 2026. Sign as Col J. Smith, Director of Operations. Include one short paragraph explaining the reason (recent mishap trend) and one paragraph with required actions (commanders' calls and safety briefings by EOD)."
   },
   {
     "id": "memo_minimal",
     "quill": "usaf_memo",
-    "prompt": "Generate an Air Force memo using the usaf_memo quill. Subject: training quota update. From 50 SW/CC. To DISTRIBUTION. Three short paragraphs. Sign as Col J. Smith."
+    "prompt": "Using the quillmark tools, render an Air Force memo with the usaf_memo quill. Subject: training quota update. From 50 SW/CC. To DISTRIBUTION. Three short paragraphs. Sign as Col J. Smith."
   },
   {
     "id": "nyt",
     "quill": "nyt_news_article",
-    "prompt": "Render a NYT-style news article using the nyt_news_article quill. Headline: 'City Council Approves Long-Delayed Light Rail Expansion'. Byline: Maria Chen. Three paragraphs of plausible reporting. Dateline today."
+    "prompt": "Using the quillmark tools, render a NYT-style news article with the nyt_news_article quill. Headline: 'City Council Approves Long-Delayed Light Rail Expansion'. Byline: Maria Chen. Three paragraphs of plausible reporting. Dateline today."
   },
   {
     "id": "cnn",
     "quill": "cnn_news_article",
-    "prompt": "Use the cnn_news_article quill to render a breaking-news article about a (fictional) successful uncrewed lunar sample return mission. Provide a headline, byline, dateline, and 4-5 paragraphs."
+    "prompt": "Using the quillmark tools, render a breaking-news article with the cnn_news_article quill about a (fictional) successful uncrewed lunar sample return mission. Provide a headline, byline, dateline, and 4-5 paragraphs."
   },
   {
     "id": "static_analysis",
     "quill": "static_analysis_report",
-    "prompt": "Render a static analysis report (static_analysis_report quill) for a small Node.js service. Include 2-3 findings of varying severity with brief descriptions and remediation suggestions."
+    "prompt": "Using the quillmark tools, render a static analysis report with the static_analysis_report quill for a small Node.js service. Include 2-3 findings of varying severity with brief descriptions and remediation suggestions."
   },
   {
     "id": "x_post",
     "quill": "x_post",
-    "prompt": "Use the x_post quill to render a short X (Twitter) thread of 3 posts from a fictional user about debugging a flaky test. Light theme."
+    "prompt": "Using the quillmark tools, render a short X (Twitter) thread of 3 posts with the x_post quill, from a fictional user about debugging a flaky test. Light theme."
   },
   {
     "id": "discord",
     "quill": "discord_chat",
-    "prompt": "Use the discord_chat quill to render a short Discord conversation in a #general channel between three users planning a board-game night. 6-8 messages total. Dark theme."
+    "prompt": "Using the quillmark tools, render a short Discord conversation with the discord_chat quill: a #general channel chat between three users planning a board-game night, 6-8 messages total. Dark theme."
   },
   {
     "id": "intel_brief",
     "quill": "usaf_intel_brief",
-    "prompt": "Render a single-slide USAF intel briefing (usaf_intel_brief quill) summarizing a fictional INDOPACOM situation update. UNCLASSIFIED. Include a BLUF and 2-3 bullet points."
+    "prompt": "Using the quillmark tools, render a single-slide USAF intel briefing with the usaf_intel_brief quill summarizing a fictional INDOPACOM situation update. UNCLASSIFIED. Include a BLUF and 2-3 bullet points."
   }
 ]
