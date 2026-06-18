@@ -117,6 +117,31 @@ function toolResultText(result) {
 // plain instruct model.
 const isReasoning = (model) => model.mode === 'reasoning' || Boolean(model.extraBody?.reasoning);
 
+// The prescribed tool chain is: list_quills? -> get_spec -> create_document
+// (list_quills is optional discovery; the other two are required). A run
+// "follows the chain" when, restricted to these prescribed steps, the first
+// call to each ascends in this canonical order AND the required steps are
+// present. Returns null when the model never reached create_document — there's
+// no chain to judge — mirroring calledGetSpecsBeforeCreate so both metrics
+// share the same denominator (runs that actually attempted a create).
+const CHAIN_ORDER = ['list_quills', 'get_spec', 'create_document'];
+export function toolChainOrdered(toolSequence) {
+  if (!toolSequence.includes('create_document')) return null;
+  // First-occurrence index of each prescribed step the model actually used,
+  // kept in canonical order.
+  const seen = CHAIN_ORDER
+    .map((name) => [name, toolSequence.indexOf(name)])
+    .filter(([, i]) => i >= 0);
+  // get_spec is required (create_document presence is already guaranteed above).
+  if (!seen.some(([name]) => name === 'get_spec')) return false;
+  // First calls must ascend: any prescribed step called out of canonical order
+  // (e.g. create before spec, or spec before list_quills) breaks the chain.
+  for (let k = 1; k < seen.length; k += 1) {
+    if (seen[k][1] < seen[k - 1][1]) return false;
+  }
+  return true;
+}
+
 function categorizeError(errorText) {
   if (!errorText) return 'unknown';
   const t = errorText.toLowerCase();
@@ -366,6 +391,7 @@ export async function runOne({ model, prompt, trial, mcp, openaiTools, limits, m
     toolCallCount,
     toolSequence,
     calledGetSpecsBeforeCreate,
+    toolChainOrdered: toolChainOrdered(toolSequence),
     errors,
     errorCategories: [...new Set(errors.map((e) => e.category).filter(Boolean))],
     renderedUrl,

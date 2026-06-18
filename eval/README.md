@@ -253,6 +253,7 @@ One record per run, written to `eval/results/<ts>__<model>.jsonl`:
   "toolCallCount": 4,
   "toolSequence": ["list_quills", "get_spec", "create_document", "create_document"],
   "calledGetSpecsBeforeCreate": true,
+  "toolChainOrdered": true,
   "errors": [
     { "attempt": 3, "tool": "create_document", "category": "schema_missing_field", "message": "..." }
   ],
@@ -270,6 +271,17 @@ model_stopped_without_success, provider_error, no_assistant_message,
 output_truncated}`. `output_truncated` (model hit the token cap before emitting
 a tool call — common when a reasoning model's budget is too low) classifies as
 `infra`, not a model failure.
+
+`calledGetSpecsBeforeCreate` and `toolChainOrdered` both judge tool-call
+discipline and are `null` when the model never reached `create_document` (no
+chain to grade). `calledGetSpecsBeforeCreate` is the narrow check — did
+`get_spec` precede the first `create_document`. `toolChainOrdered` is the
+stricter one — did the model drive the whole prescribed chain
+(`list_quills?` → `get_spec` → `create_document`) in order: `get_spec` present,
+the first call to each prescribed step ascending in canonical order, and
+`list_quills` (if used) before `get_spec`. A model that lists quills *after*
+fetching the spec, or jumps straight to `create_document`, is `false` here even
+if it eventually succeeds.
 
 Error categories (regex over diagnostic text in `createDocument`):
 
@@ -299,6 +311,11 @@ mock://happy-path                      16   100.0%   1.00     1.00    1.00   100
 - `specs1st` — fraction of runs that called `get_spec` before
   `create_document`. Low values suggest models are jumping straight to
   `create_document` and failing
+- `chain` — fraction of runs that drove the whole `list_quills? → get_spec →
+  create_document` chain in the prescribed order (of runs that reached
+  `create_document`). Stricter than `specs1st`: it also catches out-of-order
+  discovery (e.g. `list_quills` after `get_spec`). A gap between `specs1st` and
+  `chain` localizes *where* models break sequence
 - `self-corr` — fraction of successful runs that needed >1 attempt.
   High values mean the diagnostic UX is doing real work
 - `errorCategories` — count of distinct categories per model. Tells you
