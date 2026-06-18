@@ -85,13 +85,16 @@ function build(records, dateStamp) {
   L.push('');
   L.push('Sorted by success rate. `att` = mean/max create_document attempts to success.');
   L.push('`specs1st` = fraction that called `get_spec` before `create_document`.');
-  L.push('`1-shot` = succeeded on first create attempt. `self-corr` = of successes,');
-  L.push('fraction needing >1 attempt (diagnostics doing real work).');
+  L.push('`chain` = fraction that drove the whole `list_quills? → get_spec →');
+  L.push('create_document` chain in the prescribed order (of runs that reached');
+  L.push('create_document). `1-shot` = succeeded on first create attempt.');
+  L.push('`self-corr` = of successes, fraction needing >1 attempt (diagnostics doing');
+  L.push('real work).');
   L.push('');
-  L.push('| Model | n | success | llm-fail | infra | att | specs1st | 1-shot | self-corr | tools | tokens | time |');
-  L.push('|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|');
+  L.push('| Model | n | success | llm-fail | infra | att | specs1st | chain | 1-shot | self-corr | tools | tokens | time |');
+  L.push('|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|');
   for (const m of models) {
-    L.push(`| \`${m.model}\` | ${m.total} | ${pct(m.successRate)} | ${pct(m.llmRate)} | ${pct(m.infraRate)} | ${num(m.attemptsMean)}/${m.attemptsMax ?? '—'} | ${pct(m.specsBeforeCreateRate)} | ${pct(m.oneShotRate)} | ${pct(m.selfCorrectionRate)} | ${num(m.meanToolCalls)} | ${tok(m.meanTokens)} | ${dur(m.meanDurationMs)} |`);
+    L.push(`| \`${m.model}\` | ${m.total} | ${pct(m.successRate)} | ${pct(m.llmRate)} | ${pct(m.infraRate)} | ${num(m.attemptsMean)}/${m.attemptsMax ?? '—'} | ${pct(m.specsBeforeCreateRate)} | ${pct(m.toolChainRate)} | ${pct(m.oneShotRate)} | ${pct(m.selfCorrectionRate)} | ${num(m.meanToolCalls)} | ${tok(m.meanTokens)} | ${dur(m.meanDurationMs)} |`);
   }
   L.push('');
   L.push('### Per-model error & termination breakdown');
@@ -156,6 +159,8 @@ function build(records, dateStamp) {
   const leaders = best ? models.filter((m) => m.successRate === best.successRate) : [];
   const meanSpecs = models.filter((m) => m.specsBeforeCreateRate != null);
   const avgSpecs = meanSpecs.length ? meanSpecs.reduce((a, m) => a + m.specsBeforeCreateRate, 0) / meanSpecs.length : null;
+  const meanChain = models.filter((m) => m.toolChainRate != null);
+  const avgChain = meanChain.length ? meanChain.reduce((a, m) => a + m.toolChainRate, 0) / meanChain.length : null;
   if (best && leaders.length > 1) {
     const names = leaders.map((m) => `\`${m.model}\``).join(', ');
     L.push(`- **Top models:** ${leaders.length} tied at ${pct(best.successRate)} success — ${names}. Cleanest is \`${best.model}\` (${pct(best.oneShotRate)} one-shot, ${num(best.attemptsMean)} mean attempts).`);
@@ -164,6 +169,7 @@ function build(records, dateStamp) {
   }
   if (worst && worst !== best) L.push(`- **Weakest model:** \`${worst.model}\` at ${pct(worst.successRate)} success (${worst.infraRate >= 0.5 ? 'mostly infra/truncation, not task failure' : 'genuine task failures'}).`);
   L.push(`- **Spec-before-create discipline:** fleet average ${pct(avgSpecs)} — ${avgSpecs >= 0.999 ? 'every model calls get_spec before create_document' : avgSpecs >= 0.8 ? 'most models follow the prescribed flow' : 'a meaningful share skip get_spec and pay for it in retries'}.`);
+  L.push(`- **Tool-chain order:** fleet average ${pct(avgChain)} drove the full \`list_quills? → get_spec → create_document\` chain in order — ${avgChain >= 0.999 ? 'no model called tools out of sequence' : avgChain >= 0.8 ? 'most kept the steps in order' : 'a meaningful share called tools out of order before landing a create'}.`);
   L.push(`- **Infra noise:** ${pct(infra / totalRuns)} of runs died outside the model's control (provider/harness); ${infra > 0 ? 'discount those when reading model scores' : 'the grid is clean'}.`);
   if (sysFail.length) L.push(`- **Spec attention needed:** ${sysFail.length} prompt(s) failed across model families — see Systematic failures.`);
   L.push('');

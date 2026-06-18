@@ -67,6 +67,8 @@ export function summarize(records) {
     const attemptCounts = successes.map((r) => r.createAttempts).sort((a, b) => a - b);
     const calledSpecs = runs.filter((r) => r.calledGetSpecsBeforeCreate === true).length;
     const sawCreate = runs.filter((r) => r.calledGetSpecsBeforeCreate !== null).length;
+    const chainOk = runs.filter((r) => r.toolChainOrdered === true).length;
+    const sawChain = runs.filter((r) => r.toolChainOrdered != null).length;
     const oneShot = successes.filter((r) => r.createAttempts === 1).length;
     const selfCorrected = successes.filter((r) => r.createAttempts > 1).length;
     const errorTally = new Map();
@@ -91,6 +93,7 @@ export function summarize(records) {
       attemptsP90: quantile(attemptCounts, 0.9),
       attemptsMax: attemptCounts.at(-1) ?? null,
       specsBeforeCreateRate: sawCreate ? calledSpecs / sawCreate : null,
+      toolChainRate: sawChain ? chainOk / sawChain : null,
       oneShotRate: oneShot / total,
       selfCorrectionRate: successes.length ? selfCorrected / successes.length : null,
       meanToolCalls: runs.reduce((a, r) => a + (r.toolCallCount ?? 0), 0) / total,
@@ -194,6 +197,7 @@ export function renderModelTable(rows) {
     { h: 'llm-err',  w:  7, p: lpad },
     { h: 'att',      w:  6, p: lpad },
     { h: 'specs1st', w:  8, p: lpad },
+    { h: 'chain',    w:  6, p: lpad },
     { h: '1-shot',   w:  6, p: lpad },
     { h: 'tools',    w:  5, p: lpad },
     { h: 'tokens',   w:  6, p: lpad },
@@ -214,6 +218,7 @@ export function renderModelTable(rows) {
       colorPct(r.llmRate, { invert: true }),
       fmtAtt(r.attemptsMean, r.attemptsMax),
       colorPct(r.specsBeforeCreateRate),
+      colorPct(r.toolChainRate),
       colorPct(r.oneShotRate),
       fmtNum(r.meanToolCalls, 1),
       fmtTokens(r.meanTokens),

@@ -50,6 +50,7 @@ describe('eval mode wiring (runOne)', () => {
     assert.equal(rec.success, true);
     assert.deepEqual(rec.toolSequence, ['get_spec', 'create_document']);
     assert.equal(rec.calledGetSpecsBeforeCreate, true);
+    assert.equal(rec.toolChainOrdered, true);
     assert.equal(rec.terminationReason, 'completed');
     assert.equal(rec.renderedUrl, 'http://x/out.pdf');
     assert.equal(classifyOutcome(rec), 'success');
