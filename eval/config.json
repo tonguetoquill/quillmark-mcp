@@ -103,6 +103,33 @@
       "temperature": 0,
       "maxTokens": 8192,
       "preflightMaxTokens": 2048
+    },
+    {
+      "name": "gpt-5.4-mini",
+      "mode": "reasoning",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "maxTokensParam": "max_completion_tokens",
+      "maxTokens": 16384,
+      "preflightMaxTokens": 2048
+    },
+    {
+      "name": "gpt-5.4-nano",
+      "mode": "reasoning",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "maxTokensParam": "max_completion_tokens",
+      "maxTokens": 16384,
+      "preflightMaxTokens": 2048
+    },
+    {
+      "name": "gpt-5.5",
+      "mode": "reasoning",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "maxTokensParam": "max_completion_tokens",
+      "maxTokens": 16384,
+      "preflightMaxTokens": 2048
     }
   ]
 }

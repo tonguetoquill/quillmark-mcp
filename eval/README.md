@@ -148,9 +148,10 @@ Suggested workflow:
 
 ### Current fleet
 
-The shipped `config.json` holds 10 open-weight models on OpenRouter, each
-confirmed reliably evaluable — they support native tool calling and pass the
-live `--preflight-only` crib probe (reachable + valid key + mode wired):
+The shipped `config.json` holds 13 models — 10 open-weight on OpenRouter plus
+three hosted OpenAI models — each confirmed reliably evaluable: they support
+native tool calling and pass the live `--preflight-only` crib probe (reachable
++ valid key + mode wired):
 
 | Model | Mode | Notes |
 |---|---|---|
@@ -164,6 +165,16 @@ live `--preflight-only` crib probe (reachable + valid key + mode wired):
 | `meta-llama/llama-4-scout` | multimodal | text path only |
 | `meta-llama/llama-4-maverick` | multimodal | text path only |
 | `openai/gpt-oss-120b` | reasoning | larger token budget + lenient crib |
+| `gpt-5.4-mini` | reasoning | hosted OpenAI API; `max_completion_tokens`, default reasoning effort |
+| `gpt-5.4-nano` | reasoning | hosted OpenAI API; newest low-end OpenAI model |
+| `gpt-5.5` | reasoning | hosted OpenAI API; current flagship |
+
+> **GPT-5-family caveat.** On `/v1/chat/completions` these models reject
+> `reasoning_effort` whenever function tools are present (the API steers you to
+> `/v1/responses`), so the config omits it and lets the model use its default
+> effort. They also require `max_completion_tokens` (set via `maxTokensParam`)
+> and reject a non-default `temperature`, so `temperature` is left unset. The
+> OpenAI entries read `OPENAI_API_KEY`.
 
 "Reliably evaluable" means the harness can drive it, not that it scores well —
 preflight only proves reachability. Run `node eval/run.js --list-models` to
