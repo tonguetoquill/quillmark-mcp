@@ -60,7 +60,7 @@ rebuilt afterwards by pointing `report.js` at the results dir.
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `-j, --jobs N` | `1` | Models to run in parallel (default sequential) |
+| `-j, --jobs N` | `4` | Models to run in parallel (pass `1` for sequential) |
 | *(any run.js flag)* | — | Forwarded verbatim to each per-model run |
 
 Everything else is hard-coded for KISS:
@@ -84,7 +84,9 @@ two levels of parallelism keep things quick without much complexity:
   limits, ~2x faster than serial. The single MCP client is shared across these
   (JSON-RPC ids match responses to requests, so concurrent `callTool`s are safe).
 - **Across models** — `-j N` (run-all.sh) runs up to N models' processes at
-  once. Default 1 (sequential) for clean, non-interleaved logs.
+  once. Default 4: a good speed/throughput balance across providers. The logs
+  interleave at this setting, so per-model result files (not stdout) are the
+  source of truth; pass `-j 1` when you want clean sequential logs.
 
 Dial either up if your providers can take it, or down to `1` when chasing a
 flaky provider or diffing against a baseline. If you see runs failing with
