@@ -4,13 +4,14 @@
 // systematic failures) performance. Reuses the aggregation logic in report.js
 // so the numbers match the live stdout report exactly.
 //
-//   node eval/make-report.js eval/results/*.jsonl            # -> eval/REPORT-<date>.md
+//   node eval/make-report.js eval/results/*.jsonl            # -> eval/reports/REPORT-<date>.md
 //   node eval/make-report.js --out FILE eval/results/*.jsonl
 //
-// The date stamp comes from the latest run timestamp in the data (falling back
-// to today) so the filename reflects when the fleet was actually evaluated.
+// Reports are canonically written to eval/reports/ (created on demand). The
+// date stamp comes from the latest run timestamp in the data (falling back to
+// today) so the filename reflects when the fleet was actually evaluated.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -198,7 +199,8 @@ function main() {
   const dateStamp = (stamps.at(-1) ?? new Date().toISOString()).slice(0, 10);
 
   const md = build(records, dateStamp);
-  const out = values.out ?? path.join(HERE, `REPORT-${dateStamp}.md`);
+  const out = values.out ?? path.join(HERE, 'reports', `REPORT-${dateStamp}.md`);
+  mkdirSync(path.dirname(out), { recursive: true });
   writeFileSync(out, md);
   console.error(`[make-report] wrote ${out} (${records.length} records, ${stamps.length ? 'data date ' + dateStamp : 'today'})`);
 }
