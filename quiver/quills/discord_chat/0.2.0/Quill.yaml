@@ -64,20 +64,14 @@ card_kinds:
         ui:
           group: Author
       is_bot:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Author
         description: Show the APP (or BOT in legacy theme) tag next to the username.
       is_verified_app:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Author
         description: Show a checkmark in the APP tag (verified application).
@@ -128,28 +122,19 @@ card_kinds:
           group: Engagement
         description: Comma-separated emoji:count pairs. Trailing * marks viewer's own reaction.
       edited:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Message
         description: Show (edited) after the message body.
       pinned:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Message
       group_with_previous:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Message
         description: Hide avatar and username (same author as previous message within ~7 min).

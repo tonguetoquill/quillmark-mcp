@@ -7,7 +7,7 @@
 #header-bar(category: data.category)
 
 // 2. BREAKING NEWS BANNER (optional)
-#if data.at("breaking_news", default: "false") == "true" {
+#if data.at("breaking_news", default: false) == true {
   breaking-banner()
 }
 

@@ -46,14 +46,11 @@ card_kinds:
           group: Author
         description: X handle without the @ prefix.
       verified:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Author
-        description: Set to "true" to show a verified checkmark.
+        description: Set to true to show a verified checkmark.
       verified_type:
         type: string
         default: blue
@@ -134,11 +131,8 @@ card_kinds:
           group: Post
         description: Text of a Community Note rendered as a rounded card above the engagement bar. Leave empty to omit.
       pinned:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Post
         description: Show a "📌 Pinned" indicator above the post.
@@ -168,11 +162,8 @@ card_kinds:
         ui:
           group: Author
       verified:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Author
       verified_type:
@@ -253,11 +244,8 @@ card_kinds:
         ui:
           group: Author
       verified:
-        type: string
-        default: 'false'
-        enum:
-        - 'true'
-        - 'false'
+        type: boolean
+        default: false
         ui:
           group: Author
       verified_type:
