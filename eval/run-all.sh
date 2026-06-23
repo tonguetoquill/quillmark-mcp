@@ -58,7 +58,10 @@ else
   for name in "${MODELS[@]}"; do
     run_one "$name" "${ARGS[@]}" &
     pids+=("$!")
-    while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n; done
+    # `|| true`: a finished model's non-zero exit must not trip `set -e` and
+    # abort the whole sweep — per-model failures are captured by the final
+    # reap loop (`wait "$p" || rc=1`). Without this, one bad run kills the rest.
+    while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n || true; done
   done
   for p in "${pids[@]}"; do wait "$p" || rc=1; done
 fi

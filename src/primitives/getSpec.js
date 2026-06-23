@@ -1,20 +1,19 @@
+import { Document } from '@quillmark/wasm';
+
 import { availableQuillsHint } from './availableQuillsHint.js';
 
-const FORMAT_RULES = [
-  'Document format rules (read carefully — small LLMs frequently fail on these):',
-  '• Metadata blocks use `~~~card-yaml` as the opener and `~~~` as the closer. Do NOT use `---` YAML frontmatter.',
-  '• The closer is EXACTLY `~~~` (three tildes, no info string). Do NOT write `~~~card-yaml` as the closer.',
-  '• A blank line is required before every `~~~card-yaml` opener (except when it is the first line of the document).',
-  '• The first block is the root and MUST contain `$quill: <name>@<version>` and `$kind: main`. Copy these two lines verbatim from the blueprint — never omit, rename, or reword them, or the document cannot be matched to a quill.',
-  '• Reserved `$`-keys: `$quill`, `$kind`, `$id`, `$ext`. User fields use lowercase snake_case.',
-  '• Additional `~~~card-yaml` blocks declare composable cards via `$kind: <card_kind>`.',
-  '• Prose body is the text after a block\'s closing `~~~`, before the next opener or EOF.',
-  '• Fields whose value is `!must_fill` are unfilled — replace the whole marker with a real value (including any suggested value shown after it, e.g. `subject: !must_fill Subject of the Memorandum`). Never leave a `!must_fill` marker in the document you submit.',
-  '• Fields that already show a concrete value (e.g. `letterhead_title: DEPARTMENT OF THE AIR FORCE`) are pre-filled defaults; keep them unless the request calls for a change.',
-  '• A trailing `# ...` on a value line is a comment: `# string` / `# array<string>` is the field type, `# e.g. ...` is a suggestion. Comments are ignored — do not turn them into values.',
-  '• For an optional field you do not need, OMIT the line entirely (delete it) — do not write `field: null` or leave a `!must_fill` marker.',
-  '• Respect field types: numbers unquoted (`word_count: 42`), booleans unquoted (`pinned: true`),',
-  '  strings as plain scalars or quoted. Quoting a number turns it into a string and will fail validation.',
+// MCP-specific notes layered on top of core's canonical guidance. Core owns the
+// authoring header (`Document.blueprintInstruction`) and the format invariants
+// (`Document.formatRules()` ← `quillmark_core::document::FORMAT_RULES`); we add
+// only what core's invariant set intentionally leaves out: an explicit
+// anti-pattern, a model-behavior nudge, and how to read the blueprint's inline
+// comments. Keeping the rules in core is the single source of truth — they
+// can't drift here the way a hand-copied block did.
+const MCP_NOTES = [
+  'A few more pointers for this interface:',
+  '• Do NOT use `---` YAML frontmatter — the only metadata syntax is the `~~~` card-yaml block.',
+  '• Copy the `$quill` and `$kind` lines verbatim from the blueprint; never omit, rename, or reword them, or the document cannot be matched to a quill.',
+  '• In the blueprint, a trailing `# ...` on a value line is a hint (`# string`, `# e.g. ...`), not data — do not turn it into a value.',
 ].join('\n');
 
 export async function getSpec(quiver, engine, quill) {
@@ -32,9 +31,11 @@ export async function getSpec(quiver, engine, quill) {
 
   const blueprint = typeof resolved?.blueprint === 'string' ? resolved.blueprint : '';
   const instruction = [
-    `The blueprint below is a ready-to-edit template for the \`${quill}\` quill. Copy it verbatim, replace every \`!must_fill\` marker with a real value, edit the body prose, and pass the whole string as \`content\` to \`create_document\`.`,
+    Document.blueprintInstruction(quill),
     '',
-    FORMAT_RULES,
+    Document.formatRules(),
+    '',
+    MCP_NOTES,
   ].join('\n');
 
   return { instruction, blueprint };

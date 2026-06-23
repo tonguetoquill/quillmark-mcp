@@ -1,7 +1,13 @@
-import { describe, it } from 'node:test';
+import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { init } from '@quillmark/wasm';
+
 import { getSpec } from '../../src/primitives/getSpec.js';
+
+// getSpec sources its instruction header and format rules from core via the
+// wasm `Document` statics, so the module must be initialized before any call.
+before(() => init());
 
 const STUB_ENGINE = {};
 
