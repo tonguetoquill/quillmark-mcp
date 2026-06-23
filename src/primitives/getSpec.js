@@ -5,7 +5,7 @@ const FORMAT_RULES = [
   '• Metadata blocks use `~~~card-yaml` as the opener and `~~~` as the closer. Do NOT use `---` YAML frontmatter.',
   '• The closer is EXACTLY `~~~` (three tildes, no info string). Do NOT write `~~~card-yaml` as the closer.',
   '• A blank line is required before every `~~~card-yaml` opener (except when it is the first line of the document).',
-  '• The first block is the root and MUST contain `$quill: <name>@<version>` and `$kind: main`.',
+  '• The first block is the root and MUST contain `$quill: <name>@<version>` and `$kind: main`. Copy these two lines verbatim from the blueprint — never omit, rename, or reword them, or the document cannot be matched to a quill.',
   '• Reserved `$`-keys: `$quill`, `$kind`, `$id`, `$ext`. User fields use lowercase snake_case.',
   '• Additional `~~~card-yaml` blocks declare composable cards via `$kind: <card_kind>`.',
   '• Prose body is the text after a block\'s closing `~~~`, before the next opener or EOF.',
