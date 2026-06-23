@@ -148,7 +148,7 @@ Suggested workflow:
 
 ### Current fleet
 
-The shipped `config.json` holds 13 models — 10 open-weight on OpenRouter plus
+The shipped `config.json` holds 12 models — 9 open-weight on OpenRouter plus
 three hosted OpenAI models — each confirmed reliably evaluable: they support
 native tool calling and pass the live `--preflight-only` crib probe (reachable
 + valid key + mode wired):
@@ -160,7 +160,6 @@ native tool calling and pass the live `--preflight-only` crib probe (reachable
 | `mistralai/ministral-8b-2512` | standard | |
 | `mistralai/ministral-3b-2512` | standard | weakest in spot runs (~25% success) |
 | `qwen/qwen3.6-flash` | reasoning | larger token budget + lenient crib |
-| `nvidia/nemotron-3-nano-30b-a3b` | reasoning | |
 | `nvidia/nemotron-3-super-120b-a12b` | reasoning | |
 | `meta-llama/llama-4-scout` | multimodal | text path only |
 | `meta-llama/llama-4-maverick` | multimodal | text path only |
