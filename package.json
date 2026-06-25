@@ -49,7 +49,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@quillmark/quiver": "^0.15.0",
-    "@quillmark/wasm": "^0.90.0",
+    "@quillmark/wasm": "^0.92.1",
     "loglevel": "^1.9.1"
   }
 }
