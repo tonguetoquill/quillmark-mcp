@@ -69,16 +69,28 @@
 
 // ─── BODY RENDERING ────────────────────────────────────────────────────────
 //
-// Authors write message body_md as a string. We transform Discord sentinels
-// ({@user}, {#channel}, {@everyone}, {spoiler:...}) into Typst show-rule-
-// compatible markers, then hand off to `eval(...)` with markup mode so
-// markdown-style **bold**, *italic*, `code`, and code blocks work natively.
+// Authors write message body_md as a plain string (Quill.yaml declares it
+// `type: string`, so Quillmark injects it verbatim as data — it never passes
+// through core's markup escaping). The body supports a small set of
+// affordances: Discord sentinels ({@user}, {#channel}, {@everyone},
+// {spoiler:...}, ||...||), inline `code`, fenced ```code blocks```, and
+// markdown-ish **bold** / *italic*.
+//
+// We still lean on Typst's markup parser (via `eval(mode: "markup")`) to render
+// the bold/italic affordances, but message content must NOT be able to execute
+// as Typst code. So any Typst-significant character in author text (`#`, `@`,
+// `<`, `>`, `$`, brackets, braces, backslash) is escaped before it reaches
+// eval; a literal `#general` or `@alice` renders as text instead of crashing
+// the document with "unknown variable" / "unclosed label".
 //
 // Pipeline:
 //   1. Split on triple-backtick code fences → render fenced blocks verbatim.
-//   2. For inline parts, replace sentinels with Typst function-call text.
-//   3. eval(part, mode: "markup", scope: (mention: ..., spoiler: ...))
-//      so Typst parses markdown-ish inline markup and resolves our helpers.
+//   2. For each inline segment, tokenize into sentinel / inline-code / plain
+//      runs in one pass, then assemble a single markup string where plain runs
+//      are escaped and sentinels/code become explicit calls (`#mention(...)`,
+//      `#spoiler("...")`, `#raw("...")`).
+//   3. eval(assembled, mode: "markup", scope: (mention, spoiler)) — one eval
+//      per segment so inline markup spanning a sentinel still renders.
 
 #let message-body(raw-body, theme: "dark") = {
   let t = theme-of(theme)
@@ -88,31 +100,76 @@
   let eval-scope = (
     mention: label => mention-pill(label, theme: theme),
     spoiler: label => spoiler(label, theme: theme),
-    code: label => box(
-      inset: (x: 3pt, y: 1pt),
-      radius: 2pt,
-      fill: t.code-bg,
-      baseline: 1pt,
-      text(font: config.mono-font, size: 8.5pt, fill: t.code-text, label),
-    ),
   )
 
-  // Pre-process sentinels into Typst function calls. Order matters:
-  //   {@everyone} and {@here} first (specific before general)
-  //   {@user}    → #mention("@user")
-  //   {#channel} → #mention("#channel")
-  //   {spoiler:text} → #spoiler("text")
-  //   ||text||   → #spoiler("text")
-  //   `inline`   → kept, rendered natively by markup as raw; but we override
-  //                with our code helper via a replace.
-  //
-  // We emit Typst markup (not code-mode), so mention/spoiler calls use
-  // `#func(...)`. Our eval scope wires those to the theme-aware helpers.
-  //
-  // We handle code fences ```lang\n...``` as whole-block substitutions prior
-  // to inline processing so backticks inside code don't leak into inline pass.
+  // Escape Typst-significant characters so author text is rendered as text, not
+  // executed as code. Backslash first to avoid double-escaping. Markdown
+  // affordances (* _ `) are deliberately left intact — bold/italic still parse,
+  // and inline code is extracted before this runs so its content is untouched.
+  let escape-markup = seg => {
+    seg = seg.replace("\\", "\\\\")
+    for ch in ("#", "@", "<", ">", "$", "[", "]", "{", "}") {
+      seg = seg.replace(ch, "\\" + ch)
+    }
+    seg
+  }
 
-  // Step 1: split on ```
+  // Encode a value as a Typst string literal for use inside emitted calls.
+  let str-lit = v => "\"" + v
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+    .replace("\n", "\\n")
+    .replace("\r", "\\r") + "\""
+
+  // Turn one extracted token into the Typst code that renders it. Sentinel and
+  // code content goes into string literals (never markup), so it can't inject.
+  let token-code = tok => {
+    if tok.starts-with("{@") {
+      "#mention(" + str-lit("@" + tok.slice(2, tok.len() - 1)) + ")"
+    } else if tok.starts-with("{#") {
+      "#mention(" + str-lit("#" + tok.slice(2, tok.len() - 1)) + ")"
+    } else if tok.starts-with("{spoiler:") {
+      "#spoiler(" + str-lit(tok.slice(9, tok.len() - 1)) + ")"
+    } else if tok.starts-with("||") {
+      "#spoiler(" + str-lit(tok.slice(2, tok.len() - 2)) + ")"
+    } else {
+      // Inline `code` span.
+      "#raw(" + str-lit(tok.slice(1, tok.len() - 1)) + ")"
+    }
+  }
+
+  // Matches every extractable token: Discord sentinels and inline code spans.
+  // {@everyone}/{@here} are covered by the general {@name} alternative.
+  let token-re = regex(
+    "\\{@[A-Za-z0-9_.]+\\}"
+      + "|\\{#[A-Za-z0-9_-]+\\}"
+      + "|\\{spoiler:[^}]+\\}"
+      + "|\\|\\|[^|\\n]+\\|\\|"
+      + "|`[^`\\n]+`",
+  )
+
+  // Assemble a single markup string for one inline segment: escape plain text,
+  // emit explicit calls for tokens. One eval keeps markup spans (e.g. a bold
+  // run wrapping a mention) intact.
+  let render-inline = seg => {
+    let buf = ""
+    let cursor = 0
+    for m in seg.matches(token-re) {
+      if m.start > cursor {
+        buf = buf + escape-markup(seg.slice(cursor, m.start))
+      }
+      buf = buf + token-code(m.text)
+      cursor = m.end
+    }
+    if cursor < seg.len() {
+      buf = buf + escape-markup(seg.slice(cursor))
+    }
+    eval(buf, mode: "markup", scope: eval-scope)
+  }
+
+  // Step 1: split on ```. We handle fenced ```lang\n...``` blocks as whole-block
+  // substitutions before inline processing so backticks inside fenced code
+  // don't leak into the inline pass.
   let parts = s.split("```")
   let out-blocks = ()
   let in-code = false
@@ -141,32 +198,7 @@
         #raw(body.trim("\n"))
       ])
     } else {
-      // Inline segment — substitute sentinels, then eval as markup.
-      let inline = part
-      // Sentinel substitutions — use unique unlikely ASCII marker sequences so
-      // we don't accidentally collide with normal text.
-      inline = inline.replace(
-        regex("\\{@(everyone|here)\\}"),
-        m => "#mention(\"@" + m.captures.at(0) + "\")",
-      )
-      inline = inline.replace(
-        regex("\\{@([A-Za-z0-9_\\.]+)\\}"),
-        m => "#mention(\"@" + m.captures.at(0) + "\")",
-      )
-      inline = inline.replace(
-        regex("\\{#([A-Za-z0-9_\\-]+)\\}"),
-        m => "#mention(\"#" + m.captures.at(0) + "\")",
-      )
-      inline = inline.replace(
-        regex("\\{spoiler:([^}]+)\\}"),
-        m => "#spoiler(\"" + m.captures.at(0).replace("\"", "\\\"") + "\")",
-      )
-      inline = inline.replace(
-        regex("\\|\\|([^|\\n]+)\\|\\|"),
-        m => "#spoiler(\"" + m.captures.at(0).replace("\"", "\\\"") + "\")",
-      )
-      // eval as markup; wrap in a scope so helpers resolve.
-      out-blocks.push(eval(inline, mode: "markup", scope: eval-scope))
+      out-blocks.push(render-inline(part))
     }
     in-code = not in-code
   }
