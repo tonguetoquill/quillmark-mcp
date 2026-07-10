@@ -60,7 +60,7 @@ rebuilt afterwards by pointing `report.js` at the results dir.
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `-j, --jobs N` | `1` | Models to run in parallel (default sequential) |
+| `-j, --jobs N` | `4` | Models to run in parallel (pass `1` for sequential) |
 | *(any run.js flag)* | — | Forwarded verbatim to each per-model run |
 
 Everything else is hard-coded for KISS:
@@ -84,7 +84,9 @@ two levels of parallelism keep things quick without much complexity:
   limits, ~2x faster than serial. The single MCP client is shared across these
   (JSON-RPC ids match responses to requests, so concurrent `callTool`s are safe).
 - **Across models** — `-j N` (run-all.sh) runs up to N models' processes at
-  once. Default 1 (sequential) for clean, non-interleaved logs.
+  once. Default 4: a good speed/throughput balance across providers. The logs
+  interleave at this setting, so per-model result files (not stdout) are the
+  source of truth; pass `-j 1` when you want clean sequential logs.
 
 Dial either up if your providers can take it, or down to `1` when chasing a
 flaky provider or diffing against a baseline. If you see runs failing with
@@ -148,9 +150,10 @@ Suggested workflow:
 
 ### Current fleet
 
-The shipped `config.json` holds 10 open-weight models on OpenRouter, each
-confirmed reliably evaluable — they support native tool calling and pass the
-live `--preflight-only` crib probe (reachable + valid key + mode wired):
+The shipped `config.json` holds 12 models — 9 open-weight on OpenRouter plus
+three hosted OpenAI models — each confirmed reliably evaluable: they support
+native tool calling and pass the live `--preflight-only` crib probe (reachable
++ valid key + mode wired):
 
 | Model | Mode | Notes |
 |---|---|---|
@@ -159,11 +162,20 @@ live `--preflight-only` crib probe (reachable + valid key + mode wired):
 | `mistralai/ministral-8b-2512` | standard | |
 | `mistralai/ministral-3b-2512` | standard | weakest in spot runs (~25% success) |
 | `qwen/qwen3.6-flash` | reasoning | larger token budget + lenient crib |
-| `nvidia/nemotron-3-nano-30b-a3b` | reasoning | |
 | `nvidia/nemotron-3-super-120b-a12b` | reasoning | |
 | `meta-llama/llama-4-scout` | multimodal | text path only |
 | `meta-llama/llama-4-maverick` | multimodal | text path only |
 | `openai/gpt-oss-120b` | reasoning | larger token budget + lenient crib |
+| `gpt-5.4-mini` | reasoning | hosted OpenAI API; `max_completion_tokens`, default reasoning effort |
+| `gpt-5.4-nano` | reasoning | hosted OpenAI API; newest low-end OpenAI model |
+| `gpt-5.5` | reasoning | hosted OpenAI API; current flagship |
+
+> **GPT-5-family caveat.** On `/v1/chat/completions` these models reject
+> `reasoning_effort` whenever function tools are present (the API steers you to
+> `/v1/responses`), so the config omits it and lets the model use its default
+> effort. They also require `max_completion_tokens` (set via `maxTokensParam`)
+> and reject a non-default `temperature`, so `temperature` is left unset. The
+> OpenAI entries read `OPENAI_API_KEY`.
 
 "Reliably evaluable" means the harness can drive it, not that it scores well —
 preflight only proves reachability. Run `node eval/run.js --list-models` to

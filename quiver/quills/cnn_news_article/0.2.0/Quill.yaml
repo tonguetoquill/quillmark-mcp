@@ -68,14 +68,11 @@ main:
         group: Metadata
       description: Date of last update. Displayed as 'Updated' timestamp. Leave blank to omit.
     breaking_news:
-      type: string
-      default: 'false'
-      enum:
-      - 'true'
-      - 'false'
+      type: boolean
+      default: false
       ui:
         group: Article
-      description: Set to 'true' to display a red BREAKING NEWS banner above the headline.
+      description: Set to true to display a red BREAKING NEWS banner above the headline.
     summary:
       type: string
       default: ''

@@ -1,17 +1,19 @@
+import { Document } from '@quillmark/wasm';
+
 import { availableQuillsHint } from './availableQuillsHint.js';
 
-const FORMAT_RULES = [
-  'Document format rules (read carefully — small LLMs frequently fail on these):',
-  '• Metadata blocks use `~~~card-yaml` as the opener and `~~~` as the closer. Do NOT use `---` YAML frontmatter.',
-  '• The closer is EXACTLY `~~~` (three tildes, no info string). Do NOT write `~~~card-yaml` as the closer.',
-  '• A blank line is required before every `~~~card-yaml` opener (except when it is the first line of the document).',
-  '• The first block is the root and MUST contain `$quill: <name>@<version>` and `$kind: main`.',
-  '• Reserved `$`-keys: `$quill`, `$kind`, `$id`, `$ext`. User fields use lowercase snake_case.',
-  '• Additional `~~~card-yaml` blocks declare composable cards via `$kind: <card_kind>`.',
-  '• Prose body is the text after a block\'s closing `~~~`, before the next opener or EOF.',
-  '• For optional fields with no value, OMIT the line entirely — do not write `field: null`.',
-  '• Respect field types: numbers unquoted (`word_count: 42`), booleans unquoted (`pinned: true`),',
-  '  strings as plain scalars or quoted. Quoting a number turns it into a string and will fail validation.',
+// MCP-specific notes layered on top of core's canonical guidance. Core owns the
+// authoring header (`Document.blueprintInstruction`) and the format invariants
+// (`Document.formatRules()` ← `quillmark_core::document::FORMAT_RULES`); we add
+// only what core's invariant set intentionally leaves out: an explicit
+// anti-pattern, a model-behavior nudge, and how to read the blueprint's inline
+// comments. Keeping the rules in core is the single source of truth — they
+// can't drift here the way a hand-copied block did.
+const MCP_NOTES = [
+  'A few more pointers for this interface:',
+  '• Do NOT use `---` YAML frontmatter — the only metadata syntax is the `~~~` card-yaml block.',
+  '• Copy the `$quill` and `$kind` lines verbatim from the blueprint; never omit, rename, or reword them, or the document cannot be matched to a quill.',
+  '• In the blueprint, a trailing `# ...` on a value line is a hint (`# string`, `# e.g. ...`), not data — do not turn it into a value.',
 ].join('\n');
 
 export async function getSpec(quiver, engine, quill) {
@@ -29,9 +31,11 @@ export async function getSpec(quiver, engine, quill) {
 
   const blueprint = typeof resolved?.blueprint === 'string' ? resolved.blueprint : '';
   const instruction = [
-    `The blueprint below is a ready-to-edit template for the \`${quill}\` quill. Copy it verbatim, fill in every field marked \`required\`, edit the body prose, and pass the whole string as \`content\` to \`create_document\`.`,
+    Document.blueprintInstruction(quill),
     '',
-    FORMAT_RULES,
+    Document.formatRules(),
+    '',
+    MCP_NOTES,
   ].join('\n');
 
   return { instruction, blueprint };

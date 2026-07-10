@@ -10,7 +10,7 @@ RUN="$HERE/run.js"
 CONFIG="$HERE/config.json"
 [ -f "$CONFIG" ] || CONFIG="$HERE/config.example.json"
 
-JOBS=1
+JOBS=4
 ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -23,7 +23,7 @@ Usage: eval/run-all.sh [-j N] [run.js flags...]
 Runs \`node eval/run.js --model <name>\` for every model in $(basename "$CONFIG"),
 forwarding any extra flags (e.g. --trials 5, --preflight-only) to each run.
 
-  -j, --jobs N   Models to run in parallel [default: 1, i.e. sequential]
+  -j, --jobs N   Models to run in parallel [default: 4; pass 1 for sequential]
 
 Each model writes its own eval/results/<timestamp>__<model>.jsonl.
 Aggregate the whole fleet afterwards:
@@ -58,7 +58,10 @@ else
   for name in "${MODELS[@]}"; do
     run_one "$name" "${ARGS[@]}" &
     pids+=("$!")
-    while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n; done
+    # `|| true`: a finished model's non-zero exit must not trip `set -e` and
+    # abort the whole sweep — per-model failures are captured by the final
+    # reap loop (`wait "$p" || rc=1`). Without this, one bad run kills the rest.
+    while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n || true; done
   done
   for p in "${pids[@]}"; do wait "$p" || rc=1; done
 fi
